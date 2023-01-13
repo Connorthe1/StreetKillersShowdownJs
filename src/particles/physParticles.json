@@ -1,0 +1,60 @@
+{"frames": {
+
+"blood-0":
+{
+	"frame": {"x":1,"y":8,"w":7,"h":7},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":4,"y":5,"w":7,"h":7},
+	"sourceSize": {"w":16,"h":16}
+},
+"blood-1":
+{
+	"frame": {"x":1,"y":38,"w":10,"h":10},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":4,"y":3,"w":10,"h":10},
+	"sourceSize": {"w":16,"h":16}
+},
+"blood-2":
+{
+	"frame": {"x":1,"y":17,"w":10,"h":8},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":2,"y":3,"w":10,"h":8},
+	"sourceSize": {"w":16,"h":16}
+},
+"blood-3":
+{
+	"frame": {"x":1,"y":27,"w":9,"h":9},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":3,"y":3,"w":9,"h":9},
+	"sourceSize": {"w":16,"h":16}
+},
+"blood-4":
+{
+	"frame": {"x":4,"y":1,"w":5,"h":7},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":5,"y":3,"w":5,"h":7},
+	"sourceSize": {"w":16,"h":16}
+},
+"spark":
+{
+	"frame": {"x":1,"y":1,"w":1,"h":1},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":1,"h":1},
+	"sourceSize": {"w":1,"h":1}
+}},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "physParticles.png",
+	"format": "RGBA8888",
+	"size": {"w":12,"h":49},
+	"scale": "1",
+	"smartupdate": "$TexturePacker:SmartUpdate:0b39d44a02c2ff08ee019539a0755a97:a550f240b273a983096cdfce9bf40682:4100ab0f3f2524a59d2036a543f8efb4$"
+}
+}

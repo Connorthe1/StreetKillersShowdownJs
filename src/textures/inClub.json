@@ -1,0 +1,36 @@
+{"frames": {
+
+"inClub-0":
+{
+	"frame": {"x":1,"y":1,"w":60,"h":55},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":60,"h":55},
+	"sourceSize": {"w":60,"h":55}
+},
+"inClub-1":
+{
+	"frame": {"x":63,"y":1,"w":60,"h":55},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":60,"h":55},
+	"sourceSize": {"w":60,"h":55}
+},
+"inClub-2":
+{
+	"frame": {"x":125,"y":1,"w":60,"h":55},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":60,"h":55},
+	"sourceSize": {"w":60,"h":55}
+}},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "inClub.png",
+	"format": "RGBA8888",
+	"size": {"w":186,"h":57},
+	"scale": "1",
+	"smartupdate": "$TexturePacker:SmartUpdate:7c33668eda3040f17841a51a42aba389:fd96e2a24b38b0669c307c0e48d00cbc:cbe08e68da493c26d32e684293a822ce$"
+}
+}

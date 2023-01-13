@@ -1,0 +1,55 @@
+{"frames": {
+
+"bullet":
+{
+	"frame": {"x":37,"y":17,"w":16,"h":3},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":7,"w":16,"h":3},
+	"sourceSize": {"w":16,"h":16}
+},
+"detection":
+{
+	"frame": {"x":53,"y":1,"w":3,"h":12},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":3,"h":12},
+	"sourceSize": {"w":3,"h":12}
+},
+"shot-0.png":
+{
+	"frame": {"x":37,"y":1,"w":14,"h":14},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":1,"y":1,"w":14,"h":14},
+	"sourceSize": {"w":16,"h":16}
+},
+"shot-1.png":
+{
+	"frame": {"x":1,"y":1,"w":16,"h":16},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":16},
+	"sourceSize": {"w":16,"h":16}
+},
+"shot-2.png":
+{
+	"frame": {"x":19,"y":1,"w":16,"h":16},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":16},
+	"sourceSize": {"w":16,"h":16}
+}},
+"animations": {
+	"gunShot": ["shot-0.png","shot-1.png","shot-2.png"]
+},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "particles.png",
+	"format": "RGBA8888",
+	"size": {"w":57,"h":21},
+	"scale": "1",
+	"smartupdate": "$TexturePacker:SmartUpdate:99edb488b514b3a7583ef9de18a219c8:3e184989492f35a34de8bd1b2d86aeac:767f0aa26e08023d62afa20c0c952bea$"
+}
+}

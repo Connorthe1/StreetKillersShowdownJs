@@ -1,0 +1,262 @@
+{"frames": {
+
+"CharIdle-0.png":
+{
+	"frame": {"x":50,"y":60,"w":19,"h":25},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":5,"y":4,"w":19,"h":25},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharIdle-1.png":
+{
+	"frame": {"x":100,"y":1,"w":19,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":5,"y":5,"w":19,"h":24},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharIdle-2.png":
+{
+	"frame": {"x":51,"y":29,"w":19,"h":25},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":5,"y":4,"w":19,"h":25},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharIdle-3.png":
+{
+	"frame": {"x":50,"y":60,"w":19,"h":25},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":5,"y":4,"w":19,"h":25},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharReload-0.png":
+{
+	"frame": {"x":80,"y":83,"w":24,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":5,"y":5,"w":24,"h":24},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharReload-1.png":
+{
+	"frame": {"x":107,"y":105,"w":22,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":5,"y":6,"w":22,"h":23},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharReload-2.png":
+{
+	"frame": {"x":109,"y":27,"w":21,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":6,"w":21,"h":23},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharReload-3.png":
+{
+	"frame": {"x":106,"y":80,"w":23,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":6,"w":23,"h":23},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharReload-4.png":
+{
+	"frame": {"x":131,"y":1,"w":20,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":6,"w":20,"h":23},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharReload-5.png":
+{
+	"frame": {"x":82,"y":109,"w":18,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":8,"y":6,"w":18,"h":23},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharReload-6.png":
+{
+	"frame": {"x":132,"y":51,"w":18,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":8,"y":6,"w":18,"h":23},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharReload-7.png":
+{
+	"frame": {"x":132,"y":76,"w":18,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":8,"y":6,"w":18,"h":23},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharReload-8.png":
+{
+	"frame": {"x":107,"y":54,"w":22,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":6,"w":22,"h":23},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharReload-9.png":
+{
+	"frame": {"x":87,"y":28,"w":20,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":5,"w":20,"h":24},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharReload-10.png":
+{
+	"frame": {"x":28,"y":87,"w":20,"h":24},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":5,"w":20,"h":24},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharReload-11.png":
+{
+	"frame": {"x":54,"y":87,"w":20,"h":24},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":5,"w":20,"h":24},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharRoll-0.png":
+{
+	"frame": {"x":28,"y":1,"w":29,"h":16},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":11,"w":29,"h":16},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharRoll-1.png":
+{
+	"frame": {"x":132,"y":101,"w":22,"h":17},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":13,"w":22,"h":17},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharRoll-2.png":
+{
+	"frame": {"x":132,"y":26,"w":23,"h":19},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":13,"w":23,"h":19},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharRoll-3.png":
+{
+	"frame": {"x":88,"y":54,"w":24,"h":17},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":2,"y":13,"w":24,"h":17},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharRun-0.png":
+{
+	"frame": {"x":28,"y":60,"w":20,"h":25},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":4,"y":4,"w":20,"h":25},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharRun-1.png":
+{
+	"frame": {"x":1,"y":109,"w":18,"h":26},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":5,"y":4,"w":18,"h":26},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharRun-2.png":
+{
+	"frame": {"x":56,"y":109,"w":18,"h":24},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":4,"y":5,"w":18,"h":24},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharRun-3.png":
+{
+	"frame": {"x":72,"y":28,"w":13,"h":25},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":8,"y":5,"w":13,"h":25},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharRun-4.png":
+{
+	"frame": {"x":68,"y":1,"w":15,"h":25},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":5,"w":15,"h":25},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharRun-5.png":
+{
+	"frame": {"x":85,"y":1,"w":13,"h":25},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":8,"y":4,"w":13,"h":25},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharRun-6.png":
+{
+	"frame": {"x":71,"y":56,"w":15,"h":25},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":5,"w":15,"h":25},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharRun-7.png":
+{
+	"frame": {"x":29,"y":109,"w":18,"h":25},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":5,"y":5,"w":18,"h":25},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharShot-0.png":
+{
+	"frame": {"x":28,"y":32,"w":21,"h":26},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":8,"y":3,"w":21,"h":26},
+	"sourceSize": {"w":29,"h":32}
+},
+"CharShot-1.png":
+{
+	"frame": {"x":46,"y":1,"w":20,"h":26},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":8,"y":3,"w":20,"h":26},
+	"sourceSize": {"w":29,"h":32}
+}},
+"animations": {
+	"idle": ["CharIdle-0.png","CharIdle-1.png","CharIdle-2.png","CharIdle-3.png"],
+	"reload": ["CharReload-0.png","CharReload-1.png","CharReload-2.png","CharReload-3.png","CharReload-4.png","CharReload-5.png","CharReload-6.png","CharReload-7.png","CharReload-8.png","CharReload-9.png","CharReload-10.png","CharReload-11.png"],
+	"roll": ["CharRoll-0.png","CharRoll-1.png","CharRoll-2.png","CharRoll-3.png"],
+	"rollEnd": ["CharRoll-3.png"],
+	"run": ["CharRun-0.png","CharRun-1.png","CharRun-2.png","CharRun-3.png","CharRun-4.png","CharRun-5.png","CharRun-6.png","CharRun-7.png"],
+	"shot": ["CharShot-0.png","CharShot-1.png"],
+	"zipLine": ["CharRoll-1.png"]
+
+},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "character.png",
+	"format": "RGBA8888",
+	"size": {"w":152,"h":128},
+	"scale": "1",
+	"smartupdate": "$TexturePacker:SmartUpdate:cfb4b84dfca3916e8bcc8b8bb60f2246:32e7ee12a2de06b67501f59a0ff978bc:42e475aa4a03af306bdc7acb5ff91d19$"
+}
+}

@@ -1,0 +1,36 @@
+{"frames": {
+
+"Zipline1FEnd":
+{
+	"frame": {"x":1,"y":1,"w":62,"h":130},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":1,"w":62,"h":130},
+	"sourceSize": {"w":68,"h":153}
+},
+"Zipline2FEnd":
+{
+	"frame": {"x":93,"y":1,"w":15,"h":166},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":40,"w":15,"h":166},
+	"sourceSize": {"w":15,"h":234}
+},
+"Zipline2FStart":
+{
+	"frame": {"x":65,"y":1,"w":26,"h":180},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":40,"w":26,"h":180},
+	"sourceSize": {"w":26,"h":234}
+}},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "buildZipline.png",
+	"format": "RGBA8888",
+	"size": {"w":109,"h":182},
+	"scale": "0.5",
+	"smartupdate": "$TexturePacker:SmartUpdate:203eb3ce4ad5a01f7264797734e97ebb:0560803ce8c644a8b5e0cd991f898912:2629c100680a1a14c4e47cda52e09ab3$"
+}
+}
