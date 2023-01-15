@@ -1,0 +1,113 @@
+{"frames": {
+
+"enemyBossSmg8.png":
+{
+	"frame": {"x":1,"y":1,"w":28,"h":26},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":5,"w":28,"h":26},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyBossSmg9.png":
+{
+	"frame": {"x":1,"y":29,"w":28,"h":25},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":6,"w":28,"h":25},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyBossSmg10.png":
+{
+	"frame": {"x":1,"y":56,"w":28,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":7,"w":28,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyBossSmg11.png":
+{
+	"frame": {"x":1,"y":29,"w":28,"h":25},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":6,"w":28,"h":25},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyBossSmg12.png":
+{
+	"frame": {"x":1,"y":1,"w":28,"h":26},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":5,"w":28,"h":26},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyBossSmgDeath1.png":
+{
+	"frame": {"x":1,"y":110,"w":25,"h":26},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":3,"y":5,"w":25,"h":26},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyBossSmgDeath2.png":
+{
+	"frame": {"x":1,"y":137,"w":21,"h":26},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":5,"w":21,"h":26},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyBossSmgDeath3.png":
+{
+	"frame": {"x":1,"y":160,"w":18,"h":26},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":5,"w":18,"h":26},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyBossSmgDeath4.png":
+{
+	"frame": {"x":1,"y":194,"w":17,"h":24},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":7,"w":17,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyBossSmgDeath5.png":
+{
+	"frame": {"x":1,"y":180,"w":26,"h":12},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":3,"y":19,"w":26,"h":12},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyBossSmgShoot1.png":
+{
+	"frame": {"x":1,"y":1,"w":28,"h":26},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":5,"w":28,"h":26},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyBossSmgShoot2.png":
+{
+	"frame": {"x":1,"y":82,"w":27,"h":26},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":1,"y":5,"w":27,"h":26},
+	"sourceSize": {"w":31,"h":32}
+}},
+"animations": {
+	"idle": ["enemyBossSmg8.png","enemyBossSmg9.png","enemyBossSmg10.png","enemyBossSmg11.png","enemyBossSmg12.png"],
+	"death": ["enemyBossSmgDeath1.png","enemyBossSmgDeath2.png","enemyBossSmgDeath3.png","enemyBossSmgDeath4.png","enemyBossSmgDeath5.png"],
+	"shot": ["enemyBossSmgShoot1.png","enemyBossSmgShoot2.png"]
+},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "bossSmg.png",
+	"format": "RGBA8888",
+	"size": {"w":30,"h":212},
+	"scale": "0.4",
+	"smartupdate": "$TexturePacker:SmartUpdate:e8f46d525171500b7ec382c4efd89dd3:ed6f0c22b1c67e3c6e8744db57360b40:dc80cbb2a3bccc19219f93bd624fd75b$"
+}
+}

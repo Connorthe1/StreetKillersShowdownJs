@@ -1,0 +1,99 @@
+{"frames": {
+
+"enemyVan1.png":
+{
+	"frame": {"x":0,"y":0,"w":68,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":32,"w":68,"h":43},
+	"sourceSize": {"w":104,"h":76}
+},
+"enemyVan2.png":
+{
+	"frame": {"x":68,"y":0,"w":68,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":32,"w":68,"h":43},
+	"sourceSize": {"w":104,"h":76}
+},
+"enemyVan3.png":
+{
+	"frame": {"x":136,"y":0,"w":68,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":32,"w":68,"h":43},
+	"sourceSize": {"w":104,"h":76}
+},
+"enemyVan4.png":
+{
+	"frame": {"x":204,"y":0,"w":68,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":32,"w":68,"h":43},
+	"sourceSize": {"w":104,"h":76}
+},
+"enemyVan5.png":
+{
+	"frame": {"x":272,"y":0,"w":68,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":32,"w":68,"h":43},
+	"sourceSize": {"w":104,"h":76}
+},
+"enemyVan6.png":
+{
+	"frame": {"x":340,"y":0,"w":68,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":32,"w":68,"h":43},
+	"sourceSize": {"w":104,"h":76}
+},
+"enemyVan7.png":
+{
+	"frame": {"x":408,"y":0,"w":68,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":32,"w":68,"h":43},
+	"sourceSize": {"w":104,"h":76}
+},
+"enemyVan8.png":
+{
+	"frame": {"x":476,"y":0,"w":68,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":32,"w":68,"h":43},
+	"sourceSize": {"w":104,"h":76}
+},
+"enemyVan9.png":
+{
+	"frame": {"x":544,"y":0,"w":68,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":32,"w":68,"h":43},
+	"sourceSize": {"w":104,"h":76}
+},
+"enemyVan10.png":
+{
+	"frame": {"x":612,"y":0,"w":100,"h":42},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":4,"y":34,"w":100,"h":42},
+	"sourceSize": {"w":104,"h":76}
+}},
+"animations": {
+	"shot": ["enemyVan1.png","enemyVan2.png"],
+	"idle": ["enemyVan6.png"],
+	"toIdle": ["enemyVan3.png","enemyVan4.png","enemyVan5.png"],
+	"fromIdle": ["enemyVan7.png","enemyVan8.png","enemyVan9.png"],
+	"death": ["enemyVan10.png"]
+},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "bossVan.png",
+	"format": "RGBA8888",
+	"size": {"w":712,"h":43},
+	"scale": "0.5",
+	"smartupdate": "$TexturePacker:SmartUpdate:a30d1e5153d9e4d3eff0470870c21f4c:8f8be359de0cf16fbd33ef67a72a71a4:57a29963ee8b2c87039c5f2b9cbd3308$"
+}
+}

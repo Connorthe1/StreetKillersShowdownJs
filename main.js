@@ -70,6 +70,18 @@ const enemyParams = {
         melee: true,
         walk: true
     },
+    bossSmg: {
+        angle: 0.4,
+        warningMin: 300,
+        warningMax: 600,
+        reloadMin: 200,
+        reloadMax: 400,
+        health: 5,
+        dead: false,
+        detect: false,
+        warning: null,
+        rapidFire: 10,
+    },
     bossLauncher: {
         angle: 0.1,
         warningMin: 400,
@@ -80,7 +92,20 @@ const enemyParams = {
         dead: false,
         detect: false,
         warning: null,
-    }
+    },
+    bossVan: {
+        angle: 0.1,
+        warningMin: 300,
+        warningMax: 500,
+        reloadMin: 200,
+        reloadMax: 400,
+        health: 8,
+        dead: false,
+        detect: false,
+        warning: null,
+        rapidFire: 7,
+        deathType: 'bigExplode'
+    },
 }
 
 const gun = {
@@ -93,7 +118,6 @@ const traps = []
 const enemies = []
 const physParticles = []
 const bounceParticles = []
-const grenades = []
 const buildings = []
 const trails = []
 const zipLines = []
@@ -134,12 +158,16 @@ window.onload = async function () {
     const defaultEnemy = await loader.load('./src/enemies/defaultEnemy.json');
     const bossGun = await loader.load('./src/enemies/bossGun.json');
     const bossLauncher = await loader.load('./src/enemies/bossLauncher.json');
+    const bossVan = await loader.load('./src/enemies/bossVan.json');
+    const bossSmg = await loader.load('./src/enemies/bossSmg.json');
     const particles = await loader.load('./src/particles/particles.json');
+    const bigExplode = await loader.load('./src/particles/bigExplode.json');
     const physParticlesTexture = await loader.load('./src/particles/physParticles.json');
     const bounceParticlesTexture = await loader.load('./src/particles/bounceParticles.json');
     const bochka = await loader.load('./src/entity/bochka.json');
     const windowTexture = await loader.load('./src/entity/window.json');
     const doorTexture = await loader.load('./src/entity/door.json');
+    // await character.parse();
 
     const bg = await loader.load('./src/BG.png')
     init()
@@ -154,7 +182,7 @@ window.onload = async function () {
         createPlayer()
         document.addEventListener('keyup', events)
 
-        createBoss('bossLauncher')
+        createBoss('bossSmg')
         app.ticker.add(ticker)
         trailTimer()
     }
@@ -189,9 +217,6 @@ window.onload = async function () {
         updateBuildings()
         updateTrailParticle()
         updateZiplines()
-        if (grenades.length > 0) {
-            updateGrenades()
-        }
         if (currentBoss) {
             updateBoss()
         }
@@ -275,7 +300,7 @@ window.onload = async function () {
             const greenBarPosition = meleeKill.getChildAt(1).getBounds()
             const selectorPosition = meleeKill.getChildAt(2).getBounds()
             if (selectorPosition.x + selectorPosition.width / 2 > greenBarPosition.x && selectorPosition.x + selectorPosition.width / 2 < greenBarPosition.x + greenBarPosition.width) {
-                enemyDamage(meleeKill.enemy, 100)
+                damageEnemy(meleeKill.enemy, 100)
                 meleeKillStreak += 0.5
             } else {
                 damagePlayer()
@@ -884,8 +909,8 @@ window.onload = async function () {
         particle.position.set(char.x, char.y)
         particle.lifeTime = 500
 
+        particle.body = Matter.Bodies.rectangle(particle.x, particle.y, 1, 1, {isStatic: false, restitution: 1});
         particle.rotation = Math.floor(Math.random() * (6 + 1))
-        particle.body = Matter.Bodies.rectangle(particle.x, particle.y, 2, 10, {isStatic: false, restitution: 0.8});
         app.stage.addChild(particle)
 
         Matter.World.add(engine.world, particle.body);
@@ -900,17 +925,14 @@ window.onload = async function () {
     function updateBounceParticles() {
         bounceParticles.forEach((b, idx) => {
             b.lifeTime--
+            b.position = b.body.position
+            if (b.body.speed > 0.2) {
+                b.rotation += 0.1
+            }
             if (b.lifeTime <= 0) {
                 app.stage.removeChild(b)
                 Matter.World.remove(engine.world, b.body)
                 bounceParticles.splice(idx, 1)
-                return
-            }
-            b.position = b.body.position
-            if (b.body.speed > 0.2) {
-                b.rotation += 0.1
-            } else {
-                b.rotation = b.body.angle
             }
         })
     }
@@ -987,7 +1009,7 @@ window.onload = async function () {
         })
     }
 
-    function enemyShooting(char) {
+    async function enemyShooting(char) {
         const warning = new PIXI.Sprite(particles.textures.detection)
         warning.zIndex = 20
         warning.anchor.set(0.5)
@@ -998,22 +1020,19 @@ window.onload = async function () {
         char.params.warning = warning
         app.stage.addChild(warning)
         //prepare
-        setTimeout(() => {
-            if (char.params.dead) return
-            warning.tint = 16711680
-            //shoot
-            setTimeout(() => {
-                if (char.params.dead) return
-                shot(char, 0, 0)
-                enemyShotAnim(char, 1)
-                app.stage.removeChild(warning)
-                //reload
-                setTimeout(() => {
-                    if (char.params.dead) return
-                    char.params.detect = false
-                }, Math.floor(Math.random() * (char.params.reloadMax - char.params.reloadMin + 1)) + char.params.reloadMin )
-            }, 200)
-        }, Math.floor(Math.random() * (char.params.warningMax - char.params.warningMin + 1)) + char.params.warningMin )
+        await sleep(Math.floor(Math.random() * (char.params.warningMax - char.params.warningMin + 1)) + char.params.warningMin)
+        if (char.params.dead) return
+        warning.tint = 16711680
+        //shoot
+        await sleep(200)
+        if (char.params.dead) return
+        shot(char, 0, 0)
+        enemyShotAnim(char, 1)
+        app.stage.removeChild(warning)
+        //reload
+        await sleep(Math.floor(Math.random() * (char.params.reloadMax - char.params.reloadMin + 1)) + char.params.reloadMin)
+        if (char.params.dead) return
+        char.params.detect = false
     }
 
     function enemyShotAnim(char, times) {
@@ -1032,7 +1051,7 @@ window.onload = async function () {
         boss.anchor.set(0.5)
         boss.animationSpeed = 0.15
         boss.zIndex = 8
-        boss.position.set(zeroRight, playerPos - 10)
+        boss.position.set(zeroRight, playerPos - (type === 'bossVan' ? 36 : 10))
         boss.params = {
             animset: eval(type).animations
         }
@@ -1046,7 +1065,7 @@ window.onload = async function () {
         boss.play()
     }
 
-    function bossShooting() {
+    async function bossShooting() {
         const warning = new PIXI.Sprite(particles.textures.detection)
         warning.zIndex = 20
         warning.anchor.set(0.5)
@@ -1062,21 +1081,37 @@ window.onload = async function () {
         }
         let walking
         //prepare
-        setTimeout(() => {
-            if (!currentBoss || currentBoss.params.dead) return
-            warning.tint = 16711680
-            //shoot
-            setTimeout(async () => {
+        await sleep(Math.floor(Math.random() * (currentBoss.params.warningMax - currentBoss.params.warningMin + 1)) + currentBoss.params.warningMin)
+        if (!currentBoss || currentBoss.params.dead) return
+        warning.tint = 16711680
+        //shoot
+        await sleep(200)
+        app.stage.removeChild(warning)
+        if (!currentBoss || currentBoss.params.dead) return
+        switch (true) {
+            case currentBoss.type === 'bossVan':
+                currentBoss.textures = currentBoss.params.animset.fromIdle
+                currentBoss.play()
+                await sleep(200)
                 if (!currentBoss || currentBoss.params.dead) return
-                app.stage.removeChild(warning)
-                if (currentBoss.type === 'bossLauncher') {
-                    enemyShotAnim(currentBoss, fireTimes, 200)
-                    shotGrenade(currentBoss, -24, 4)
-                } else {
-                    if (currentBoss.params.rapidFire) {
-                        await shotRapid(currentBoss, 6, 16, fireTimes)
-                    }
-                }
+                currentBoss.textures = currentBoss.params.animset.shot
+                currentBoss.play()
+                shotRapid(currentBoss, 36, 12, fireTimes)
+                await sleep(50)
+                shotRapid(currentBoss, 34, 40, fireTimes)
+                await sleep(100)
+                await shotRapid(currentBoss, 106, 20, fireTimes)
+                if (!currentBoss || currentBoss.params.dead) return
+                currentBoss.textures = currentBoss.params.animset.toIdle
+                currentBoss.play()
+                await sleep(200)
+                if (!currentBoss || currentBoss.params.dead) return
+                currentBoss.textures = currentBoss.params.animset.idle
+                currentBoss.play()
+            break
+            case currentBoss.type === 'bossGun':
+                enemyShotAnim(currentBoss, fireTimes)
+                await shotRapid(currentBoss, 6, 16, fireTimes)
                 if (currentBoss.params.walk && (currentBoss || !currentBoss.params.dead)) {
                     currentBoss.textures = currentBoss.params.animset.walk
                     currentBoss.play()
@@ -1085,23 +1120,32 @@ window.onload = async function () {
                         currentBoss.x -= 0.5
                     }, 10)
                 }
-                //reload
-                setTimeout(() => {
-                    if (!currentBoss || currentBoss.params.dead) return
-                    if (currentBoss.params.walk) {
-                        clearInterval(walking)
-                        currentBoss.textures = currentBoss.params.animset.idle
-                        currentBoss.play()
-                    }
-                    bossShooting()
-                }, (Math.floor(Math.random() * (currentBoss.params.reloadMax - currentBoss.params.reloadMin + 1)) + currentBoss.params.reloadMin) + fireTimes * 200)
-            }, 200)
-        }, Math.floor(Math.random() * (currentBoss.params.warningMax - currentBoss.params.warningMin + 1)) + currentBoss.params.warningMin )
+            break
+            case currentBoss.type === 'bossSmg':
+                enemyShotAnim(currentBoss, fireTimes)
+                await shotRapid(currentBoss, 0, -2, fireTimes)
+            break
+            case currentBoss.type === 'bossLauncher':
+                enemyShotAnim(currentBoss, fireTimes)
+                shotGrenade(currentBoss)
+                await sleep(200)
+            break
+        }
+        //reload
+        await sleep(Math.floor(Math.random() * (currentBoss.params.reloadMax - currentBoss.params.reloadMin + 1)) + currentBoss.params.reloadMin)
+        if (!currentBoss || currentBoss.params.dead) return
+        if (currentBoss.params.walk) {
+            clearInterval(walking)
+            currentBoss.textures = currentBoss.params.animset.idle
+            currentBoss.play()
+        }
+        bossShooting()
     }
 
     async function shotRapid(char, offsetX, offsetY, times) {
         const repeat = setInterval(() => {
-            shot(currentBoss, 6, 10)
+            if (char.params.dead) return
+            shot(char, offsetX, offsetY)
         }, 200)
         return new Promise(function(resolve) {
             setTimeout(function() {
@@ -1111,22 +1155,19 @@ window.onload = async function () {
         });
     }
 
-    function updateGrenades() {
-        grenades.forEach((b, idx) => {
-            if (b.dead) return
-            if ((player.x + player.width > b.x && b.x + b.width > player.x) && playerState.state === 'shot') {
-                activateGrenade(b, idx, true)
-                return
-            }
-            b.lifeTime--
-            if (b.lifeTime <= 0) {
-                b.dead = true
-                activateGrenade(b, idx)
-                return
-            }
-            b.position = b.body.position
-            b.rotation = b.body.angle
-        })
+    function shotGrenade(char) {
+        const grenade = new PIXI.Sprite(bounceParticlesTexture.textures.grenade)
+        grenade.scale.set(2)
+        grenade.anchor.set(0.5)
+        grenade.position.set(char.x, char.y)
+
+        grenade.body = Matter.Bodies.rectangle(grenade.x, grenade.y, 10, 4, {isStatic: false, restitution: 1});
+        app.stage.addChild(grenade)
+
+        Matter.World.add(engine.world, grenade.body);
+        let randomMassX = Math.random() * grenade.body.mass
+        Matter.Body.applyForce(grenade.body, grenade.body.position, {x: randomMassX / 25, y: 0});
+        bounceParticles.push(grenade)
     }
 
     function updateBoss() {
@@ -1157,60 +1198,12 @@ window.onload = async function () {
                 app.stage.removeChild(bullet)
                 playerBullets.splice(idx, 1)
                 if (currentBoss.x - player.x < 200) {
-                    enemyDamage(currentBoss,2, true)
+                    damageEnemy(currentBoss,2, true)
                 } else {
-                    enemyDamage(currentBoss,1, true)
+                    damageEnemy(currentBoss,1, true)
                 }
             }
         })
-    }
-
-    function shotGrenade(char, offsetX, offsetY) {
-        const grenade = new PIXI.Sprite(bounceParticlesTexture.textures.grenade)
-        grenade.scale.set(-1.5)
-        grenade.position.set(char.x + offsetX, char.y - offsetY)
-        grenade.lifeTime = 100
-        grenade.type = 'grenade'
-
-        grenade.body = Matter.Bodies.rectangle(grenade.x, grenade.y, 12, 4, {isStatic: false, restitution: 0.5});
-        app.stage.addChild(grenade)
-
-        Matter.World.add(engine.world, grenade.body);
-        let randomMassX = Math.random() * (0.4 - 0.2) + 0.2
-        Matter.Body.applyForce(grenade.body, grenade.body.position, {x: -randomMassX / 100, y: -0.001});
-        grenades.push(grenade)
-    }
-
-    function activateGrenade(grenade,idx, now) {
-        if (now) {
-            damagePlayer()
-            createSmallExplode(grenade, 0, 0)
-            Matter.World.remove(engine.world, grenade.body)
-            app.stage.removeChild(grenade)
-            grenades.splice(idx, 1)
-            return
-        }
-        const warning = new PIXI.Sprite(particles.textures.detection)
-        warning.zIndex = 20
-        warning.anchor.set(0.5)
-        warning.tint = 16776960
-        warning.scale.x = 1.5
-        warning.scale.y = 2
-        warning.position.set(grenade.x, grenade.y - 40)
-        app.stage.addChild(warning)
-        setTimeout(() => {
-            warning.tint = 16711680
-            setTimeout(() => {
-                if (playerState.state === 'shot') {
-                    damagePlayer()
-                }
-                createSmallExplode(grenade, 0, 0)
-                Matter.World.remove(engine.world, grenade.body)
-                app.stage.removeChild(warning)
-                app.stage.removeChild(grenade)
-                grenades.splice(idx, 1)
-            }, 200)
-        }, 300)
     }
 
     function createEnemy() {
@@ -1257,18 +1250,28 @@ window.onload = async function () {
         enemies.push(enemy)
     }
 
-    function enemyDamage(enemy, damage, isBoss) {
+    function damageEnemy(enemy, damage, isBoss) {
         enemy.params.health -= damage
         for (let i = 0; i < 20; i++) {
             spawnPhysParticles(enemy, isBoss ? 'spark' : 'blood', enemy.secondFloor)
         }
         if (enemy.params.health <= 0) {
-            if (enemy.params.warning) {
+            if (enemy.params.detect) {
                 app.stage.removeChild(enemy.params.warning)
+            }
+            if (enemy.params.deathType) {
+                switch (true) {
+                    case enemy.params.deathType === 'smallExplode':
+                        createExplode(enemy, 0, 0, false)
+                    break
+                    case enemy.params.deathType === 'bigExplode':
+                        createExplode(enemy, -28, -24, true)
+                    break
+                }
             }
             enemy.params.dead = true
             enemy.loop = false
-            if (damage > 1) {
+            if (damage > 1 || isBoss) {
                 enemy.textures = enemy.params.animset.deathCrit || enemy.params.animset.death
                 for (let i = 0; i < 20; i++) {
                     spawnPhysParticles(enemy, 'blood', enemy.secondFloor)
@@ -1305,9 +1308,9 @@ window.onload = async function () {
                         app.stage.removeChild(bullet)
                         playerBullets.splice(idx, 1)
                         if (enemy.x - player.x < 200) {
-                            enemyDamage(enemy,2)
+                            damageEnemy(enemy,2)
                         } else {
-                            enemyDamage(enemy,1)
+                            damageEnemy(enemy,1)
                         }
                     }
                 })
@@ -1348,7 +1351,7 @@ window.onload = async function () {
             }
             isFence = false
         }
-        floor.body = Matter.Bodies.rectangle(floor.x, playerPos + 44, floor.width + 10, 40, {isStatic: true});
+        floor.body = Matter.Bodies.rectangle(floor.x, playerPos + 40, floor.width + 10, 40, {isStatic: true});
         bgWall.position.set((floorPosition + idx) * bgWall.width, CANVAS_HEIGHT - floor.height + 60)
         part.addChild(floor)
         part.addChild(bgWall)
@@ -1409,20 +1412,20 @@ window.onload = async function () {
         traps.push(bochkaContainer)
     }
 
-    function createSmallExplode(target, offsetX, offsetY) {
-        const explode = new PIXI.AnimatedSprite(bochka.animations.smallExplode)
+    function createExplode(target, offsetX, offsetY, isBig) {
+        const explode = new PIXI.AnimatedSprite(isBig ? bigExplode.animations.explode : bochka.animations.smallExplode)
         explode.zIndex = target.zIndex
         explode.loop = false
         explode.anchor.set(0.5)
         explode.height = explode.height * 3
         explode.width = explode.width * 3
-        explode.animationSpeed = 0.4
+        explode.animationSpeed = isBig ? 0.25 : 0.4
         explode.position.set(target.x + offsetX, target.y + offsetY)
         app.stage.addChild(explode)
         explode.play()
-        setTimeout(() => {
+        explode.onComplete = () => {
             app.stage.removeChild(explode)
-        }, 400)
+        }
     }
 
     function barrelDead(barrel) {
@@ -1431,7 +1434,7 @@ window.onload = async function () {
             const e = enemy.getBounds()
             if (e.x + e.width > b.x - 100 && e.x < b.x + 100) {
                 if (enemy.params.dead) return
-                enemyDamage(enemy, 4)
+                damageEnemy(enemy, 4)
             }
         })
         const p = player.getBounds()
@@ -1446,8 +1449,8 @@ window.onload = async function () {
         for (let i = 0; i < 20; i++) {
             spawnPhysParticles(barrel.children[0], 'spark')
         }
-        createSmallExplode(barrel.children[0], -20, 10)
-        createSmallExplode(barrel.children[1], 20, 30)
+        createExplode(barrel.children[0], -20, 10, false)
+        createExplode(barrel.children[1], 20, 30, false)
     }
 
     function updateTraps() {
@@ -1737,5 +1740,9 @@ window.onload = async function () {
                 break
         }
     }
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
