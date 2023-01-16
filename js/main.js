@@ -1,3 +1,4 @@
+import {default as enemyParams} from './enemyParams.js'
 const CANVAS_WIDTH = 550;
 const CANVAS_HEIGHT = 850;
 let zeroLeft = 0
@@ -25,7 +26,7 @@ const playerBullets = []
 const enemyBullets = []
 const bulletSpeed = 15
 
-let playerDefaultSpeed = 2
+let playerDefaultSpeed = 4
 let playerSpeed = playerDefaultSpeed
 let distance = 0
 
@@ -38,75 +39,10 @@ let floorPosition = 0
 const fenceChance = 4
 let isFence = false
 let isBuilding = false
-let afterBuilding = true
+let afterBuilding = 0
 let isClub = false
 const buildingChance = 2
 let buildingType = 0
-
-const enemyParams = {
-    default: {
-        angle: 0.1,
-        warningMin: 600,
-        warningMax: 1000,
-        reloadMin: 600,
-        reloadMax: 1000,
-        health: 2,
-        dead: false,
-        detect: false,
-        warning: null,
-        detectRange: 300,
-    },
-    bossGun: {
-        angle: 0.1,
-        warningMin: 400,
-        warningMax: 800,
-        reloadMin: 300,
-        reloadMax: 500,
-        health: 5,
-        dead: false,
-        detect: false,
-        warning: null,
-        rapidFire: 7,
-        melee: true,
-        walk: true
-    },
-    bossSmg: {
-        angle: 0.4,
-        warningMin: 300,
-        warningMax: 600,
-        reloadMin: 200,
-        reloadMax: 400,
-        health: 5,
-        dead: false,
-        detect: false,
-        warning: null,
-        rapidFire: 10,
-    },
-    bossLauncher: {
-        angle: 0.1,
-        warningMin: 400,
-        warningMax: 800,
-        reloadMin: 300,
-        reloadMax: 500,
-        health: 5,
-        dead: false,
-        detect: false,
-        warning: null,
-    },
-    bossVan: {
-        angle: 0.1,
-        warningMin: 300,
-        warningMax: 500,
-        reloadMin: 200,
-        reloadMax: 400,
-        health: 8,
-        dead: false,
-        detect: false,
-        warning: null,
-        rapidFire: 7,
-        deathType: 'bigExplode'
-    },
-}
 
 const gun = {
     ammo: 5,
@@ -121,7 +57,10 @@ const bounceParticles = []
 const buildings = []
 const trails = []
 const zipLines = []
+const grenades = []
 let currentBoss = null
+let bgCar = null
+let currentDogEnemy = null
 
 let engine
 let fg
@@ -144,7 +83,6 @@ window.onload = async function () {
 
     PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
 
-
     const textures = await loader.load('./src/textures/textures.json');
     const build1 = await loader.load('./src/textures/build1.json');
     const build2 = await loader.load('./src/textures/build2.json');
@@ -156,6 +94,7 @@ window.onload = async function () {
     const inClubTexture = await loader.load('./src/textures/inClub.json');
     const character = await loader.load('./src/character/character.json');
     const defaultEnemy = await loader.load('./src/enemies/defaultEnemy.json');
+    const dogEnemy = await loader.load('./src/enemies/dog.json');
     const bossGun = await loader.load('./src/enemies/bossGun.json');
     const bossLauncher = await loader.load('./src/enemies/bossLauncher.json');
     const bossVan = await loader.load('./src/enemies/bossVan.json');
@@ -167,6 +106,7 @@ window.onload = async function () {
     const bochka = await loader.load('./src/entity/bochka.json');
     const windowTexture = await loader.load('./src/entity/window.json');
     const doorTexture = await loader.load('./src/entity/door.json');
+    const bgCarTexture = await loader.load('./src/textures/bgCar.json');
     // await character.parse();
 
     const bg = await loader.load('./src/BG.png')
@@ -182,7 +122,6 @@ window.onload = async function () {
         createPlayer()
         document.addEventListener('keyup', events)
 
-        createBoss('bossSmg')
         app.ticker.add(ticker)
         trailTimer()
     }
@@ -217,6 +156,15 @@ window.onload = async function () {
         updateBuildings()
         updateTrailParticle()
         updateZiplines()
+        if (currentDogEnemy) {
+            updateDogEnemy()
+        }
+        if (grenades.length > 0) {
+            updateGrenades()
+        }
+        if (bgCar) {
+            updateBgCar()
+        }
         if (currentBoss) {
             updateBoss()
         }
@@ -253,7 +201,13 @@ window.onload = async function () {
     }
 
     function spawnEntity() {
-        if (!isClub) {
+        if (Math.random() < 0.1 && !currentDogEnemy) {
+            createDogEnemy()
+        }
+        if (Math.random() < 0.5 && !bgCar) {
+            createBgCar()
+        }
+        if (!isClub && !currentBoss) {
             const randomBuild = Math.floor(Math.random() * (10 - 1 + 1) + 1)
             switch (true) {
                 case randomBuild <= buildingChance:
@@ -263,7 +217,6 @@ window.onload = async function () {
                         if (buildings.length === 0) {
                             const testClub = Math.floor(Math.random() * (10 - 1 + 1) + 1)
                             isBuilding = true
-                            afterBuilding = false
                             if (testClub === 1) {
                                 isClub = true
                                 createClub()
@@ -281,17 +234,25 @@ window.onload = async function () {
                     break
             }
         }
-        const rand = Math.floor(Math.random() * (3 - 1 + 1) + 1)
-        switch (true) {
-            case rand === 1 && !isBuilding && afterBuilding :
+        if (Math.random() < 0.5) {
+            createEnemy()
+        }
+        if (!isBuilding && !currentBoss && (afterBuilding < zeroRight - CANVAS_WIDTH / 2)) {
+            if (Math.random() < 0.05) {
+                console.log('boss')
+                createBoss()
+                return
+            }
+            if (Math.random() < 0.3) {
+                console.log('bochka')
                 createBochka()
-            break
-            case rand === 2 && !isBuilding && afterBuilding :
+                return
+            }
+            if (Math.random() < 0.5) {
+                console.log('wall')
                 createWall()
-            break
-            case rand === 3 :
-                createEnemy()
-            break
+                return
+            }
         }
     }
 
@@ -359,7 +320,11 @@ window.onload = async function () {
         player.tint = 16737894
         setTimeout(() => {
             playerState.invincible = false
-            player.tint = player.color
+            if (playerState.inCover) {
+                player.tint = player.shadow
+            } else {
+                player.tint = player.color
+            }
         }, 200)
         console.log('damaged')
     }
@@ -504,7 +469,7 @@ window.onload = async function () {
         let buildFront
         let buildConnect
         let buildZipline
-        let position = zeroRight + 100
+        let position = zeroRight + 300
         let lastBuilding
         if (buildings.length > 0 && type !== 'start') {
             lastBuilding = buildings[buildings.length - 1]
@@ -554,7 +519,7 @@ window.onload = async function () {
                     buildBack.anchor.set(0.5)
                     buildBack.position.set(position + buildBack.width / 2, 580)
                     if (Math.random() < 0.5) {
-                        createCoverInBuild(position + buildBack.width - 150, true, true)
+                        createCoverInBuild(position + buildBack.width - 250, true, true)
                     }
                     if (Math.random() < 0.5) {
                         createCoverInBuild(position + 150, true, true)
@@ -587,7 +552,7 @@ window.onload = async function () {
                     buildBack.anchor.set(0.5)
                     buildBack.position.set(position + buildBack.width / 2, 580)
                     if (Math.random() < 0.5) {
-                        createCoverInBuild(position + buildBack.width - 150, true, true)
+                        createCoverInBuild(position + buildBack.width - 250, true, true)
                     }
                     if (Math.random() < 0.5) {
                         createCoverInBuild(position + 150, true, true)
@@ -608,6 +573,7 @@ window.onload = async function () {
             buildZipline.zIndex = 1
             app.stage.addChild(buildZipline)
             zipLines.push(buildZipline)
+            afterBuilding = buildBack.x + buildBack.width / 2
         }
         if (buildFront) {
             buildFront.anchor.set(0.5)
@@ -628,12 +594,12 @@ window.onload = async function () {
         const bounds = buildContainer.getLocalBounds()
         const resetSpawnZones = [
             {
-                x: bounds.x - 100,
-                w: bounds.x + 100
+                x: bounds.x - 50,
+                w: bounds.x + 150
             },
             {
-                x: bounds.x + bounds.width - 100,
-                w: bounds.x + bounds.width + 100
+                x: bounds.x + bounds.width - 50,
+                w: bounds.x + bounds.width + 150
             }
         ]
         buildContainer.resetSpawnZones = resetSpawnZones
@@ -681,7 +647,7 @@ window.onload = async function () {
         let buildBack
         let buildFront
         let buildConnect
-        let position = zeroRight + 100
+        let position = zeroRight + 300
         if (buildings.length > 0 && type !== 'start') {
             const lastBuilding = buildings[buildings.length - 1].getLocalBounds()
             position = lastBuilding.x + lastBuilding.width
@@ -740,17 +706,20 @@ window.onload = async function () {
             buildConnect.position.set(position + buildConnect.width / 2, 485)
             buildContainer.addChild(buildConnect)
         }
+        if (type === 'end') {
+            afterBuilding = buildBack.x + buildBack.width / 2
+        }
         buildContainer.addChild(buildBack)
         buildContainer.addChild(buildFront)
         const bounds = buildContainer.getLocalBounds()
         const resetSpawnZones = [
             {
-                x: bounds.x - 100,
-                w: bounds.x + 100
+                x: bounds.x - 50,
+                w: bounds.x + 150
             },
             {
-                x: bounds.x + bounds.width - 100,
-                w: bounds.x + bounds.width + 100
+                x: bounds.x + bounds.width - 50,
+                w: bounds.x + bounds.width + 150
             }
         ]
         buildContainer.resetSpawnZones = resetSpawnZones
@@ -787,7 +756,6 @@ window.onload = async function () {
                 }
                 app.stage.removeChild(build)
                 buildings.splice(idx, 1)
-                if (buildings.length === 0) afterBuilding = true
             }
         })
     }
@@ -801,6 +769,7 @@ window.onload = async function () {
     }
 
     function createClub() {
+        let position = zeroRight + 300
         const clubContainer = new PIXI.Container()
         const clubBack = new PIXI.Sprite(club.textures.clubBack)
         const clubFront = new PIXI.Sprite(club.textures.clubFront)
@@ -808,7 +777,7 @@ window.onload = async function () {
         for (let i = 1; i <= 17; i++) {
             const rand = Math.floor(Math.random() * (9 - 1 + 1) + 1)
             const laserBeam = new PIXI.AnimatedSprite(laserBeamTexture.animations[`render${rand}`])
-            laserBeam.position.set(zeroRight + 526 + (i * 44), 416)
+            laserBeam.position.set(position + 526 + (i * 44), 416)
             laserBeam.tint = randomRGB()
             laserBeam.scale.y = `1.0${rand}`
             laserBeam.parentGroup = fg
@@ -819,48 +788,48 @@ window.onload = async function () {
             clubContainer.addChild(laserBeam)
         }
         if (Math.random() < 0.5) {
-            spawnCoverInClub(zeroRight + 190, 0)
+            spawnCoverInClub(position + 190, 0)
         }
         if (Math.random() < 0.5) {
-            spawnCoverInClub(zeroRight + 410, 1)
+            spawnCoverInClub(position + 410, 1)
         }
         if (Math.random() < 0.5) {
-            spawnCoverInClub(zeroRight + 540, 1)
+            spawnCoverInClub(position + 540, 1)
         }
         if (Math.random() < 0.5) {
-            spawnCoverInClub(zeroRight + 840, 0)
+            spawnCoverInClub(position + 840, 0)
         }
         if (Math.random() < 0.5) {
-            spawnCoverInClub(zeroRight + 1300, 0)
+            spawnCoverInClub(position + 1300, 0)
         }
         if (Math.random() < 0.5) {
-            spawnCoverInClub(zeroRight + 1600, 2)
+            spawnCoverInClub(position + 1600, 2)
         }
         if (Math.random() < 0.5) {
-            spawnCoverInClub(zeroRight + 1900, 2)
+            spawnCoverInClub(position + 1900, 2)
         }
         clubBack.anchor.set(0.5)
         clubFront.anchor.set(0.5)
         clubFront.parentGroup = fg
         clubFront.zOrder = 5
-        clubBack.position.set(zeroRight + clubBack.width / 2, 485)
-        clubFront.position.set(zeroRight + clubFront.width / 2, 485)
+        clubBack.position.set(position + clubBack.width / 2, 485)
+        clubFront.position.set(position + clubFront.width / 2, 485)
         clubContainer.club = true
         clubContainer.addChild(clubBack)
         clubContainer.addChild(clubFront)
         const bounds = clubContainer.getLocalBounds()
         const resetSpawnZones = [
             {
-                x: bounds.x - 100,
+                x: bounds.x - 50,
                 w: bounds.x + 100
+            },
+            {
+                x: clubBack.x - 450,
+                w: clubBack.x - 350
             },
             {
                 x: clubBack.x + 400,
                 w: clubBack.x + 500
-            },
-            {
-                x: clubBack.x - 500,
-                w: clubBack.x - 400
             },
             {
                 x: bounds.x + bounds.width - 50,
@@ -909,7 +878,7 @@ window.onload = async function () {
         particle.position.set(char.x, char.y)
         particle.lifeTime = 500
 
-        particle.body = Matter.Bodies.rectangle(particle.x, particle.y, 1, 1, {isStatic: false, restitution: 1});
+        particle.body = Matter.Bodies.rectangle(particle.x, particle.y, 2, 10, {isStatic: false, restitution: 0.5});
         particle.rotation = Math.floor(Math.random() * (6 + 1))
         app.stage.addChild(particle)
 
@@ -925,14 +894,16 @@ window.onload = async function () {
     function updateBounceParticles() {
         bounceParticles.forEach((b, idx) => {
             b.lifeTime--
-            b.position = b.body.position
-            if (b.body.speed > 0.2) {
-                b.rotation += 0.1
-            }
             if (b.lifeTime <= 0) {
                 app.stage.removeChild(b)
                 Matter.World.remove(engine.world, b.body)
                 bounceParticles.splice(idx, 1)
+            }
+            b.position = b.body.position
+            if (b.body.speed > 0.2) {
+                b.rotation += 0.1
+            } else {
+                b.rotation = b.body.angle
             }
         })
     }
@@ -1045,13 +1016,55 @@ window.onload = async function () {
         }, times * 200)
     }
 
-    function createBoss(type) {
-        createWall(zeroRight - 300, true)
+    function createBoss() {
+        let randomPos = Math.floor(zeroRight + random(300, 750))
+
+        enemies.forEach((enemy, idx) => {
+            if (enemy.x > randomPos - 400 && enemy.x < randomPos + 50) {
+                app.stage.removeChild(enemy)
+                enemies.splice(idx, 1)
+            }
+        })
+
+        walls.forEach((wall, idx) => {
+            if (wall.x > randomPos - 400 && wall.x < randomPos + 200) {
+                app.stage.removeChild(wall)
+                walls.splice(idx, 1)
+            }
+        })
+
+        traps.forEach((trap, idx) => {
+            if (!trap.type) {
+                const t = trap.getLocalBounds()
+                if (t.x > randomPos - 400 && t.x < randomPos + 200) {
+                    app.stage.removeChild(trap)
+                    traps.splice(idx, 1)
+                }
+            }
+        })
+
+        let type
+        const randType = random(1, 4)
+        switch (true) {
+            case randType === 1:
+                type = 'bossGun'
+            break
+            case randType === 2:
+                type = 'bossLauncher'
+            break
+            case randType === 3:
+                type = 'bossVan'
+            break
+            case randType === 4:
+                type = 'bossSmg'
+            break
+        }
+
+        createWall(randomPos - 300, true)
         const boss = new PIXI.AnimatedSprite(eval(type).animations.idle)
         boss.anchor.set(0.5)
         boss.animationSpeed = 0.15
-        boss.zIndex = 8
-        boss.position.set(zeroRight, playerPos - (type === 'bossVan' ? 36 : 10))
+        boss.position.set(randomPos, playerPos - (type === 'bossVan' ? 36 : 10))
         boss.params = {
             animset: eval(type).animations
         }
@@ -1112,7 +1125,8 @@ window.onload = async function () {
             case currentBoss.type === 'bossGun':
                 enemyShotAnim(currentBoss, fireTimes)
                 await shotRapid(currentBoss, 6, 16, fireTimes)
-                if (currentBoss.params.walk && (currentBoss || !currentBoss.params.dead)) {
+                if (currentBoss.params.walk) {
+                    if (!currentBoss || currentBoss.params.dead) return
                     currentBoss.textures = currentBoss.params.animset.walk
                     currentBoss.play()
                     walking = setInterval(() => {
@@ -1123,11 +1137,11 @@ window.onload = async function () {
             break
             case currentBoss.type === 'bossSmg':
                 enemyShotAnim(currentBoss, fireTimes)
-                await shotRapid(currentBoss, 0, -2, fireTimes)
+                await shotRapid(currentBoss, 0, -2, fireTimes, 150)
             break
             case currentBoss.type === 'bossLauncher':
                 enemyShotAnim(currentBoss, fireTimes)
-                shotGrenade(currentBoss)
+                shotGrenade(currentBoss, 0, 0)
                 await sleep(200)
             break
         }
@@ -1142,32 +1156,82 @@ window.onload = async function () {
         bossShooting()
     }
 
-    async function shotRapid(char, offsetX, offsetY, times) {
+    async function shotRapid(char, offsetX, offsetY, times, cd) {
+        const shotTime = cd ? cd :200
         const repeat = setInterval(() => {
             if (char.params.dead) return
             shot(char, offsetX, offsetY)
-        }, 200)
+        }, shotTime)
         return new Promise(function(resolve) {
             setTimeout(function() {
                 clearInterval(repeat)
                 resolve()
-            }, times * 250);
+            }, times * shotTime);
         });
     }
 
-    function shotGrenade(char) {
-        const grenade = new PIXI.Sprite(bounceParticlesTexture.textures.grenade)
-        grenade.scale.set(2)
-        grenade.anchor.set(0.5)
-        grenade.position.set(char.x, char.y)
+    function updateGrenades() {
+        grenades.forEach((b, idx) => {
+            if (b.dead) return
+            if ((player.x + player.width > b.x && b.x + b.width > player.x) && playerState.state === 'shot') {
+                activateGrenade(b, idx, true)
+                return
+            }
+            b.lifeTime--
+            if (b.lifeTime <= 0) {
+                b.dead = true
+                activateGrenade(b, idx)
+                return
+            }
+            b.position = b.body.position
+            b.rotation = b.body.angle
+        })
+    }
 
-        grenade.body = Matter.Bodies.rectangle(grenade.x, grenade.y, 10, 4, {isStatic: false, restitution: 1});
+    function shotGrenade(char, offsetX, offsetY) {
+        const grenade = new PIXI.Sprite(bounceParticlesTexture.textures.grenade)
+        grenade.scale.set(-1.5)
+        grenade.position.set(char.x + offsetX, char.y - offsetY)
+        grenade.lifeTime = 100
+        grenade.type = 'grenade'
+
+        grenade.body = Matter.Bodies.rectangle(grenade.x, grenade.y, 12, 4, {isStatic: false, restitution: 0.5});
         app.stage.addChild(grenade)
 
         Matter.World.add(engine.world, grenade.body);
-        let randomMassX = Math.random() * grenade.body.mass
-        Matter.Body.applyForce(grenade.body, grenade.body.position, {x: randomMassX / 25, y: 0});
-        bounceParticles.push(grenade)
+        let randomMassX = Math.random() * (0.4 - 0.2) + 0.2
+        Matter.Body.applyForce(grenade.body, grenade.body.position, {x: -randomMassX / 100, y: -0.001});
+        grenades.push(grenade)
+    }
+
+    async function activateGrenade(grenade,idx, now) {
+        if (now) {
+            damagePlayer()
+            createExplode(grenade, 0, 0)
+            Matter.World.remove(engine.world, grenade.body)
+            app.stage.removeChild(grenade)
+            grenades.splice(idx, 1)
+            return
+        }
+        const warning = new PIXI.Sprite(particles.textures.detection)
+        warning.zIndex = 20
+        warning.anchor.set(0.5)
+        warning.tint = 16776960
+        warning.scale.x = 1.5
+        warning.scale.y = 2
+        warning.position.set(grenade.x, grenade.y - 40)
+        app.stage.addChild(warning)
+        await sleep(300)
+        warning.tint = 16711680
+        await sleep(200)
+        if (playerState.state === 'shot') {
+            damagePlayer()
+        }
+        createExplode(grenade, 0, 0)
+        Matter.World.remove(engine.world, grenade.body)
+        app.stage.removeChild(warning)
+        app.stage.removeChild(grenade)
+        grenades.splice(idx, 1)
     }
 
     function updateBoss() {
@@ -1181,8 +1245,8 @@ window.onload = async function () {
             return
         }
         if (!currentBoss.params.detect) {
-            if (playerState.inBossFight) {
-                currentBoss.params.detect = playerState.inBossFight
+            if (zeroRight > currentBoss.x) {
+                currentBoss.params.detect = true
                 bossShooting()
             }
         }
@@ -1206,29 +1270,85 @@ window.onload = async function () {
         })
     }
 
+    function updateDogEnemy() {
+        if (!currentDogEnemy.params.dead) {
+            if (!currentDogEnemy.skip) {
+                if (player.x + player.width > currentDogEnemy.x) {
+                    damagePlayer()
+                    currentDogEnemy.skip = true
+                }
+            }
+            currentDogEnemy.x -= currentDogEnemy.params.speed * gameSpeed
+            playerBullets.forEach((bullet, idx) => {
+                if (currentDogEnemy.x + currentDogEnemy.width > bullet.x && currentDogEnemy.x < bullet.x && currentDogEnemy.y - currentDogEnemy.height < bullet.y && currentDogEnemy.y + currentDogEnemy.height / 2 > bullet.y) {
+                    app.stage.removeChild(bullet)
+                    playerBullets.splice(idx, 1)
+                    damageEnemy(currentDogEnemy,1)
+                }
+            })
+        }
+        if (currentDogEnemy.x + 100 < zeroLeft) {
+            app.stage.removeChild(currentDogEnemy)
+            currentDogEnemy = null
+        }
+    }
+
+    function createDogEnemy() {
+        let randomPos = Math.floor(zeroRight + random(10, 10))
+        let level = playerPos
+        if (buildings.length > 0) {
+            const activeBuilding = buildings[0]
+            if (afterBuilding > randomPos && activeBuilding.getLocalBounds().x < randomPos && activeBuilding.secondFloor) {
+                level = secondFloor
+            }
+        }
+        const dog = new PIXI.AnimatedSprite(dogEnemy.animations.idle)
+        dog.anchor.set(0.5)
+        dog.scale.set(2)
+        dog.animationSpeed = 0.2
+        dog.position.set(zeroRight + 100, level)
+        dog.params = {}
+        dog.zIndex = 1
+        Object.keys(enemyParams.dog).forEach(item => {
+            dog.params[item] = enemyParams.dog[item]
+        })
+        dog.params.speed = random(1, 1.5)
+        dog.params.animset = dogEnemy.animations
+        currentDogEnemy = dog
+        app.stage.addChild(currentDogEnemy)
+        dog.play()
+    }
+
     function createEnemy() {
-        let randomPos = zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50)
+        let randomPos = Math.floor(zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50))
         let isSecondFloor = false
 
         buildings.forEach(build => {
             build.resetSpawnZones.forEach(zone => {
-                if (randomPos > zone.x && randomPos < zone.w) {
-                    randomPos += 100
-                    return
+                console.log(`${zone.x} > ${randomPos} < ${zone.w}`)
+                if (randomPos + 30 > zone.x && randomPos < zone.w) {
+                    if (zone.w - randomPos < randomPos - zone.x) {
+                        randomPos = zone.w + 50
+                    } else {
+                        randomPos = zone.x - 50
+                    }
+                    console.log('popal' + randomPos)
                 }
             })
         })
 
+        const findDuplicate = enemies.findIndex(enemy => randomPos + 30 > enemy.x && randomPos < enemy.x + enemy.width)
+        if (findDuplicate >= 0) return
+
+        if (currentBoss) {
+            if (randomPos + 30 > currentBoss.x && randomPos < currentBoss.x + currentBoss.width) return
+        }
+
         if (buildings.length > 0) {
-            const building = buildings[0]
-            if (building.secondFloor) {
-                const firstBound = building.getLocalBounds()
-                const lastBound = buildings[buildings.length - 1].getLocalBounds()
-                console.log(randomPos)
-                if (randomPos > firstBound.x && randomPos < lastBound.x + lastBound.width) {
-                    console.log('second')
-                    isSecondFloor = true
-                }
+            const activeBuilding = buildings[0]
+            console.log('2F ' + afterBuilding)
+            if ((afterBuilding > randomPos && activeBuilding.getLocalBounds().x < randomPos) && activeBuilding.secondFloor) {
+                isSecondFloor = true
             }
         }
 
@@ -1239,8 +1359,7 @@ window.onload = async function () {
         })
         enemy.params.animset = defaultEnemy.animations
         enemy.anchor.set(0.5)
-        enemy.scale.x = 2
-        enemy.scale.y = 2
+        enemy.scale.set(2)
         enemy.animationSpeed = 0.2
         enemy.zIndex = 8
         enemy.position.set(randomPos, isSecondFloor ? secondFloor : playerPos)
@@ -1330,6 +1449,48 @@ window.onload = async function () {
         })
     }
 
+    function createBgCar() {
+        const car = new PIXI.Container()
+        const carBack = new PIXI.Sprite(bgCarTexture.textures.carBack)
+        const carFront = new PIXI.Sprite(bgCarTexture.textures.carFront)
+        carBack.anchor.set(0.5)
+        carFront.anchor.set(0.5)
+        if (Math.random() < 0.5) {
+            car.side = 1
+            car.x = zeroRight
+            car.y = CANVAS_HEIGHT - 210
+        } else {
+            carBack.scale.set(-1, 1)
+            carFront.scale.set(-1, 1)
+            car.side = -1
+            car.x = zeroLeft - 100
+            car.y = CANVAS_HEIGHT - 210
+        }
+        car.speed = random(4, 10)
+        car.zIndex = -5
+        car.addChild(carBack)
+        car.addChild(carFront)
+        app.stage.addChild(car)
+        bgCar = car
+    }
+
+    function updateBgCar() {
+        const b = bgCar.getBounds()
+        if (bgCar.side > 0) {
+            bgCar.x -= bgCar.speed
+            if (b.x + b.width < 0) {
+                app.stage.removeChild(bgCar)
+                bgCar = null
+            }
+        } else {
+            bgCar.x += bgCar.speed
+            if (b.x > zeroRight) {
+                app.stage.removeChild(bgCar)
+                bgCar = null
+            }
+        }
+    }
+
     function createFloor(idx) {
         const part = new PIXI.Container()
         const floor = new PIXI.Sprite(textures.textures.ground)
@@ -1371,6 +1532,7 @@ window.onload = async function () {
 
     function createBg(img) {
         const tiling = new PIXI.TilingSprite(img, 550, 1920)
+        tiling.zIndex = -10
         tiling.position.set(0,-400)
         app.stage.addChild(tiling)
         return tiling
@@ -1383,19 +1545,15 @@ window.onload = async function () {
     }
 
     function createBochka() {
-        const randomPos = zeroRight + Math.floor(Math.random() * (250 - 100 + 1) + 100)
-        const bochkaContainer = new PIXI.Container()
-        if (buildings.length > 0) {
-            const buildStart = buildings[0]
-            const buildEnd = buildings[buildings.length - 1]
-            if (randomPos + 40 > buildStart.x - buildStart.width / 2 && randomPos < buildEnd.x + buildEnd.width / 2) {
-                return
-            }
+        const randomPos = Math.floor(zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50))
+        if (afterBuilding > randomPos - 100) {
+            return
         }
+        const bochkaContainer = new PIXI.Container()
         const bochkaTop = new PIXI.AnimatedSprite(bochka.animations.bochkaTop)
         const bochkaDown = new PIXI.AnimatedSprite(bochka.animations.bochkaDown)
-        bochkaTop.scale = 2
-        bochkaDown.scale = 2
+        bochkaTop.scale.set(2)
+        bochkaDown.scale.set(2)
         bochkaTop.loop = false
         bochkaDown.loop = false
         bochkaTop.animationSpeed = 0.2
@@ -1430,7 +1588,11 @@ window.onload = async function () {
 
     function barrelDead(barrel) {
         const b = barrel.getBounds()
-        enemies.forEach(enemy => {
+        const damageTargets = enemies
+        if (currentDogEnemy) {
+            damageTargets.push(currentDogEnemy)
+        }
+        damageTargets.forEach(enemy => {
             const e = enemy.getBounds()
             if (e.x + e.width > b.x - 100 && e.x < b.x + 100) {
                 if (enemy.params.dead) return
@@ -1459,7 +1621,7 @@ window.onload = async function () {
             if (!trap.dead) {
                 const p = player.getBounds()
                 if (p.x + p.width > trapB.x + 56 && p.x < trapB.x + 40) {
-                    if (trap.type === 'window') {
+                    if (trap.type) {
                         trap.play()
                         trap.dead = true
                     } else {
@@ -1467,12 +1629,25 @@ window.onload = async function () {
                         barrelDead(trap)
                     }
                 }
+                if (currentDogEnemy) {
+                    const d = currentDogEnemy.getBounds()
+                    if (d.x + d.width > trapB.x && d.x < trapB.x + trapB.width) {
+                        if (trap.type) {
+                            if (trap.type === 'door') return;
+                            trap.play()
+                            trap.dead = true
+                            damageEnemy(currentDogEnemy, 1)
+                        } else {
+                            barrelDead(trap)
+                        }
+                    }
+                }
                 playerBullets.forEach((bullet, bulletIdx) => {
                     const bulletBound = bullet.getBounds()
                     if (bulletBound.x > trapB.x && bulletBound.x < trapB.x + trapB.width && bulletBound.y > trapB.y && bulletBound.y < trapB.y + trapB.height) {
                         app.stage.removeChild(bullet)
                         playerBullets.splice(bulletIdx, 1)
-                        if (trap.type === 'window') {
+                        if (trap.type) {
                             trap.play()
                             trap.dead = true
                         } else {
@@ -1507,7 +1682,7 @@ window.onload = async function () {
         door.anchor.set(0.5)
         door.position.set(pos, secondFloor ? 439 : 629)
         door.zIndex = 1
-        door.type = 'window'
+        door.type = 'door'
         app.stage.addChild(door)
         traps.push(door)
     }
@@ -1526,13 +1701,8 @@ window.onload = async function () {
         let wall
         const randomPos = pos || zeroRight + Math.floor(Math.random() * (250 - 100 + 1) + 100)
 
-        if (buildings.length > 0) {
-            const buildSize = buildings[buildings.length - 1].getLocalBounds()
-            console.log(`${buildSize.x - 100} > ${randomPos} < ${buildSize.x + buildSize.width + 100}`)
-            if (randomPos > buildSize.x - 100 &&
-                randomPos < buildSize.x + buildSize.width + 100) {
-                return
-            }
+        if (afterBuilding > randomPos - 100) {
+            return
         }
         if (walls.length > 0) {
             const wallSize = walls[walls.length - 1].getLocalBounds()
@@ -1744,5 +1914,14 @@ window.onload = async function () {
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function random(min, max, noFloor, noMin) {
+    const res = Math.random() * (max - min + (noMin ? 0 : 1)) + min
+    if (noFloor) {
+        return res
+    } else {
+        return Math.floor(res)
+    }
 }
 

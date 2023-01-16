@@ -1,0 +1,28 @@
+{"frames": {
+
+"carBack":
+{
+	"frame": {"x":1,"y":30,"w":85,"h":25},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":0,"w":85,"h":25},
+	"sourceSize": {"w":85,"h":27}
+},
+"carFront":
+{
+	"frame": {"x":1,"y":1,"w":84,"h":27},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":0,"w":84,"h":27},
+	"sourceSize": {"w":85,"h":27}
+}},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "bgCar.png",
+	"format": "RGBA8888",
+	"size": {"w":87,"h":56},
+	"scale": "0.8",
+	"smartupdate": "$TexturePacker:SmartUpdate:d47b4029cd82538625d9430aaff47127:850de6bbbf32f970151d02918b7ce21c:700346d56f0fa19a728ca9168024b505$"
+}
+}
