@@ -1,11 +1,15 @@
 import {default as enemyParams} from './enemyParams.js'
-const CANVAS_WIDTH = 550;
-const CANVAS_HEIGHT = 850;
+import {default as sounds} from './sounds.js'
+import { soundPlayer } from './playSound.js'
+const gameWidth = window.screen.width;
+const gameHeight = window.screen.height;
+const CANVAS_WIDTH = gameWidth / 1.4;
+const CANVAS_HEIGHT = gameHeight / 1.35;
 let zeroLeft = 0
 let zeroRight = CANVAS_WIDTH
 let gameSpeed = 1
 
-let playerState = {
+const playerState = {
     state: '',
     afterRoll: true,
     inCover: false,
@@ -13,6 +17,15 @@ let playerState = {
     inZipLine: false,
     inBossFight: false,
 }
+const gameState = {
+    distance: 0,
+    points: 0,
+    kills: 0,
+    score: 'D',
+    multiplier: 0,
+    killStreak: 0
+}
+const canHealth = 2
 let player
 const playerPos = CANVAS_HEIGHT - 200
 const secondFloor = CANVAS_HEIGHT - 390
@@ -26,7 +39,7 @@ const playerBullets = []
 const enemyBullets = []
 const bulletSpeed = 15
 
-let playerDefaultSpeed = 4
+let playerDefaultSpeed = 2
 let playerSpeed = playerDefaultSpeed
 let distance = 0
 
@@ -34,7 +47,9 @@ let background
 let bgPosition = 0
 let bgSpeed = 0.2;
 
+let world
 let ground
+let hud
 let floorPosition = 0
 const fenceChance = 4
 let isFence = false
@@ -45,8 +60,10 @@ const buildingChance = 2
 let buildingType = 0
 
 const gun = {
+    currentAmmo: 5,
     ammo: 5,
     angle: 0.2,
+    type: 'pistol'
 }
 
 const walls = []
@@ -58,17 +75,21 @@ const buildings = []
 const trails = []
 const zipLines = []
 const grenades = []
+const puddles = []
+const garbages = []
 let currentBoss = null
 let bgCar = null
 let currentDogEnemy = null
+let currentCan = null
 
 let engine
 let fg
+let hudLayer
 
 window.onload = async function () {
     const app = new PIXI.Application({
-        width: CANVAS_WIDTH,
-        height: CANVAS_HEIGHT,
+        width: gameWidth,
+        height: gameHeight,
         backgroundColor: 'black',
     })
     app.stage = new PIXI.layers.Stage()
@@ -78,11 +99,14 @@ window.onload = async function () {
     app.stage.sortableChildren = true;
     const loader = PIXI.Assets
 
-    fg = new PIXI.layers.Group(9)
-    app.stage.addChild(new PIXI.layers.Layer(fg));
+    hudLayer = new PIXI.layers.Group(99, true)
+    app.stage.addChild(new PIXI.layers.Layer(hudLayer));
 
     PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
+    app.stage.scale.set(1.4)
+    PIXI.sound.volumeAll = 0.05
 
+    PIXI.Assets.addBundle('sounds', sounds);
     const textures = await loader.load('./src/textures/textures.json');
     const build1 = await loader.load('./src/textures/build1.json');
     const build2 = await loader.load('./src/textures/build2.json');
@@ -93,7 +117,7 @@ window.onload = async function () {
     const inFloorTexture = await loader.load('./src/textures/inFloor.json');
     const inClubTexture = await loader.load('./src/textures/inClub.json');
     const character = await loader.load('./src/character/character.json');
-    const defaultEnemy = await loader.load('./src/enemies/defaultEnemy.json');
+    const enemiesTexture = await loader.load('./src/enemies/enemies.json');
     const dogEnemy = await loader.load('./src/enemies/dog.json');
     const bossGun = await loader.load('./src/enemies/bossGun.json');
     const bossLauncher = await loader.load('./src/enemies/bossLauncher.json');
@@ -104,24 +128,45 @@ window.onload = async function () {
     const physParticlesTexture = await loader.load('./src/particles/physParticles.json');
     const bounceParticlesTexture = await loader.load('./src/particles/bounceParticles.json');
     const bochka = await loader.load('./src/entity/bochka.json');
+    const canTexture = await loader.load('./src/entity/can.json');
     const windowTexture = await loader.load('./src/entity/window.json');
     const doorTexture = await loader.load('./src/entity/door.json');
     const bgCarTexture = await loader.load('./src/textures/bgCar.json');
+    const puddleTexture = await loader.load('./src/entity/puddle.json');
+    const garbageTexture = await loader.load('./src/entity/garbage.json');
+    const activeItems = await loader.load('./src/hud/activeItems.json');
+    await PIXI.Assets.loadBundle('sounds')
     // await character.parse();
 
     const bg = await loader.load('./src/BG.png')
     init()
 
     function init() {
+        world = new PIXI.Container()
+        app.stage.addChild(world)
+        world.sortableChildren = true;
+        fg = new PIXI.layers.Group(9, true)
+        world.addChild(new PIXI.layers.Layer(fg));
+
+        hud = new PIXI.Container()
+        app.stage.addChild(hud)
+        hud.sortableChildren = true;
+        hud.parentGroup = hudLayer
+        hud.zOrder = 99
+        HUDbullets()
+        HUDpoints()
+
         background = createBg(bg)
         ground = new PIXI.Container()
-        app.stage.addChild(ground)
+        world.addChild(ground)
+
         for (let i = 0; i <= 3; i++) {
             createFloor(i, 0)
         }
         createPlayer()
         document.addEventListener('keyup', events)
 
+        createCan()
         app.ticker.add(ticker)
         trailTimer()
     }
@@ -129,8 +174,7 @@ window.onload = async function () {
     function ticker(delta) {
         Matter.Engine.update(engine);
         if (meleeKill) {
-            meleeKill.pivot.x = -(player.x - 100)
-            const UiBounds = meleeKill.getBounds()
+            const UiBounds = meleeKill.getLocalBounds()
             const selector = meleeKill.getChildAt(2)
             if (meleeKillSelectorSide) {
                 selector.x += meleeKillSelectorSpeed + meleeKillStreak
@@ -144,18 +188,24 @@ window.onload = async function () {
                 meleeKillSelectorSide = true
             }
         }
-        updatePlayer()
+        hud.getChildByName('points').text = Math.floor(gameState.distance)
+        updateGarbage()
+        updatePlayer(delta)
         updateBg()
         updateFloor()
         updateBullets()
         updateWall()
         updateEnemies()
         updateTraps()
-        updatePhysParticles()
+        updateParticles()
         updateBounceParticles()
         updateBuildings()
         updateTrailParticle()
         updateZiplines()
+        updatePuddles()
+        if (currentCan) {
+            updateCan()
+        }
         if (currentDogEnemy) {
             updateDogEnemy()
         }
@@ -171,9 +221,9 @@ window.onload = async function () {
         if (playerState.inZipLine) {
             spawnTrailParticle(player)
             if (playerState.inZipLine === 'top') {
-                player.y -= 1.5
+                player.y -= 2.2
             } else {
-                player.y += 1.5
+                player.y += 2.2
             }
         }
         const detectedWall = detectWall()
@@ -201,11 +251,14 @@ window.onload = async function () {
     }
 
     function spawnEntity() {
-        if (Math.random() < 0.1 && !currentDogEnemy) {
+        if (Math.random() < 0.05 && !currentDogEnemy) {
             createDogEnemy()
         }
         if (Math.random() < 0.5 && !bgCar) {
             createBgCar()
+        }
+        if (Math.random() < 0.2) {
+            createPuddle()
         }
         if (!isClub && !currentBoss) {
             const randomBuild = Math.floor(Math.random() * (10 - 1 + 1) + 1)
@@ -236,6 +289,9 @@ window.onload = async function () {
         }
         if (Math.random() < 0.5) {
             createEnemy()
+        }
+        if (Math.random() < 0.1 && !currentCan) {
+            createCan()
         }
         if (!isBuilding && !currentBoss && (afterBuilding < zeroRight - CANVAS_WIDTH / 2)) {
             if (Math.random() < 0.05) {
@@ -270,7 +326,7 @@ window.onload = async function () {
             damagePlayer()
         }
         gameSpeed = 1
-        app.stage.removeChild(meleeKill)
+        hud.removeChild(meleeKill)
         meleeKill = null
         clearTimeout(meleeKillStreakTimer)
         setTimeout(() => {
@@ -280,18 +336,18 @@ window.onload = async function () {
         }, 5000)
     }
 
-    function UImeleeKill(enemy) {
+    function HUDmeleeKill(enemy) {
         gameSpeed = 0.2
         meleeKill = new PIXI.Container()
         const redBar = PIXI.Sprite.from(PIXI.Texture.WHITE);
         redBar.height = 50
-        redBar.width = CANVAS_WIDTH / 2
+        redBar.width = CANVAS_WIDTH / 1.5
         redBar.anchor.set(0.5)
         redBar.position.set(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2)
         redBar.tint = 16731469
         const greenBar = PIXI.Sprite.from(PIXI.Texture.WHITE);
         greenBar.height = 50
-        greenBar.width = CANVAS_WIDTH / 8
+        greenBar.width = CANVAS_WIDTH / 6
         greenBar.anchor.set(0, 0.5)
         const greenBarPosition = Math.floor(Math.random() * ((redBar.x + redBar.width / 2 - greenBar.width) - (redBar.x - redBar.width / 2)) + (redBar.x - redBar.width / 2))
         greenBar.position.set(greenBarPosition, CANVAS_HEIGHT / 2)
@@ -306,8 +362,7 @@ window.onload = async function () {
         meleeKill.addChild(redBar)
         meleeKill.addChild(greenBar)
         meleeKill.addChild(selector)
-        meleeKill.zIndex = 99
-        app.stage.addChild(meleeKill)
+        hud.addChild(meleeKill)
         meleeKillStreakTimer = setTimeout(() => {
             if (meleeKill) {
                 setMeleeSelector(true)
@@ -315,7 +370,236 @@ window.onload = async function () {
         }, 2500)
     }
 
+    function createGarbage(posX, posY, type) {
+        const rand = type || random(1, 10)
+        const garbage = new PIXI.Sprite(garbageTexture.textures[`trash${rand}`])
+        garbage.type = rand
+        garbage.anchor.set(0.5)
+        garbage.position.set(posX, posY)
+        world.addChild(garbage)
+        garbages.push(garbage)
+    }
+
+    function updateGarbage() {
+        garbages.forEach((garbage, idx) => {
+            if (garbage.x + garbage.width < zeroLeft) {
+                world.removeChild(garbage)
+                garbages.splice(idx, 1)
+                return;
+            }
+            if (garbage.type === 3 || garbage.type === 4) {
+                enemyBullets.forEach(bullet => {
+                    const b = bullet.getBounds()
+                    const g = garbage.getBounds()
+                    if (g.x > b.x && b.x + b.width > g.x && g.y > b.y && b.y + b.height > g.y) {
+                        soundPlayer.glassBreak()
+                        for (let i = 0; i <= 8; i++) {
+                            createParticles(garbage, 'bottle')
+                        }
+                        world.removeChild(garbage)
+                        garbages.splice(idx, 1)
+                        return
+                    }
+                })
+                playerBullets.forEach(bullet => {
+                    const b = bullet.getBounds()
+                    const g = garbage.getBounds()
+                    if (g.x > b.x && b.x + b.width > g.x && g.y > b.y && b.y + b.height > g.y) {
+                        soundPlayer.glassBreak()
+                        for (let i = 0; i <= 8; i++) {
+                            createParticles(garbage, 'bottle')
+                        }
+                        world.removeChild(garbage)
+                        garbages.splice(idx, 1)
+                        return
+                    }
+                })
+            }
+        })
+    }
+
+    function createPuddle() {
+        if (buildings.length > 0) {
+            const activeBuilding = buildings[0]
+            const lastBuilding = buildings[buildings.length - 1].getLocalBounds()
+            if ((lastBuilding.x + lastBuilding.width > zeroRight && activeBuilding.getLocalBounds().x < zeroRight) && activeBuilding.secondFloor) {
+                return
+            }
+        }
+        const rand = random(1, 2)
+        const puddle = new PIXI.Sprite(puddleTexture.textures[`puddle${rand}`])
+        puddle.anchor.set(0.5)
+        puddle.position.set(zeroRight + puddle.width, playerPos + 24)
+        world.addChild(puddle)
+        puddles.push(puddle)
+    }
+
+    function updatePuddles() {
+        puddles.forEach((puddle, idx) => {
+            if (puddle.x + puddle.width < zeroLeft) {
+                world.removeChild(puddle)
+                puddles.splice(idx, 1)
+                return;
+            }
+            if (puddle.dead) return
+            if (player.x + player.width > puddle.x + 20 && puddle.x + puddle.width > player.x) {
+                puddle.dead = true
+                if (playerState.state === 'roll' || playerState.state === 'rollEnd') {
+                    playerSpeed = playerDefaultSpeed + 2.5
+                    soundPlayer.waterStep()
+                    for (let i = 0; i <= 20; i++) {
+                        createParticles({x: puddle.x, y: puddle.y - 10}, 'drop')
+                    }
+                } else {
+                    soundPlayer.waterStep()
+                    for (let i = 0; i <= 14; i++) {
+                        createParticles({x: puddle.x - 20, y: puddle.y - 10}, 'drop')
+                    }
+                    setTimeout(() => {
+                        soundPlayer.waterStep()
+                        for (let i = 0; i <= 14; i++) {
+                            createParticles({x: puddle.x + 20, y: puddle.y - 10}, 'drop')
+                        }
+                    }, 250)
+                }
+            }
+        })
+    }
+
+    function createCan() {
+        const can = new PIXI.Sprite(canTexture.textures.pixelCan)
+        can.width = 8
+        can.height = 16
+        can.position;
+        can.anchor.set(0, 0.5)
+        can.health = canHealth
+        can.parentGroup = fg
+        can.zOrder = 6
+        can.body = Matter.Bodies.rectangle(zeroRight, playerPos + 20, 8, 16, {isStatic: false, restitution: 0.2, frictionAir: 0.01, chamfer: { radius: [5,5,0,0] }});
+        world.addChild(can)
+        Matter.World.add(engine.world, can.body);
+        currentCan = can
+    }
+
+    function updateCan() {
+        currentCan.position = currentCan.body.position
+        currentCan.rotation = currentCan.body.angle
+        if ((currentCan.x > zeroRight + 300) || (currentCan.y > CANVAS_HEIGHT) || (currentCan.x < zeroLeft) || (currentCan.health <= 0)) {
+            world.removeChild(currentCan)
+            Matter.World.remove(engine.world, currentCan.body)
+            currentCan = null
+            return
+        }
+        //CAN TOUCHED
+        if (player.x + player.width > currentCan.x + 40 && player.x < currentCan.x + 20 && currentCan.y > player.y && player.y + player.height > currentCan.y && (playerState.state === 'roll' || playerState.state === 'rollEnd') && !currentCan.touched) {
+            currentCan.dealDamage = false
+            soundPlayer.canDrop()
+            Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: random(0.01, 0.014, true, true) , y: -random(0.002, 0.00, true, true)});
+        }
+        //CAN DAMAGE
+        if (!currentCan.dealDamage && currentCan.body.speed > 1) {
+            enemies.forEach(enemy => {
+                const b = enemy.getBounds()
+                const can = currentCan.getBounds()
+                if (can.x > b.x && b.x + b.width > can.x && can.y > b.y && b.y + b.height > can.y && !enemy.params.dead) {
+                    currentCan.dealDamage = true
+                    currentCan.health -= 1
+                    damageEnemy(enemy, Math.floor(currentCan.body.speed))
+                    currentCan.body.speed = 0.5
+                    Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.01, 0.015, true, true) , y: -random(0.002, 0.006, true, true)});
+                }
+            })
+            if (currentDogEnemy) {
+                const b = currentDogEnemy.getBounds()
+                const can = currentCan.getBounds()
+                if (can.x > b.x && b.x + b.width > can.x && can.y > b.y && b.y + b.height > can.y && !currentDogEnemy.params.dead) {
+                    currentCan.dealDamage = true
+                    currentCan.health -= 1
+                    damageEnemy(currentDogEnemy, Math.floor(currentCan.body.speed))
+                    currentCan.body.speed = 0.5
+                    Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.01, 0.015, true, true) , y: -random(0.002, 0.006, true, true)});
+                }
+            }
+            if (currentBoss) {
+                const b = currentBoss.getBounds()
+                const can = currentCan.getBounds()
+                if (can.x > b.x && b.x + b.width > can.x && can.y > b.y && b.y + b.height > can.y && !currentBoss.params.dead) {
+                    currentCan.dealDamage = true
+                    currentCan.health -= 1
+                    damageEnemy(currentBoss, Math.floor(currentCan.body.speed), true)
+                    currentCan.body.speed = 0.5
+                    Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.01, 0.015, true, true) , y: -random(0.002, 0.006, true, true)});
+                }
+            }
+            traps.forEach(trap => {
+                const b = trap.getBounds()
+                const can = currentCan.getBounds()
+                if (can.x > b.x && b.x + b.width > can.x && can.y > b.y && b.y + b.height > can.y && !trap.dead) {
+                    currentCan.dealDamage = true
+                    currentCan.health -= 1
+                    currentCan.body.speed = 0.5
+                    Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.01, 0.015, true, true) , y: -random(0.002, 0.006, true, true)});
+                    if (trap.type) {
+                        if (trap.type === 'window') soundPlayer.glassBreak()
+                        trap.play()
+                        trap.dead = true
+                    } else {
+                        barrelDead(trap)
+                    }
+                }
+            })
+        }
+    }
+
+    async function cameraShake(intensity, duration) {
+        let time = 0
+        const part = Math.floor((duration / 10) / 8)
+        const defaultIntensity = intensity || 2
+        const intensityStep = defaultIntensity / 4
+        const timer = setInterval(() => {
+            time++
+            switch (true) {
+                case time > part * 7 : {
+                    world.pivot.y -= defaultIntensity - intensityStep * 3
+                    break
+                }
+                case time > part * 6 : {
+                    world.pivot.y += defaultIntensity - intensityStep * 3
+                    break
+                }
+                case time > part * 5 : {
+                    world.pivot.y -= defaultIntensity - intensityStep * 2
+                    break
+                }
+                case time > part * 4 : {
+                    world.pivot.y += defaultIntensity - intensityStep * 2
+                    break
+                }
+                case time > part * 3 : {
+                    world.pivot.y += defaultIntensity - intensityStep
+                    break
+                }
+                case time > part * 2 : {
+                    world.pivot.y -= defaultIntensity - intensityStep
+                    break
+                }
+                case time > part : {
+                    world.pivot.y -= defaultIntensity
+                    break
+                }
+                default: {
+                    world.pivot.y += defaultIntensity
+                    break
+                }
+            }
+        }, 10)
+        await sleep(duration)
+        clearInterval(timer)
+        world.pivot.y = player.y - CANVAS_HEIGHT + 200
+    }
+
     function damagePlayer() {
+        cameraShake(4, 600)
         playerState.invincible = true
         player.tint = 16737894
         setTimeout(() => {
@@ -329,15 +613,19 @@ window.onload = async function () {
         console.log('damaged')
     }
 
-    function updatePlayer() {
-        app.stage.pivot.x = player.x - 100
+    function updatePlayer(delta) {
+        gameState.distance = player.x
+        const dtX = 1 - Math.exp(-delta / 5)
+        const dtY = 1 - Math.exp(-delta / 20)
+        world.pivot.x = ((player.x - 60) - world.pivot.x) * dtX + world.pivot.x;
+        world.pivot.y = ((player.y - CANVAS_HEIGHT + 200) - world.pivot.y) * dtY + world.pivot.y;
         player.x += (0.5 * playerSpeed) * gameSpeed;
         zeroLeft = player.x - 100
         zeroRight = player.x - 100 + CANVAS_WIDTH
         enemyBullets.forEach((bullet, idx) => {
             if (player.x + player.width > bullet.x && player.x < bullet.x && player.y - player.height / 2 < bullet.y && player.y + player.height / 2 > bullet.y) {
-                if (playerState.state === 'roll' || playerState.state === 'rollEnd' || (playerState.inCover && playerState.state !== 'shot')) return
-                app.stage.removeChild(bullet)
+                if (playerState.state === 'roll' || playerState.state === 'rollEnd' || (playerState.inCover && playerState.state !== 'shot')) return soundPlayer.bulletSkip()
+                world.removeChild(bullet)
                 enemyBullets.splice(idx, 1)
                 if (playerState.invincible) {
                     return
@@ -357,9 +645,9 @@ window.onload = async function () {
         player.animationSpeed = 0.2
         player.loop = true
         player.parentGroup = fg
-        player.zOrder = 10
+        player.zOrder = 5
         player.position.set(100, playerPos)
-        app.stage.addChild(player)
+        world.addChild(player)
         player.play()
     }
 
@@ -418,14 +706,14 @@ window.onload = async function () {
         }
         rectangle.endSize = Math.floor(Math.random() * (10 - 5 + 1) + 5)
         rectangle.alpha = 0.7
-        app.stage.addChild(rectangle);
+        world.addChild(rectangle);
         trails.push(rectangle)
     }
 
     function updateTrailParticle() {
         trails.forEach((item, idx) => {
             if (item.x < zeroLeft || item.y - item.height < item.initY - item.endSize ) {
-                app.stage.removeChild(item)
+                world.removeChild(item)
                 trails.splice(idx, 1)
                 return
             }
@@ -439,7 +727,7 @@ window.onload = async function () {
     function deleteWallsAroundBuilding(pos) {
         walls.forEach((wall, idx) => {
             if (wall.x + 100 > pos) {
-                app.stage.removeChild(wall)
+                world.removeChild(wall)
                 walls.splice(idx, 1)
             }
         })
@@ -481,11 +769,11 @@ window.onload = async function () {
             buildBack = new PIXI.Sprite(build2.textures.Build2FOne)
             buildFront = new PIXI.Sprite(build2.textures.Build2FOneClose)
             buildBack.anchor.set(0.5)
-            buildBack.position.set(position + buildBack.width / 2, 464)
+            buildBack.position.set(position + buildBack.width / 2, CANVAS_HEIGHT - 386)
             buildZipline = new PIXI.Sprite(buildZiplineTexture.textures.Zipline2FStart)
-            buildZipline.position.set((position - buildZipline.width) + 40, 220 )
+            buildZipline.position.set((position - buildZipline.width) + 40, CANVAS_HEIGHT - 630 )
             buildZipline.zIndex = 1
-            app.stage.addChild(buildZipline)
+            world.addChild(buildZipline)
             zipLines.push(buildZipline)
             createWindow(position + 11)
             if (Math.random() < 0.5) {
@@ -502,7 +790,7 @@ window.onload = async function () {
                     buildBack = new PIXI.Sprite(build2.textures.Build2FTwo)
                     buildFront = new PIXI.Sprite(build2.textures.Build2FTwoClose)
                     buildBack.anchor.set(0.5)
-                    buildBack.position.set(position + buildBack.width / 2, 464)
+                    buildBack.position.set(position + buildBack.width / 2, CANVAS_HEIGHT - 386)
                     if (Math.random() < 0.5) {
                         createCoverInBuild(buildBack.x - 50, true)
                     }
@@ -517,7 +805,7 @@ window.onload = async function () {
                     buildBack = new PIXI.Sprite(build2.textures.Build2Outroof)
                     buildContainer.outroof = true
                     buildBack.anchor.set(0.5)
-                    buildBack.position.set(position + buildBack.width / 2, 580)
+                    buildBack.position.set(position + buildBack.width / 2, CANVAS_HEIGHT - 270)
                     if (Math.random() < 0.5) {
                         createCoverInBuild(position + buildBack.width - 250, true, true)
                     }
@@ -530,7 +818,7 @@ window.onload = async function () {
                     buildBack = new PIXI.Sprite(build2.textures.Build2FThree)
                     buildFront = new PIXI.Sprite(build2.textures.Build2FThreeClose)
                     buildBack.anchor.set(0.5)
-                    buildBack.position.set(position + buildBack.width / 2 - 120, 464)
+                    buildBack.position.set(position + buildBack.width / 2 - 120, CANVAS_HEIGHT - 386)
                     if (Math.random() < 0.5) {
                         createCoverInBuild(position + buildBack.width - 360, true)
                     }
@@ -550,7 +838,7 @@ window.onload = async function () {
                     buildConnect = new PIXI.Sprite(build2.textures.Build2fOneConnect)
                     buildContainer.outroof = true
                     buildBack.anchor.set(0.5)
-                    buildBack.position.set(position + buildBack.width / 2, 580)
+                    buildBack.position.set(position + buildBack.width / 2, CANVAS_HEIGHT - 270)
                     if (Math.random() < 0.5) {
                         createCoverInBuild(position + buildBack.width - 250, true, true)
                     }
@@ -571,7 +859,7 @@ window.onload = async function () {
                 buildZipline.end = true
             }
             buildZipline.zIndex = 1
-            app.stage.addChild(buildZipline)
+            world.addChild(buildZipline)
             zipLines.push(buildZipline)
             afterBuilding = buildBack.x + buildBack.width / 2
         }
@@ -579,7 +867,7 @@ window.onload = async function () {
             buildFront.anchor.set(0.5)
             buildFront.position.set(buildBack.x, buildBack.y)
             buildFront.parentGroup = fg
-            buildFront.zOrder = 5
+            buildFront.zOrder = 10
             buildContainer.addChild(buildFront)
         }
         if (buildConnect) {
@@ -603,20 +891,21 @@ window.onload = async function () {
             }
         ]
         buildContainer.resetSpawnZones = resetSpawnZones
-        app.stage.addChild(buildContainer)
+        world.addChild(buildContainer)
         buildings.push(buildContainer)
     }
 
     function updateZiplines() {
         zipLines.forEach((b, idx) => {
             if (b.position.x + b.width < zeroLeft) {
-                app.stage.removeChild(b)
+                world.removeChild(b)
                 zipLines.splice(idx, 1)
                 return;
             }
             if (playerState.inZipLine || b.used) return
             if (b.position.x + (b.end ? b.width - 20 : -10) < player.x && b.position.x + (b.end ? b.width : 0) > player.x) {
                 b.used = true
+                soundPlayer.zipLine()
                 playerState.inZipLine = b.end ? "bot" : "top"
                 playerSpeed = 0
                 playAnim('zipLine')
@@ -637,7 +926,7 @@ window.onload = async function () {
                         }
                         events(e)
                     }
-                }, 1000)
+                }, 650)
             }
         })
     }
@@ -698,12 +987,12 @@ window.onload = async function () {
         buildBack.anchor.set(0.5)
         buildFront.anchor.set(0.5)
         buildFront.parentGroup = fg
-        buildFront.zOrder = 5
-        buildBack.position.set(position + buildBack.width / 2, 485)
-        buildFront.position.set(position + buildFront.width / 2, 485)
+        buildFront.zOrder = 10
+        buildBack.position.set(position + buildBack.width / 2, CANVAS_HEIGHT - 365)
+        buildFront.position.set(position + buildFront.width / 2, CANVAS_HEIGHT - 365)
         if (buildConnect) {
             buildConnect.anchor.set(0.5)
-            buildConnect.position.set(position + buildConnect.width / 2, 485)
+            buildConnect.position.set(position + buildConnect.width / 2, CANVAS_HEIGHT - 365)
             buildContainer.addChild(buildConnect)
         }
         if (type === 'end') {
@@ -723,7 +1012,7 @@ window.onload = async function () {
             }
         ]
         buildContainer.resetSpawnZones = resetSpawnZones
-        app.stage.addChild(buildContainer)
+        world.addChild(buildContainer)
         buildings.push(buildContainer)
     }
 
@@ -736,13 +1025,13 @@ window.onload = async function () {
             const randomWall = Math.floor(Math.random() * (2 + 1))
             wall = new PIXI.Sprite(inBuildTexture.textures[`inhouse-${randomWall}`])
         }
-        wall.bound = 30
+        wall.bound = 40
         wall.anchor.set(0.5)
-        wall.position.set(pos, isSecondFloor ? isRoof ? 428 : 417 : CANVAS_HEIGHT - 245)
+        wall.position.set(pos, isSecondFloor ? isRoof ? CANVAS_HEIGHT - 422 : CANVAS_HEIGHT - 433 : CANVAS_HEIGHT - 245)
         wall.height = wall.height * 2
         wall.width = wall.width * 2
         wall.zIndex = 1
-        app.stage.addChild(wall)
+        world.addChild(wall)
         walls.push(wall)
     }
 
@@ -754,7 +1043,7 @@ window.onload = async function () {
                     isClub = false
                     isBuilding = false
                 }
-                app.stage.removeChild(build)
+                world.removeChild(build)
                 buildings.splice(idx, 1)
             }
         })
@@ -777,44 +1066,54 @@ window.onload = async function () {
         for (let i = 1; i <= 17; i++) {
             const rand = Math.floor(Math.random() * (9 - 1 + 1) + 1)
             const laserBeam = new PIXI.AnimatedSprite(laserBeamTexture.animations[`render${rand}`])
-            laserBeam.position.set(position + 526 + (i * 44), 416)
+            laserBeam.position.set(position + 526 + (i * 44), CANVAS_HEIGHT - 434)
             laserBeam.tint = randomRGB()
             laserBeam.scale.y = `1.0${rand}`
             laserBeam.parentGroup = fg
-            laserBeam.zOrder = 4
+            if (Math.random() < 0.5) {
+                laserBeam.zOrder = 4
+            } else {
+                laserBeam.zOrder = 6
+            }
             laserBeam.animationSpeed = 0.01 * rand + 0.01
-            laserBeam.alpha = 0.9
+            laserBeam.alpha = 0.7
             laserBeam.play()
             clubContainer.addChild(laserBeam)
-        }
-        if (Math.random() < 0.5) {
-            spawnCoverInClub(position + 190, 0)
-        }
-        if (Math.random() < 0.5) {
-            spawnCoverInClub(position + 410, 1)
-        }
-        if (Math.random() < 0.5) {
-            spawnCoverInClub(position + 540, 1)
-        }
-        if (Math.random() < 0.5) {
-            spawnCoverInClub(position + 840, 0)
-        }
-        if (Math.random() < 0.5) {
-            spawnCoverInClub(position + 1300, 0)
-        }
-        if (Math.random() < 0.5) {
-            spawnCoverInClub(position + 1600, 2)
-        }
-        if (Math.random() < 0.5) {
-            spawnCoverInClub(position + 1900, 2)
         }
         clubBack.anchor.set(0.5)
         clubFront.anchor.set(0.5)
         clubFront.parentGroup = fg
-        clubFront.zOrder = 5
-        clubBack.position.set(position + clubBack.width / 2, 485)
-        clubFront.position.set(position + clubFront.width / 2, 485)
+        clubFront.zOrder = 10
+        clubBack.position.set(position + clubBack.width / 2, CANVAS_HEIGHT - 365)
+        clubFront.position.set(position + clubFront.width / 2, CANVAS_HEIGHT - 365)
         clubContainer.club = true
+
+        if (Math.random() < 0.5) {
+            createCoverInClub(position + 190, 0)
+        }
+        if (Math.random() < 0.5) {
+            createCoverInClub(position + 410, 1)
+        }
+        if (Math.random() < 0.5) {
+            createCoverInClub(position + 540, 1)
+        }
+        if (Math.random() < 0.1) {
+            createBoss(4, clubBack.x + 130)
+        } else {
+            if (Math.random() < 0.5) {
+                createCoverInClub(position + 840, 0)
+            }
+            if (Math.random() < 0.5) {
+                createCoverInClub(position + 1300, 0)
+            }
+        }
+        if (Math.random() < 0.5) {
+            createCoverInClub(position + 1600, 2)
+        }
+        if (Math.random() < 0.5) {
+            createCoverInClub(position + 1900, 2)
+        }
+
         clubContainer.addChild(clubBack)
         clubContainer.addChild(clubFront)
         const bounds = clubContainer.getLocalBounds()
@@ -837,31 +1136,34 @@ window.onload = async function () {
             }
         ]
         clubContainer.resetSpawnZones = resetSpawnZones
-        app.stage.addChild(clubContainer)
+        world.addChild(clubContainer)
         buildings.push(clubContainer)
     }
 
-    function spawnCoverInClub(pos, type) {
+    function createCoverInClub(pos, type, forBoss) {
         const wall = new PIXI.Sprite(inClubTexture.textures[`inClub-${type}`])
         switch (true) {
             case type === 0:
-                wall.bound = 30
+                wall.bound = 40
                 wall.position.set(pos, CANVAS_HEIGHT - 236)
             break
             case type === 1:
-                wall.bound = 50
+                wall.bound = 60
                 wall.position.set(pos, CANVAS_HEIGHT - 240)
             break
             case type === 2:
-                wall.bound = 30
+                wall.bound = 40
                 wall.position.set(pos, CANVAS_HEIGHT - 230)
             break
+        }
+        if (forBoss) {
+            wall.forBoss = true
         }
         wall.anchor.set(0.5)
         wall.height = wall.height * 2
         wall.width = wall.width * 2
         wall.zIndex = 1
-        app.stage.addChild(wall)
+        world.addChild(wall)
         walls.push(wall)
     }
 
@@ -869,18 +1171,13 @@ window.onload = async function () {
         const particle = new PIXI.Sprite(bounceParticlesTexture.textures[particleType])
         particle.scale.x = 2
         particle.scale.y = 2
-        if (secondFloor) {
-            particle.edge = Math.floor(Math.random() * (490 - 470 + 1) + 470)
-        } else {
-            particle.edge = Math.floor(Math.random() * (680 - 660 + 1) + 660)
-        }
         particle.anchor.set(0.5)
         particle.position.set(char.x, char.y)
         particle.lifeTime = 500
 
         particle.body = Matter.Bodies.rectangle(particle.x, particle.y, 2, 10, {isStatic: false, restitution: 0.5});
         particle.rotation = Math.floor(Math.random() * (6 + 1))
-        app.stage.addChild(particle)
+        world.addChild(particle)
 
         Matter.World.add(engine.world, particle.body);
         let randomMassX = Math.random() * particle.body.mass
@@ -895,7 +1192,7 @@ window.onload = async function () {
         bounceParticles.forEach((b, idx) => {
             b.lifeTime--
             if (b.lifeTime <= 0) {
-                app.stage.removeChild(b)
+                world.removeChild(b)
                 Matter.World.remove(engine.world, b.body)
                 bounceParticles.splice(idx, 1)
             }
@@ -908,18 +1205,22 @@ window.onload = async function () {
         })
     }
 
-    function spawnPhysParticles(char, particleType, floor) {
+    function createParticles(char, particleType, floor, silence) {
         let particle
         switch (true) {
-            case particleType === 'blood':
-                const randomBlood = Math.floor(Math.random() * (4 + 1))
+            case particleType === 'blood': {
+
+                if (!silence) soundPlayer.damageFlesh()
+                const randomBlood = random(0, 4)
                 particle = new PIXI.Sprite(physParticlesTexture.textures[`blood-${randomBlood}`])
                 particle.scale.x = 2
                 particle.scale.y = 2
-            break
-            case particleType === 'spark':
+                break
+            }
+            case particleType === 'spark': {
+                if (!silence) soundPlayer.damageMetal()
                 particle = new PIXI.Sprite(physParticlesTexture.textures['spark'])
-                const particleTint = Math.floor(Math.random() * (2 + 1))
+                const particleTint = random(0, 2)
                 switch (true) {
                     case particleTint === 0:
                         particle.tint = 16777011
@@ -931,22 +1232,49 @@ window.onload = async function () {
                         particle.tint = 16771891
                         break
                 }
-                const randomSize = Math.floor(Math.random() * (4 + 3))
+                const randomSize = random(3, 4)
                 particle.scale.x = randomSize
                 particle.scale.y = randomSize
-            break
+                break
+            }
+            case particleType === 'drop': {
+                particle = PIXI.Sprite.from(PIXI.Texture.WHITE);
+                const particleTint = random(0, 2)
+                switch (true) {
+                    case particleTint === 0:
+                        particle.tint = 9424895
+                        break
+                    case particleTint === 1:
+                        particle.tint = 15138815
+                        break
+                    case particleTint === 2:
+                        particle.tint = 16777215
+                        break
+                }
+                const randomSize = random(2, 4)
+                particle.width = randomSize
+                particle.height = randomSize
+                break
+            }
+            case particleType === 'bottle': {
+                particle = PIXI.Sprite.from(PIXI.Texture.WHITE);
+                particle.tint = 32768
+                const randomSize = random(2, 3)
+                particle.width = randomSize
+                particle.height = randomSize
+                break
+            }
         }
         particle.type = particleType
         if (floor) {
-            particle.edge = Math.floor(Math.random() * (500 - 470 + 1) + 470)
+            particle.edge = Math.floor(Math.random() * ((CANVAS_HEIGHT - 350) - (CANVAS_HEIGHT - 380) + 1) + (CANVAS_HEIGHT - 380))
         } else {
-            particle.edge = Math.floor(Math.random() * (690 - 660 + 1) + 660)
+            particle.edge = Math.floor(Math.random() * ((CANVAS_HEIGHT - 160) - (CANVAS_HEIGHT - 190) + 1) + (CANVAS_HEIGHT - 190))
         }
         particle.anchor.set(0.5)
         particle.position.set(char.x, char.y)
         particle.body = Matter.Bodies.rectangle(particle.x, particle.y, 1, 1, {isStatic: false, isSensor: true});
-        // particle.rotation = Math.floor(Math.random() * (6 + 1))
-        app.stage.addChild(particle)
+        world.addChild(particle)
         Matter.World.add(engine.world, particle.body);
         let randomMassX = Math.random() * particle.body.mass
         const randomMassY = Math.random() * particle.body.mass
@@ -955,7 +1283,7 @@ window.onload = async function () {
         physParticles.push(particle)
     }
 
-    function updatePhysParticles() {
+    function updateParticles() {
         physParticles.forEach((b, idx) => {
             if (!b.stop) {
                 b.position = b.body.position;
@@ -964,16 +1292,21 @@ window.onload = async function () {
                 }
                 if (b.position.y > b.edge) {
                     b.stop = true
-                    if (b.type === 'spark') {
-                        b.scale.y = 3
-                        b.scale.x = 3
-                        return
+                    switch (true) {
+                        case b.type === 'spark': {
+                            b.scale.y = 3
+                            b.scale.x = 3
+                            break
+                        }
+                        case b.type === 'blood': {
+                            b.scale.y = 1
+                            break
+                        }
                     }
-                    b.scale.y = 1
                 }
             }
             if (b.position.x < zeroLeft) {
-                app.stage.removeChild(b)
+                world.removeChild(b)
                 Matter.World.remove(engine.world, b.body);
                 physParticles.splice(idx, 1)
             }
@@ -989,7 +1322,23 @@ window.onload = async function () {
         warning.scale.y = 2
         warning.position.set(char.x, char.y - 40)
         char.params.warning = warning
-        app.stage.addChild(warning)
+        if (char.params.longRange) {
+            const longDetector = PIXI.Sprite.from(PIXI.Texture.WHITE);
+            longDetector.zIndex = 20
+            longDetector.anchor.set(1)
+            longDetector.tint = 16711680
+            longDetector.scale.x = 14
+            longDetector.scale.y = 0.1
+            longDetector.position.set(char.x - char.width / 2 + 10, char.y - 6)
+            char.params.longDetector = longDetector
+            world.addChild(longDetector)
+        }
+        world.addChild(warning)
+        if (char.params.canCover) {
+            char.params.inCover = false
+            char.tint = player.color
+            char.anchor.y = 0.5
+        }
         //prepare
         await sleep(Math.floor(Math.random() * (char.params.warningMax - char.params.warningMin + 1)) + char.params.warningMin)
         if (char.params.dead) return
@@ -997,10 +1346,25 @@ window.onload = async function () {
         //shoot
         await sleep(200)
         if (char.params.dead) return
-        shot(char, 0, 0)
-        enemyShotAnim(char, 1)
-        app.stage.removeChild(warning)
+        world.removeChild(warning)
+        if (char.params.longRange) {
+            world.removeChild(char.params.longDetector)
+        }
+        if (char.params.rapidFire) {
+            const fireTimes = random(1, char.params.rapidFire)
+            enemyShotAnim(char, fireTimes)
+            await shotRapid(char, char.params.offsetX || 0, char.params.offsetY || 0, fireTimes, char.params.gun, 100)
+        } else {
+            enemyShotAnim(char, 1)
+            shot(char, char.params.offsetX || 0, char.params.offsetY || 0, char.params.gun)
+            await sleep(200)
+        }
         //reload
+        if (char.params.canCover) {
+            char.params.inCover = true
+            char.tint = player.shadow
+            char.anchor.y = 0.7
+        }
         await sleep(Math.floor(Math.random() * (char.params.reloadMax - char.params.reloadMin + 1)) + char.params.reloadMin)
         if (char.params.dead) return
         char.params.detect = false
@@ -1016,19 +1380,19 @@ window.onload = async function () {
         }, times * 200)
     }
 
-    function createBoss() {
-        let randomPos = Math.floor(zeroRight + random(300, 750))
+    function createBoss(propType, propPos) {
+        let randomPos = propPos || Math.floor(zeroRight + random(300, 750))
 
         enemies.forEach((enemy, idx) => {
             if (enemy.x > randomPos - 400 && enemy.x < randomPos + 50) {
-                app.stage.removeChild(enemy)
+                world.removeChild(enemy)
                 enemies.splice(idx, 1)
             }
         })
 
         walls.forEach((wall, idx) => {
             if (wall.x > randomPos - 400 && wall.x < randomPos + 200) {
-                app.stage.removeChild(wall)
+                world.removeChild(wall)
                 walls.splice(idx, 1)
             }
         })
@@ -1037,14 +1401,14 @@ window.onload = async function () {
             if (!trap.type) {
                 const t = trap.getLocalBounds()
                 if (t.x > randomPos - 400 && t.x < randomPos + 200) {
-                    app.stage.removeChild(trap)
+                    world.removeChild(trap)
                     traps.splice(idx, 1)
                 }
             }
         })
 
         let type
-        const randType = random(1, 4)
+        const randType = propType || random(1, 4)
         switch (true) {
             case randType === 1:
                 type = 'bossGun'
@@ -1060,7 +1424,11 @@ window.onload = async function () {
             break
         }
 
-        createWall(randomPos - 300, true)
+        if (propType === 4) {
+            createCoverInClub(randomPos - (CANVAS_WIDTH / 1.8), 0, true)
+        } else {
+            createWall(randomPos - (CANVAS_WIDTH / 1.8), true)
+        }
         const boss = new PIXI.AnimatedSprite(eval(type).animations.idle)
         boss.anchor.set(0.5)
         boss.animationSpeed = 0.15
@@ -1074,7 +1442,7 @@ window.onload = async function () {
         boss.zIndex = 10
         boss.type = type
         currentBoss = boss
-        app.stage.addChild(currentBoss)
+        world.addChild(currentBoss)
         boss.play()
     }
 
@@ -1087,7 +1455,7 @@ window.onload = async function () {
         warning.scale.y = 2
         warning.position.set(currentBoss.x, currentBoss.y - 40)
         currentBoss.params.warning = warning
-        app.stage.addChild(warning)
+        world.addChild(warning)
         let fireTimes = 1
         if (currentBoss.params.rapidFire) {
             fireTimes = Math.floor(Math.random() * (currentBoss.params.rapidFire - 1 + 1)) + 1
@@ -1099,7 +1467,7 @@ window.onload = async function () {
         warning.tint = 16711680
         //shoot
         await sleep(200)
-        app.stage.removeChild(warning)
+        world.removeChild(warning)
         if (!currentBoss || currentBoss.params.dead) return
         switch (true) {
             case currentBoss.type === 'bossVan':
@@ -1109,11 +1477,11 @@ window.onload = async function () {
                 if (!currentBoss || currentBoss.params.dead) return
                 currentBoss.textures = currentBoss.params.animset.shot
                 currentBoss.play()
-                shotRapid(currentBoss, 36, 12, fireTimes)
+                shotRapid(currentBoss, 36, 12, fireTimes, 'smg')
                 await sleep(50)
-                shotRapid(currentBoss, 34, 40, fireTimes)
+                shotRapid(currentBoss, 34, 40, fireTimes, 'smg')
                 await sleep(100)
-                await shotRapid(currentBoss, 106, 20, fireTimes)
+                await shotRapid(currentBoss, 106, 20, fireTimes, 'smg')
                 if (!currentBoss || currentBoss.params.dead) return
                 currentBoss.textures = currentBoss.params.animset.toIdle
                 currentBoss.play()
@@ -1124,20 +1492,21 @@ window.onload = async function () {
             break
             case currentBoss.type === 'bossGun':
                 enemyShotAnim(currentBoss, fireTimes)
-                await shotRapid(currentBoss, 6, 16, fireTimes)
+                await shotRapid(currentBoss, 6, 14, fireTimes, 'rifle')
+                await sleep(100)
                 if (currentBoss.params.walk) {
                     if (!currentBoss || currentBoss.params.dead) return
                     currentBoss.textures = currentBoss.params.animset.walk
                     currentBoss.play()
                     walking = setInterval(() => {
                         if (!currentBoss || currentBoss.params.dead) return
-                        currentBoss.x -= 0.5
+                        currentBoss.x -= 1
                     }, 10)
                 }
             break
             case currentBoss.type === 'bossSmg':
                 enemyShotAnim(currentBoss, fireTimes)
-                await shotRapid(currentBoss, 0, -2, fireTimes, 150)
+                await shotRapid(currentBoss, 0, -2, fireTimes, 'smg', 150)
             break
             case currentBoss.type === 'bossLauncher':
                 enemyShotAnim(currentBoss, fireTimes)
@@ -1156,11 +1525,11 @@ window.onload = async function () {
         bossShooting()
     }
 
-    async function shotRapid(char, offsetX, offsetY, times, cd) {
+    async function shotRapid(char, offsetX, offsetY, times, gun, cd) {
         const shotTime = cd ? cd :200
         const repeat = setInterval(() => {
             if (char.params.dead) return
-            shot(char, offsetX, offsetY)
+            shot(char, offsetX, offsetY, gun)
         }, shotTime)
         return new Promise(function(resolve) {
             setTimeout(function() {
@@ -1196,7 +1565,7 @@ window.onload = async function () {
         grenade.type = 'grenade'
 
         grenade.body = Matter.Bodies.rectangle(grenade.x, grenade.y, 12, 4, {isStatic: false, restitution: 0.5});
-        app.stage.addChild(grenade)
+        world.addChild(grenade)
 
         Matter.World.add(engine.world, grenade.body);
         let randomMassX = Math.random() * (0.4 - 0.2) + 0.2
@@ -1209,7 +1578,7 @@ window.onload = async function () {
             damagePlayer()
             createExplode(grenade, 0, 0)
             Matter.World.remove(engine.world, grenade.body)
-            app.stage.removeChild(grenade)
+            world.removeChild(grenade)
             grenades.splice(idx, 1)
             return
         }
@@ -1220,7 +1589,7 @@ window.onload = async function () {
         warning.scale.x = 1.5
         warning.scale.y = 2
         warning.position.set(grenade.x, grenade.y - 40)
-        app.stage.addChild(warning)
+        world.addChild(warning)
         await sleep(300)
         warning.tint = 16711680
         await sleep(200)
@@ -1229,14 +1598,14 @@ window.onload = async function () {
         }
         createExplode(grenade, 0, 0)
         Matter.World.remove(engine.world, grenade.body)
-        app.stage.removeChild(warning)
-        app.stage.removeChild(grenade)
+        world.removeChild(warning)
+        world.removeChild(grenade)
         grenades.splice(idx, 1)
     }
 
     function updateBoss() {
         if (currentBoss.x + currentBoss.width < zeroLeft) {
-            app.stage.removeChild(currentBoss)
+            world.removeChild(currentBoss)
             currentBoss = null
             return
         }
@@ -1259,12 +1628,12 @@ window.onload = async function () {
         }
         playerBullets.forEach((bullet, idx) => {
             if (currentBoss.x + currentBoss.width > bullet.x && currentBoss.x < bullet.x && currentBoss.y - currentBoss.height / 2 < bullet.y && currentBoss.y + currentBoss.height / 2 > bullet.y) {
-                app.stage.removeChild(bullet)
+                world.removeChild(bullet)
                 playerBullets.splice(idx, 1)
                 if (currentBoss.x - player.x < 200) {
-                    damageEnemy(currentBoss,2, true)
+                    damageEnemy(currentBoss,2, currentBoss.type !== 'bossSmg')
                 } else {
-                    damageEnemy(currentBoss,1, true)
+                    damageEnemy(currentBoss,1, currentBoss.type !== 'bossSmg')
                 }
             }
         })
@@ -1281,19 +1650,20 @@ window.onload = async function () {
             currentDogEnemy.x -= currentDogEnemy.params.speed * gameSpeed
             playerBullets.forEach((bullet, idx) => {
                 if (currentDogEnemy.x + currentDogEnemy.width > bullet.x && currentDogEnemy.x < bullet.x && currentDogEnemy.y - currentDogEnemy.height < bullet.y && currentDogEnemy.y + currentDogEnemy.height / 2 > bullet.y) {
-                    app.stage.removeChild(bullet)
+                    world.removeChild(bullet)
                     playerBullets.splice(idx, 1)
                     damageEnemy(currentDogEnemy,1)
                 }
             })
         }
         if (currentDogEnemy.x + 100 < zeroLeft) {
-            app.stage.removeChild(currentDogEnemy)
+            world.removeChild(currentDogEnemy)
             currentDogEnemy = null
         }
     }
 
     function createDogEnemy() {
+        soundPlayer.dogBarking()
         let randomPos = Math.floor(zeroRight + random(10, 10))
         let level = playerPos
         if (buildings.length > 0) {
@@ -1312,27 +1682,27 @@ window.onload = async function () {
         Object.keys(enemyParams.dog).forEach(item => {
             dog.params[item] = enemyParams.dog[item]
         })
-        dog.params.speed = random(1, 1.5)
+        dog.params.speed = random(0.5, 1, true, true)
         dog.params.animset = dogEnemy.animations
         currentDogEnemy = dog
-        app.stage.addChild(currentDogEnemy)
+        world.addChild(currentDogEnemy)
         dog.play()
     }
 
-    function createEnemy() {
-        let randomPos = Math.floor(zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50))
+    function createEnemy(pos, canCover) {
+        let randomPos = pos || Math.floor(zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50))
         let isSecondFloor = false
 
         buildings.forEach(build => {
             build.resetSpawnZones.forEach(zone => {
-                console.log(`${zone.x} > ${randomPos} < ${zone.w}`)
+                // console.log(`${zone.x} > ${randomPos} < ${zone.w}`)
                 if (randomPos + 30 > zone.x && randomPos < zone.w) {
                     if (zone.w - randomPos < randomPos - zone.x) {
                         randomPos = zone.w + 50
                     } else {
                         randomPos = zone.x - 50
                     }
-                    console.log('popal' + randomPos)
+                    // console.log('popal' + randomPos)
                 }
             })
         })
@@ -1346,25 +1716,62 @@ window.onload = async function () {
 
         if (buildings.length > 0) {
             const activeBuilding = buildings[0]
-            console.log('2F ' + afterBuilding)
-            if ((afterBuilding > randomPos && activeBuilding.getLocalBounds().x < randomPos) && activeBuilding.secondFloor) {
+            const lastBuilding = buildings[buildings.length - 1].getLocalBounds()
+            if ((lastBuilding.x + lastBuilding.width > randomPos && activeBuilding.getLocalBounds().x < randomPos) && activeBuilding.secondFloor) {
                 isSecondFloor = true
             }
         }
 
-        const enemy = new PIXI.AnimatedSprite(defaultEnemy.animations.idle)
+        const rand = random(1, 100)
+        let enemyType = 'default'
+        switch(true) {
+            case rand > 99:
+                enemyType = 'shield'
+            break
+            case rand > 95:
+                enemyType = 'silence'
+            break
+            case rand > 90:
+                enemyType = 'shotgun'
+            break
+            case rand > 85:
+                enemyType = 'smg'
+            break
+            case rand > 80:
+                enemyType = 'nigga'
+            break
+            case rand > 0:
+                enemyType = 'default'
+            break
+        }
+        const enemy = new PIXI.AnimatedSprite(enemiesTexture.animations[`${enemyType}Idle`])
         enemy.params = {}
-        Object.keys(enemyParams.default).forEach(item => {
-            enemy.params[item] = enemyParams.default[item]
+        Object.keys(enemyParams[enemyType]).forEach(item => {
+            enemy.params[item] = enemyParams[enemyType][item]
         })
-        enemy.params.animset = defaultEnemy.animations
+        enemy.params.animset = {}
+        enemy.params.animset.idle = enemiesTexture.animations[`${enemyType}Idle`]
+        enemy.params.animset.shot = enemiesTexture.animations[`${enemyType}Shot`]
+        enemy.params.animset.death = enemiesTexture.animations[`${enemyType}Death`]
+        enemy.params.animset.deathCrit = enemiesTexture.animations[`${enemyType}DeathCrit`]
+        if (enemy.params.shield) {
+            enemy.params.animset.idleAlt = enemiesTexture.animations[`${enemyType}IdleAlt`]
+            enemy.params.animset.shotAlt = enemiesTexture.animations[`${enemyType}ShotAlt`]
+            enemy.params.animset.knock = enemiesTexture.animations[`${enemyType}Knock`]
+        }
         enemy.anchor.set(0.5)
+        if (canCover) {
+            enemy.params.canCover = true
+            enemy.params.inCover = true
+            enemy.anchor.y = 0.7
+            enemy.tint = player.shadow
+        }
         enemy.scale.set(2)
         enemy.animationSpeed = 0.2
         enemy.zIndex = 8
         enemy.position.set(randomPos, isSecondFloor ? secondFloor : playerPos)
         enemy.secondFloor = isSecondFloor
-        app.stage.addChild(enemy)
+        world.addChild(enemy)
         enemy.play()
         enemies.push(enemy)
     }
@@ -1372,11 +1779,14 @@ window.onload = async function () {
     function damageEnemy(enemy, damage, isBoss) {
         enemy.params.health -= damage
         for (let i = 0; i < 20; i++) {
-            spawnPhysParticles(enemy, isBoss ? 'spark' : 'blood', enemy.secondFloor)
+            createParticles(enemy, isBoss || (enemy.params.shield && !enemy.params.knocked) ? 'spark' : 'blood', enemy.secondFloor)
         }
         if (enemy.params.health <= 0) {
             if (enemy.params.detect) {
-                app.stage.removeChild(enemy.params.warning)
+                world.removeChild(enemy.params.warning)
+                if (enemy.params.longDetector) {
+                    world.removeChild(enemy.params.longDetector)
+                }
             }
             if (enemy.params.deathType) {
                 switch (true) {
@@ -1388,17 +1798,30 @@ window.onload = async function () {
                     break
                 }
             }
+            cameraShake(0.6, 400)
             enemy.params.dead = true
             enemy.loop = false
             if (damage > 1 || isBoss) {
                 enemy.textures = enemy.params.animset.deathCrit || enemy.params.animset.death
                 for (let i = 0; i < 20; i++) {
-                    spawnPhysParticles(enemy, 'blood', enemy.secondFloor)
+                    createParticles(enemy, 'blood', enemy.secondFloor)
                 }
             } else {
                 enemy.textures = enemy.params.animset.death
             }
             enemy.play()
+            return
+        }
+        if (enemy.params.shield && !enemy.params.knocked && enemy.params.health <= 2) {
+            enemy.params.knocked = true
+            enemy.textures = enemy.params.animset.knock
+            enemy.play()
+            enemy.params.animset.idle = enemy.params.animset.idleAlt
+            enemy.params.animset.shot = enemy.params.animset.shotAlt
+            sleep(150).then(() => {
+                enemy.textures = enemy.params.animset.idle
+                enemy.play()
+            })
         }
     }
 
@@ -1408,7 +1831,7 @@ window.onload = async function () {
                 if (!enemy.params.detect) {
                     const checkTraps = traps.find(trap => {
                         if (!trap.dead && trap.type) {
-                            if (trap.x + trap.width > enemy.x - enemy.params.detectRange && enemy.x + enemy.width > trap.x) {
+                            if (trap.x > enemy.x - (CANVAS_WIDTH / 1.5) && trap.x < enemy.x) {
                                 return true
                             }
                         } else {
@@ -1416,7 +1839,7 @@ window.onload = async function () {
                         }
                     })
                     if (!checkTraps) {
-                        if (enemy.x - player.x < enemy.params.detectRange) {
+                        if (enemy.x - player.x < (CANVAS_WIDTH / 1.5 + enemy.params.detectRange) && enemy.y - 20 <= player.y) {
                             enemy.params.detect = true
                             enemyShooting(enemy)
                         }
@@ -1424,26 +1847,32 @@ window.onload = async function () {
                 }
                 playerBullets.forEach((bullet, idx) => {
                     if (enemy.x + enemy.width > bullet.x && enemy.x < bullet.x && enemy.y - enemy.height / 2 < bullet.y && enemy.y + enemy.height / 2 > bullet.y) {
-                        app.stage.removeChild(bullet)
+                        if (enemy.params.inCover) return
+                        world.removeChild(bullet)
                         playerBullets.splice(idx, 1)
-                        if (enemy.x - player.x < 200) {
+                        if (enemy.x - player.x < CANVAS_WIDTH / 2.5) {
                             damageEnemy(enemy,2)
                         } else {
                             damageEnemy(enemy,1)
                         }
                     }
                 })
-                if (!enemy.skip && (player.x > enemy.x - 50 && player.x + player.width < enemy.x + enemy.width)) {
+                if (!enemy.skip && (player.x > enemy.x - 20 && player.x + player.width < enemy.x + enemy.width)) {
                     if (!meleeKill && (playerState.state === 'roll' || playerState.state === 'rollEnd')) {
-                        UImeleeKill(enemy)
+                        if (playerState.invincible) {
+                            damageEnemy(enemy, 10)
+                        } else {
+                            HUDmeleeKill(enemy)
+                        }
                     } else {
+                        if (enemy.params.inCover) return
                         damagePlayer()
                     }
                     enemy.skip = true
                 }
             }
             if (enemy.x + enemy.width < zeroLeft) {
-                app.stage.removeChild(enemy)
+                world.removeChild(enemy)
                 enemies.splice(idx, 1)
             }
         })
@@ -1455,6 +1884,7 @@ window.onload = async function () {
         const carFront = new PIXI.Sprite(bgCarTexture.textures.carFront)
         carBack.anchor.set(0.5)
         carFront.anchor.set(0.5)
+        carBack.tint = randomRGB()
         if (Math.random() < 0.5) {
             car.side = 1
             car.x = zeroRight
@@ -1467,10 +1897,10 @@ window.onload = async function () {
             car.y = CANVAS_HEIGHT - 210
         }
         car.speed = random(4, 10)
-        car.zIndex = -5
+        car.zIndex = -1
         car.addChild(carBack)
         car.addChild(carFront)
-        app.stage.addChild(car)
+        world.addChild(car)
         bgCar = car
     }
 
@@ -1479,13 +1909,13 @@ window.onload = async function () {
         if (bgCar.side > 0) {
             bgCar.x -= bgCar.speed
             if (b.x + b.width < 0) {
-                app.stage.removeChild(bgCar)
+                world.removeChild(bgCar)
                 bgCar = null
             }
         } else {
             bgCar.x += bgCar.speed
             if (b.x > zeroRight) {
-                app.stage.removeChild(bgCar)
+                world.removeChild(bgCar)
                 bgCar = null
             }
         }
@@ -1512,7 +1942,17 @@ window.onload = async function () {
             }
             isFence = false
         }
-        floor.body = Matter.Bodies.rectangle(floor.x, playerPos + 40, floor.width + 10, 40, {isStatic: true});
+        if (Math.random() > 0.75) {
+            const posX = random(10, 100)
+            const posY = random(94, 104)
+            createGarbage(floor.x + floor.width + posX, floor.y + posY)
+        }
+        if (Math.random() > 0.75) {
+            const posX = random(10, 100)
+            const posY = random(65, 75)
+            createGarbage(floor.x + floor.width + posX, floor.y + posY)
+        }
+        floor.body = Matter.Bodies.rectangle(floor.x, playerPos + 44, floor.width + 20, 40, {isStatic: true});
         bgWall.position.set((floorPosition + idx) * bgWall.width, CANVAS_HEIGHT - floor.height + 60)
         part.addChild(floor)
         part.addChild(bgWall)
@@ -1534,7 +1974,7 @@ window.onload = async function () {
         const tiling = new PIXI.TilingSprite(img, 550, 1920)
         tiling.zIndex = -10
         tiling.position.set(0,-400)
-        app.stage.addChild(tiling)
+        world.addChild(tiling)
         return tiling
     }
 
@@ -1561,16 +2001,18 @@ window.onload = async function () {
         bochkaDown.anchor.set(0.5)
         bochkaTop.anchor.set(0.5)
         bochkaDown.parentGroup = fg
-        bochkaDown.zOrder = 5
+        bochkaDown.zOrder = 10
         bochkaTop.position.set(randomPos, CANVAS_HEIGHT - 210)
         bochkaDown.position.set(randomPos, CANVAS_HEIGHT - 204)
         bochkaContainer.addChild(bochkaTop)
         bochkaContainer.addChild(bochkaDown)
-        app.stage.addChild(bochkaContainer)
+        world.addChild(bochkaContainer)
         traps.push(bochkaContainer)
     }
 
     function createExplode(target, offsetX, offsetY, isBig) {
+        cameraShake(2, 500)
+        soundPlayer.explosion()
         const explode = new PIXI.AnimatedSprite(isBig ? bigExplode.animations.explode : bochka.animations.smallExplode)
         explode.zIndex = target.zIndex
         explode.loop = false
@@ -1579,20 +2021,27 @@ window.onload = async function () {
         explode.width = explode.width * 3
         explode.animationSpeed = isBig ? 0.25 : 0.4
         explode.position.set(target.x + offsetX, target.y + offsetY)
-        app.stage.addChild(explode)
+        world.addChild(explode)
         explode.play()
         explode.onComplete = () => {
-            app.stage.removeChild(explode)
+            world.removeChild(explode)
         }
     }
 
-    function barrelDead(barrel) {
+    async function barrelDead(barrel) {
+        soundPlayer.damageMetal()
+        soundPlayer.beep()
+        barrel.dead = true
+        await sleep(100)
         const b = barrel.getBounds()
-        const damageTargets = enemies
         if (currentDogEnemy) {
-            damageTargets.push(currentDogEnemy)
+            const e = currentDogEnemy.getBounds()
+            if (e.x + e.width > b.x - 100 && e.x < b.x + 100) {
+                if (currentDogEnemy.params.dead) return
+                damageEnemy(currentDogEnemy, 4)
+            }
         }
-        damageTargets.forEach(enemy => {
+        enemies.forEach(enemy => {
             const e = enemy.getBounds()
             if (e.x + e.width > b.x - 100 && e.x < b.x + 100) {
                 if (enemy.params.dead) return
@@ -1603,13 +2052,12 @@ window.onload = async function () {
         if (p.x + p.width > b.x && p.x + 40 < b.x + 100) {
             damagePlayer()
         }
-        barrel.dead = true
         barrel.children[0].textures = bochka.animations.bochkaTopDead
         barrel.children[1].textures = bochka.animations.bochkaDownDead
         barrel.children[0].play()
         barrel.children[1].play()
         for (let i = 0; i < 20; i++) {
-            spawnPhysParticles(barrel.children[0], 'spark')
+            createParticles(barrel.children[0], 'spark')
         }
         createExplode(barrel.children[0], -20, 10, false)
         createExplode(barrel.children[1], 20, 30, false)
@@ -1620,8 +2068,9 @@ window.onload = async function () {
             const trapB = trap.getBounds()
             if (!trap.dead) {
                 const p = player.getBounds()
-                if (p.x + p.width > trapB.x + 56 && p.x < trapB.x + 40) {
+                if (p.x + p.width > trapB.x + 80 && p.x < trapB.x + 50) {
                     if (trap.type) {
+                        if (trap.type === 'window') soundPlayer.glassBreak()
                         trap.play()
                         trap.dead = true
                     } else {
@@ -1633,6 +2082,7 @@ window.onload = async function () {
                     const d = currentDogEnemy.getBounds()
                     if (d.x + d.width > trapB.x && d.x < trapB.x + trapB.width) {
                         if (trap.type) {
+                            if (trap.type === 'window') soundPlayer.glassBreak()
                             if (trap.type === 'door') return;
                             trap.play()
                             trap.dead = true
@@ -1644,10 +2094,11 @@ window.onload = async function () {
                 }
                 playerBullets.forEach((bullet, bulletIdx) => {
                     const bulletBound = bullet.getBounds()
-                    if (bulletBound.x > trapB.x && bulletBound.x < trapB.x + trapB.width && bulletBound.y > trapB.y && bulletBound.y < trapB.y + trapB.height) {
-                        app.stage.removeChild(bullet)
+                    if (bulletBound.x > trapB.x + (trapB.type ? 30 : 0) && bulletBound.x < trapB.x + trapB.width && bulletBound.y > trapB.y && bulletBound.y < trapB.y + trapB.height) {
+                        world.removeChild(bullet)
                         playerBullets.splice(bulletIdx, 1)
                         if (trap.type) {
+                            if (trap.type === 'window') soundPlayer.glassBreak()
                             trap.play()
                             trap.dead = true
                         } else {
@@ -1657,7 +2108,7 @@ window.onload = async function () {
                 })
             }
             if (trapB.x + trapB.width < 0) {
-                app.stage.removeChild(trap)
+                world.removeChild(trap)
                 traps.splice(idx, 1)
             }
         })
@@ -1668,10 +2119,10 @@ window.onload = async function () {
         window.loop = false
         window.animationSpeed = 0.6
         window.anchor.set(0.5)
-        window.position.set(pos, 445)
+        window.position.set(pos, CANVAS_HEIGHT - 405)
         window.zIndex = 1
         window.type = 'window'
-        app.stage.addChild(window)
+        world.addChild(window)
         traps.push(window)
     }
 
@@ -1680,10 +2131,10 @@ window.onload = async function () {
         door.loop = false
         door.animationSpeed = 0.6
         door.anchor.set(0.5)
-        door.position.set(pos, secondFloor ? 439 : 629)
+        door.position.set(pos, secondFloor ? CANVAS_HEIGHT - 411 : CANVAS_HEIGHT - 221)
         door.zIndex = 1
         door.type = 'door'
-        app.stage.addChild(door)
+        world.addChild(door)
         traps.push(door)
     }
 
@@ -1699,7 +2150,13 @@ window.onload = async function () {
 
     function createWall(pos, forBoss) {
         let wall
-        const randomPos = pos || zeroRight + Math.floor(Math.random() * (250 - 100 + 1) + 100)
+        const randomPos = pos || zeroRight + random(100, 250)
+        if (!pos && !forBoss) {
+            const rand = random(1, 10)
+            if (rand > 5) {
+                createEnemy(randomPos + 60, true)
+            }
+        }
 
         if (afterBuilding > randomPos - 100) {
             return
@@ -1711,52 +2168,72 @@ window.onload = async function () {
                 return
             }
         }
-        const randomWall = Math.floor(Math.random() * (10 - 1 + 1) + 1)
+        const randomWall = random(1, 10)
         if (randomWall < 4) {
             wall = new PIXI.Sprite(textures.textures.coverTrash)
             wall.position.set(randomPos, CANVAS_HEIGHT - 240)
-            wall.bound = 20
+            wall.bound = 30
         } else {
             wall = new PIXI.Sprite(textures.textures.wall)
             wall.position.set(randomPos, CANVAS_HEIGHT - 232)
-            wall.bound = 30
+            wall.bound = 40
         }
         if (forBoss) {
             wall.forBoss = true
         }
         wall.anchor.set(0.5)
-        app.stage.addChild(wall)
+        world.addChild(wall)
         walls.push(wall)
+        if (randomWall < 4) {
+            if (Math.random() < 0.5) {
+                const pos = random(20, 50)
+                createGarbage(wall.x - wall.width / 2 + pos, wall.y - 3, 4)
+            }
+        }
     }
 
     function updateWall() {
         walls.forEach((wall, idx) => {
             if (wall.x + 100 < zeroLeft) {
-                app.stage.removeChild(wall)
+                world.removeChild(wall)
                 walls.splice(idx, 1)
             }
         })
     }
 
-    function shot(char, offsetX, offsetY) {
+    function shot(char, offsetX, offsetY, gun, friendly) {
         const shot = new PIXI.AnimatedSprite(particles.animations.gunShot)
         shot.anchor.set(0.5)
         shot.scale.x = 1.2
         shot.scale.y = 1.2
         shot.animationSpeed = 0.2
         shot.zIndex = 11
-        if (char) {
-            shot.position.set(((char.x + 4) - char.width / 2) + offsetX, (char.y - 10) + offsetY)
-            enemyBullets.push(spawnBullet(shot.x, shot.y, char))
+        soundPlayer.gunShot(gun, gun === 'smg' || gun === 'rifle')
+        if (friendly) {
+            shot.position.set(player.x + offsetX, player.y - offsetY)
         } else {
-            shot.position.set(player.x + 30, player.y - 12)
-            playerBullets.push(spawnBullet(shot.x, shot.y))
+            shot.position.set(((char.x + 4) - char.width / 2) + offsetX, (char.y - 10) + offsetY)
+        }
+        if (gun === 'shotgun') {
+            for (let i = 0; i < 3; i++) {
+                if (friendly) {
+                    playerBullets.push(spawnBullet(shot.x, shot.y))
+                } else {
+                    enemyBullets.push(spawnBullet(shot.x, shot.y, char))
+                }
+            }
+        } else {
+            if (friendly) {
+                playerBullets.push(spawnBullet(shot.x, shot.y))
+            } else {
+                enemyBullets.push(spawnBullet(shot.x, shot.y, char))
+            }
         }
         spawnBounceParticle(shot, 'shell')
-        app.stage.addChild(shot)
+        world.addChild(shot)
         shot.play()
         setTimeout(() => {
-            app.stage.removeChild(shot)
+            world.removeChild(shot)
         }, 150)
     }
 
@@ -1770,7 +2247,7 @@ window.onload = async function () {
         let rotate = Math.random() * (char ? char.params.angle : gun.angle)
         rotate *= Math.round(Math.random()) ? 1 : -1;
         bullet.rotation = rotate
-        app.stage.addChild(bullet)
+        world.addChild(bullet)
         return bullet
     }
 
@@ -1779,8 +2256,8 @@ window.onload = async function () {
             b.position.x -= (Math.cos(b.rotation) * bulletSpeed) * gameSpeed;
             b.position.y -= (Math.sin(b.rotation) * bulletSpeed) * gameSpeed;
 
-            if (b.position.x < zeroLeft || b.position.x > zeroRight) {
-                app.stage.removeChild(b)
+            if (b.position.x < zeroLeft || b.position.x > zeroRight + 100) {
+                world.removeChild(b)
                 enemyBullets.splice(idx, 1)
             }
         })
@@ -1788,8 +2265,8 @@ window.onload = async function () {
             b.position.x += (Math.cos(b.rotation) * bulletSpeed) * gameSpeed;
             b.position.y += (Math.sin(b.rotation) * bulletSpeed) * gameSpeed;
 
-            if (b.position.x < zeroLeft || b.position.x > zeroRight) {
-                app.stage.removeChild(b)
+            if (b.position.x < zeroLeft || b.position.x - b.width > zeroRight) {
+                world.removeChild(b)
                 playerBullets.splice(idx, 1)
             }
         })
@@ -1813,7 +2290,8 @@ window.onload = async function () {
             }
             if (anim === 'idle' || anim === 'zipLine') {
                 if (anim === 'idle') {
-                    player.y = playerState.secondFloor ? secondFloor - 10 : playerPos - 10
+                    // player.y = playerState.secondFloor ? secondFloor - 10 : playerPos - 10
+                    player.anchor.y = 0.7
                 }
                 playerState.state = ''
             } else {
@@ -1829,12 +2307,14 @@ window.onload = async function () {
         switch (true) {
             //RELOAD
             case e.code === 'KeyR':
-                if ((!playerState.state || playerState.state === 'rollEnd') && gun.ammo < 5) {
+                if ((!playerState.state || playerState.state === 'rollEnd') && gun.currentAmmo < 5) {
+                    soundPlayer.pistolReload()
                     playAnim('reload')
                     playerSpeed = 0
                     spawnBounceParticle(player, 'mag')
                     setTimeout(() => {
-                        gun.ammo = 5
+                        HUDbullets()
+                        gun.currentAmmo = gun.ammo
                         if (playerState.inCover) {
                             playAnim('idle')
                             return
@@ -1847,6 +2327,7 @@ window.onload = async function () {
             //ROLL
             case e.code === 'Space':
                 if (!playerState.state && !playerState.inBossFight) {
+                    soundPlayer.slide()
                     playAnim('roll')
                     playerSpeed = playerDefaultSpeed + 1.5
                     const rollTime = 25
@@ -1862,7 +2343,8 @@ window.onload = async function () {
                         if (rollCounter === rollTime) {
                             if (playerState.inCover) {
                                 playerState.inCover = false
-                                player.y = playerState.secondFloor ? secondFloor : playerPos
+                                // player.y = playerState.secondFloor ? secondFloor : playerPos
+                                player.anchor.y = 0.5
                             }
                             playAnim('rollEnd')
                         }
@@ -1882,14 +2364,21 @@ window.onload = async function () {
                     setMeleeSelector()
                     return
                 }
-                if ((!playerState.state || playerState.state === 'rollEnd') && gun.ammo > 0) {
+                if (!playerState.state || playerState.state === 'rollEnd') {
+                    if (gun.currentAmmo <= 0) {
+                        soundPlayer.pistolEmpty()
+                        return;
+                    }
                     if (playerState.inCover) {
-                        player.y = playerState.secondFloor ? secondFloor : playerPos
+                        // player.y = playerState.secondFloor ? secondFloor : playerPos
+                        player.anchor.y = 0.5
                         player.tint = player.color
                     }
-                    gun.ammo--
+                    gun.currentAmmo--
+                    hud.getChildByName('magazine').removeChildAt(0)
+                    hud.getChildByName('magazine').x -= 10
                     playAnim('shot')
-                    shot()
+                    shot(player, 30, 12, gun.type, true)
                     playerSpeed = 0
                     setTimeout(() => {
                         if (playerState.inCover) {
@@ -1907,10 +2396,78 @@ window.onload = async function () {
                 } else {
                     playerSpeed = playerDefaultSpeed
                 }
-                break
+            break
         }
     }
+
+    function HUDbullets() {
+        const oldMagazine = hud.getChildByName('magazine')
+        if (oldMagazine) {
+            hud.removeChild(oldMagazine)
+        }
+        const magazine = new PIXI.Container()
+        for (let i = 0; i < gun.ammo; i++) {
+            const bullet = new PIXI.Sprite(activeItems.textures.bullet)
+            bullet.position.x = i * 10
+            magazine.addChild(bullet)
+        }
+        magazine.name = 'magazine'
+        magazine.position.set(20, CANVAS_HEIGHT - 60)
+        hud.addChild(magazine)
+    }
+
+    function HUDpoints() {
+        const pointsStyle = new PIXI.TextStyle({
+            fontFamily: 'Arial',
+            fontSize: 36,
+            fontStyle: 'italic',
+            fontWeight: 'bold',
+            fill: ['#ffffff', '#00ff99'], // gradient
+            stroke: '#4a1850',
+            strokeThickness: 5,
+            dropShadow: true,
+            dropShadowColor: '#000000',
+            dropShadowBlur: 4,
+            dropShadowAngle: Math.PI / 6,
+            dropShadowDistance: 6,
+            wordWrap: true,
+            wordWrapWidth: 440,
+            lineJoin: 'round',
+        });
+        const points = new PIXI.Text('0', pointsStyle);
+        points.anchor.set(1, 0)
+        points.x = CANVAS_WIDTH - 20
+        points.y = 20
+        points.name = 'points'
+
+        const scaleStyle = new PIXI.TextStyle({
+            fontFamily: 'Arial',
+            fontSize: 16,
+            fontStyle: 'italic',
+            fontWeight: 'bold',
+            fill: ['#ffffff', '#00ff99'], // gradient
+            stroke: '#4a1850',
+            strokeThickness: 5,
+            dropShadow: true,
+            dropShadowColor: '#000000',
+            dropShadowBlur: 4,
+            dropShadowAngle: Math.PI / 6,
+            dropShadowDistance: 6,
+            wordWrap: true,
+            wordWrapWidth: 440,
+            lineJoin: 'round',
+        });
+        const scale = new PIXI.Text('x0', scaleStyle);
+        scale.anchor.set(1, 0)
+        scale.x = CANVAS_WIDTH - 20
+        scale.y = 70
+        scale.name = 'scale'
+
+        hud.addChild(scale);
+        hud.addChild(points);
+    }
 }
+
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));

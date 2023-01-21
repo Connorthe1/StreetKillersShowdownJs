@@ -1,0 +1,52 @@
+{"frames": {
+
+"money":
+{
+	"frame": {"x":1,"y":1,"w":32,"h":32},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":32,"h":32},
+	"sourceSize": {"w":32,"h":32}
+},
+"bullet":
+{
+	"frame": {"x":35,"y":8,"w":7,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":7,"h":18},
+	"sourceSize": {"w":7,"h":18}
+},
+"grenade":
+{
+	"frame": {"x":35,"y":1,"w":8,"h":5},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":8,"h":5},
+	"sourceSize": {"w":8,"h":5}
+},
+"grenade_icon":
+{
+	"frame": {"x":21,"y":35,"w":17,"h":29},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":8,"y":2,"w":17,"h":29},
+	"sourceSize": {"w":32,"h":32}
+},
+"stimpack":
+{
+	"frame": {"x":1,"y":35,"w":18,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":18,"h":18},
+	"sourceSize": {"w":18,"h":18}
+}},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "activeItems.png",
+	"format": "RGBA8888",
+	"size": {"w":51,"h":54},
+	"scale": "1",
+	"smartupdate": "$TexturePacker:SmartUpdate:668fc45dac2b19a1866f65c740ac40dd:7bf5ace8085e972d237d9df0a387506a:7ca370a14e0b0c47971afd4b2613b9c0$"
+}
+}

@@ -1,0 +1,31 @@
+{"frames": {
+
+"puddle1":
+{
+	"frame": {"x":1,"y":1,"w":44,"h":13},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":44,"h":13},
+	"sourceSize": {"w":44,"h":13}
+},
+"puddle2":
+{
+	"frame": {"x":47,"y":1,"w":30,"h":11},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":30,"h":11},
+	"sourceSize": {"w":30,"h":11}
+}},
+"animations": {
+	"puddle": ["puddle1.png","puddle2.png"]
+},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "puddle.png",
+	"format": "RGBA8888",
+	"size": {"w":78,"h":15},
+	"scale": "0.6",
+	"smartupdate": "$TexturePacker:SmartUpdate:3b2bf458d998536c4ef489ee3c4ebb34:c52ce1a15902cd64990fcd0cf00271aa:48f5573d2592926a0f9615cac8ef8ee4$"
+}
+}

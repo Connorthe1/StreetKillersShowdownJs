@@ -1,0 +1,937 @@
+{"frames": {
+
+"enemyDeath1.png":
+{
+	"frame": {"x":30,"y":131,"w":24,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":4,"y":6,"w":24,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyDeath2.png":
+{
+	"frame": {"x":74,"y":438,"w":19,"h":22},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":10,"y":7,"w":19,"h":22},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyDeath3.png":
+{
+	"frame": {"x":80,"y":125,"w":18,"h":22},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":7,"w":18,"h":22},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyDeath4.png":
+{
+	"frame": {"x":25,"y":368,"w":22,"h":19},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":12,"w":22,"h":19},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyDeath5.png":
+{
+	"frame": {"x":25,"y":460,"w":22,"h":14},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":17,"w":22,"h":14},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemydeathCrit1.png":
+{
+	"frame": {"x":81,"y":76,"w":24,"h":22},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":4,"y":7,"w":24,"h":22},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemydeathCrit2.png":
+{
+	"frame": {"x":95,"y":433,"w":19,"h":19},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":10,"y":10,"w":19,"h":19},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemydeathCrit3.png":
+{
+	"frame": {"x":93,"y":340,"w":18,"h":21},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":8,"w":18,"h":21},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemydeathCrit4.png":
+{
+	"frame": {"x":100,"y":197,"w":22,"h":19},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":12,"w":22,"h":19},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemydeathCrit5.png":
+{
+	"frame": {"x":113,"y":364,"w":22,"h":14},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":17,"w":22,"h":14},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyIdle1.png":
+{
+	"frame": {"x":1,"y":127,"w":27,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":6,"w":27,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyIdle2.png":
+{
+	"frame": {"x":1,"y":288,"w":27,"h":22},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":7,"w":27,"h":22},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyIdle3.png":
+{
+	"frame": {"x":1,"y":375,"w":27,"h":21},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":8,"w":27,"h":21},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyIdle4.png":
+{
+	"frame": {"x":1,"y":317,"w":27,"h":22},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":7,"w":27,"h":22},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyIdle5.png":
+{
+	"frame": {"x":1,"y":127,"w":27,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":6,"w":27,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyniggaDeath1.png":
+{
+	"frame": {"x":55,"y":75,"w":24,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":4,"y":5,"w":24,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyniggaDeath2.png":
+{
+	"frame": {"x":72,"y":338,"w":19,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":10,"y":6,"w":19,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyniggaDeath3.png":
+{
+	"frame": {"x":53,"y":238,"w":18,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":6,"w":18,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyniggaDeath4.png":
+{
+	"frame": {"x":95,"y":240,"w":22,"h":19},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":12,"w":22,"h":19},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyniggaDeath5.png":
+{
+	"frame": {"x":1,"y":460,"w":22,"h":15},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":16,"w":22,"h":15},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyniggaDeathCrit1.png":
+{
+	"frame": {"x":26,"y":389,"w":24,"h":22},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":4,"y":7,"w":24,"h":22},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyniggaDeathCrit2.png":
+{
+	"frame": {"x":95,"y":454,"w":19,"h":19},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":10,"y":10,"w":19,"h":19},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyniggaDeathCrit3.png":
+{
+	"frame": {"x":93,"y":363,"w":18,"h":21},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":8,"w":18,"h":21},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyniggaDeathCrit4.png":
+{
+	"frame": {"x":95,"y":261,"w":22,"h":19},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":12,"w":22,"h":19},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyniggaDeathCrit5.png":
+{
+	"frame": {"x":113,"y":388,"w":22,"h":14},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":17,"w":22,"h":14},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyniggaIdle1.png":
+{
+	"frame": {"x":1,"y":101,"w":27,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":5,"w":27,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyniggaIdle2.png":
+{
+	"frame": {"x":1,"y":230,"w":27,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":6,"w":27,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyniggaIdle3.png":
+{
+	"frame": {"x":1,"y":346,"w":27,"h":22},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":7,"w":27,"h":22},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyniggaIdle4.png":
+{
+	"frame": {"x":1,"y":259,"w":27,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":6,"w":27,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyniggaIdle5.png":
+{
+	"frame": {"x":1,"y":101,"w":27,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":5,"w":27,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyniggaShot1.png":
+{
+	"frame": {"x":1,"y":101,"w":27,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":5,"w":27,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyniggaShot2.png":
+{
+	"frame": {"x":29,"y":156,"w":26,"h":24},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":1,"y":5,"w":26,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldDeath1.png":
+{
+	"frame": {"x":29,"y":211,"w":24,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":5,"w":24,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldDeath2.png":
+{
+	"frame": {"x":107,"y":76,"w":20,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":5,"w":20,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldDeath3.png":
+{
+	"frame": {"x":49,"y":288,"w":19,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":6,"w":19,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldDeath4.png":
+{
+	"frame": {"x":26,"y":415,"w":22,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":9,"w":22,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldDeath5.png":
+{
+	"frame": {"x":56,"y":153,"w":22,"h":16},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":16,"w":22,"h":16},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldDeathCrit1.png":
+{
+	"frame": {"x":55,"y":101,"w":24,"h":22},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":7,"w":24,"h":22},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldDeathCrit2.png":
+{
+	"frame": {"x":73,"y":238,"w":20,"h":22},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":7,"w":20,"h":22},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldDeathCrit3.png":
+{
+	"frame": {"x":49,"y":313,"w":19,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":6,"w":19,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldDeathCrit4.png":
+{
+	"frame": {"x":55,"y":171,"w":22,"h":22},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":10,"w":22,"h":22},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldDeathCrit5.png":
+{
+	"frame": {"x":55,"y":219,"w":22,"h":17},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":15,"w":22,"h":17},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldIdle1.png":
+{
+	"frame": {"x":1,"y":152,"w":26,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":5,"w":26,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldIdle2.png":
+{
+	"frame": {"x":1,"y":404,"w":26,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":6,"w":26,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldIdle3.png":
+{
+	"frame": {"x":64,"y":51,"w":26,"h":22},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":7,"w":26,"h":22},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldIdle4.png":
+{
+	"frame": {"x":1,"y":432,"w":26,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":6,"w":26,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldIdle5.png":
+{
+	"frame": {"x":1,"y":152,"w":26,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":5,"w":26,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldIdleAlt1.png":
+{
+	"frame": {"x":69,"y":1,"w":28,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":5,"w":28,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldIdleAlt2.png":
+{
+	"frame": {"x":99,"y":1,"w":28,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":6,"w":28,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldIdleAlt3.png":
+{
+	"frame": {"x":69,"y":27,"w":28,"h":22},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":7,"w":28,"h":22},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldIdleAlt4.png":
+{
+	"frame": {"x":99,"y":26,"w":28,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":6,"w":28,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldIdleAlt5.png":
+{
+	"frame": {"x":69,"y":1,"w":28,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":5,"w":28,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldKnock1.png":
+{
+	"frame": {"x":1,"y":178,"w":26,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":1,"y":5,"w":26,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldKnock2.png":
+{
+	"frame": {"x":1,"y":75,"w":27,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":1,"y":5,"w":27,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldKnock3.png":
+{
+	"frame": {"x":69,"y":1,"w":28,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":5,"w":28,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldShot1.png":
+{
+	"frame": {"x":1,"y":152,"w":26,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":5,"w":26,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldShot2.png":
+{
+	"frame": {"x":29,"y":184,"w":25,"h":24},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":1,"y":5,"w":25,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldShotAlt1.png":
+{
+	"frame": {"x":69,"y":1,"w":28,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":5,"w":28,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShieldShotAlt2.png":
+{
+	"frame": {"x":35,"y":48,"w":27,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":1,"y":5,"w":27,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShot1.png":
+{
+	"frame": {"x":1,"y":127,"w":27,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":6,"w":27,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShot2.png":
+{
+	"frame": {"x":92,"y":51,"w":26,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":1,"y":6,"w":26,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShotgunDeath1.png":
+{
+	"frame": {"x":49,"y":338,"w":21,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":6,"w":21,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShotgunDeath2.png":
+{
+	"frame": {"x":52,"y":263,"w":20,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":6,"w":20,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShotgunDeath3.png":
+{
+	"frame": {"x":70,"y":288,"w":20,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":6,"w":20,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShotgunDeath4.png":
+{
+	"frame": {"x":50,"y":438,"w":22,"h":20},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":11,"w":22,"h":20},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShotgunDeath5.png":
+{
+	"frame": {"x":79,"y":101,"w":22,"h":17},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":14,"w":22,"h":17},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShotgunDeathCrit1.png":
+{
+	"frame": {"x":103,"y":221,"w":19,"h":17},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":12,"w":19,"h":17},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShotgunDeathCrit2.png":
+{
+	"frame": {"x":94,"y":322,"w":19,"h":16},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":10,"y":13,"w":19,"h":16},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShotgunDeathCrit3.png":
+{
+	"frame": {"x":94,"y":386,"w":18,"h":17},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":12,"w":18,"h":17},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShotgunDeathCrit4.png":
+{
+	"frame": {"x":26,"y":440,"w":22,"h":18},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":13,"w":22,"h":18},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShotgunDeathCrit5.png":
+{
+	"frame": {"x":94,"y":298,"w":22,"h":18},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":13,"w":22,"h":18},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShotgunIdle1.png":
+{
+	"frame": {"x":25,"y":316,"w":22,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":4,"y":5,"w":22,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShotgunIdle2.png":
+{
+	"frame": {"x":49,"y":363,"w":22,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":4,"y":6,"w":22,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShotgunIdle3.png":
+{
+	"frame": {"x":55,"y":195,"w":22,"h":22},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":4,"y":7,"w":22,"h":22},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShotgunIdle4.png":
+{
+	"frame": {"x":50,"y":388,"w":22,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":4,"y":6,"w":22,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShotgunIdle5.png":
+{
+	"frame": {"x":25,"y":316,"w":22,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":4,"y":5,"w":22,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShotgunShot1.png":
+{
+	"frame": {"x":25,"y":316,"w":22,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":4,"y":5,"w":22,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemyShotgunShot2.png":
+{
+	"frame": {"x":25,"y":342,"w":22,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":5,"y":5,"w":22,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemySilenceDeath1.png":
+{
+	"frame": {"x":26,"y":263,"w":24,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":6,"w":24,"h":23},
+	"sourceSize": {"w":36,"h":32}
+},
+"enemySilenceDeath2.png":
+{
+	"frame": {"x":74,"y":262,"w":19,"h":22},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":15,"y":7,"w":19,"h":22},
+	"sourceSize": {"w":36,"h":32}
+},
+"enemySilenceDeath3.png":
+{
+	"frame": {"x":80,"y":149,"w":18,"h":22},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":17,"y":7,"w":18,"h":22},
+	"sourceSize": {"w":36,"h":32}
+},
+"enemySilenceDeath4.png":
+{
+	"frame": {"x":79,"y":173,"w":22,"h":19},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":14,"y":12,"w":22,"h":19},
+	"sourceSize": {"w":36,"h":32}
+},
+"enemySilenceDeath5.png":
+{
+	"frame": {"x":49,"y":460,"w":22,"h":14},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":14,"y":17,"w":22,"h":14},
+	"sourceSize": {"w":36,"h":32}
+},
+"enemySilenceDeathCrit1.png":
+{
+	"frame": {"x":56,"y":127,"w":24,"h":22},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":7,"w":24,"h":22},
+	"sourceSize": {"w":36,"h":32}
+},
+"enemySilenceDeathCrit2.png":
+{
+	"frame": {"x":94,"y":412,"w":19,"h":19},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":15,"y":10,"w":19,"h":19},
+	"sourceSize": {"w":36,"h":32}
+},
+"enemySilenceDeathCrit3.png":
+{
+	"frame": {"x":98,"y":102,"w":18,"h":21},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":17,"y":8,"w":18,"h":21},
+	"sourceSize": {"w":36,"h":32}
+},
+"enemySilenceDeathCrit4.png":
+{
+	"frame": {"x":79,"y":197,"w":22,"h":19},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":14,"y":12,"w":22,"h":19},
+	"sourceSize": {"w":36,"h":32}
+},
+"enemySilenceDeathCrit5.png":
+{
+	"frame": {"x":79,"y":221,"w":22,"h":14},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":14,"y":17,"w":22,"h":14},
+	"sourceSize": {"w":36,"h":32}
+},
+"enemySilenceIdle1.png":
+{
+	"frame": {"x":1,"y":1,"w":32,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":6,"w":32,"h":23},
+	"sourceSize": {"w":36,"h":32}
+},
+"enemySilenceIdle2.png":
+{
+	"frame": {"x":35,"y":1,"w":32,"h":22},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":7,"w":32,"h":22},
+	"sourceSize": {"w":36,"h":32}
+},
+"enemySilenceIdle3.png":
+{
+	"frame": {"x":35,"y":25,"w":32,"h":21},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":8,"w":32,"h":21},
+	"sourceSize": {"w":36,"h":32}
+},
+"enemySilenceIdle4.png":
+{
+	"frame": {"x":1,"y":51,"w":32,"h":22},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":7,"w":32,"h":22},
+	"sourceSize": {"w":36,"h":32}
+},
+"enemySilenceIdle5.png":
+{
+	"frame": {"x":1,"y":1,"w":32,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":6,"w":32,"h":23},
+	"sourceSize": {"w":36,"h":32}
+},
+"enemySilenceShot1.png":
+{
+	"frame": {"x":1,"y":1,"w":32,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":6,"w":32,"h":23},
+	"sourceSize": {"w":36,"h":32}
+},
+"enemySilenceShot2.png":
+{
+	"frame": {"x":1,"y":26,"w":32,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":6,"w":32,"h":23},
+	"sourceSize": {"w":36,"h":32}
+},
+"enemySmgDeath1.png":
+{
+	"frame": {"x":50,"y":413,"w":22,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":6,"w":22,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemySmgDeath2.png":
+{
+	"frame": {"x":73,"y":363,"w":18,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":6,"w":18,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemySmgDeath3.png":
+{
+	"frame": {"x":74,"y":388,"w":18,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":6,"w":18,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemySmgDeath4.png":
+{
+	"frame": {"x":100,"y":149,"w":22,"h":19},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":12,"w":22,"h":19},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemySmgDeath5.png":
+{
+	"frame": {"x":95,"y":282,"w":22,"h":14},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":17,"w":22,"h":14},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemySmgDeathCrit1.png":
+{
+	"frame": {"x":70,"y":313,"w":22,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":6,"w":22,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemySmgDeathCrit2.png":
+{
+	"frame": {"x":100,"y":125,"w":18,"h":22},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":7,"w":18,"h":22},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemySmgDeathCrit3.png":
+{
+	"frame": {"x":74,"y":413,"w":18,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":6,"w":18,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemySmgDeathCrit4.png":
+{
+	"frame": {"x":100,"y":173,"w":22,"h":19},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":12,"w":22,"h":19},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemySmgDeathCrit5.png":
+{
+	"frame": {"x":113,"y":340,"w":22,"h":14},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":17,"w":22,"h":14},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemySmgIdle1.png":
+{
+	"frame": {"x":1,"y":204,"w":26,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":1,"y":5,"w":26,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemySmgIdle2.png":
+{
+	"frame": {"x":30,"y":75,"w":26,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":1,"y":6,"w":26,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemySmgIdle3.png":
+{
+	"frame": {"x":25,"y":288,"w":26,"h":22},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":1,"y":7,"w":26,"h":22},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemySmgIdle4.png":
+{
+	"frame": {"x":30,"y":103,"w":26,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":1,"y":6,"w":26,"h":23},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemySmgIdle5.png":
+{
+	"frame": {"x":1,"y":204,"w":26,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":1,"y":5,"w":26,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemySmgShot1.png":
+{
+	"frame": {"x":1,"y":204,"w":26,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":1,"y":5,"w":26,"h":24},
+	"sourceSize": {"w":31,"h":32}
+},
+"enemySmgShot2.png":
+{
+	"frame": {"x":26,"y":237,"w":25,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":2,"y":5,"w":25,"h":24},
+	"sourceSize": {"w":31,"h":32}
+}},
+"animations": {
+	"defaultDeath": ["enemyDeath1.png","enemyDeath2.png","enemyDeath3.png","enemyDeath4.png","enemyDeath5.png"],
+	"defaultIdle": ["enemyIdle1.png","enemyIdle2.png","enemyIdle3.png","enemyIdle4.png","enemyIdle5.png"],
+	"shieldDeath": ["enemyShieldDeath1.png","enemyShieldDeath2.png","enemyShieldDeath3.png","enemyShieldDeath4.png","enemyShieldDeath5.png"],
+	"shieldDeathCrit": ["enemyShieldDeathCrit1.png","enemyShieldDeathCrit2.png","enemyShieldDeathCrit3.png","enemyShieldDeathCrit4.png","enemyShieldDeathCrit5.png"],
+	"shieldIdle": ["enemyShieldIdle1.png","enemyShieldIdle2.png","enemyShieldIdle3.png","enemyShieldIdle4.png","enemyShieldIdle5.png"],
+	"shieldIdleAlt": ["enemyShieldIdleAlt1.png","enemyShieldIdleAlt2.png","enemyShieldIdleAlt3.png","enemyShieldIdleAlt4.png","enemyShieldIdleAlt5.png"],
+	"shieldKnock": ["enemyShieldKnock1.png","enemyShieldKnock2.png","enemyShieldKnock3.png"],
+	"shieldShot": ["enemyShieldShot1.png","enemyShieldShot2.png"],
+	"shieldShotAlt": ["enemyShieldShotAlt1.png","enemyShieldShotAlt2.png"],
+	"defaultShot": ["enemyShot1.png","enemyShot2.png"],
+	"shotgunDeath": ["enemyShotgunDeath1.png","enemyShotgunDeath2.png","enemyShotgunDeath3.png","enemyShotgunDeath4.png","enemyShotgunDeath5.png"],
+	"shotgunDeathCrit": ["enemyShotgunDeathCrit1.png","enemyShotgunDeathCrit2.png","enemyShotgunDeathCrit3.png","enemyShotgunDeathCrit4.png","enemyShotgunDeathCrit5.png"],
+	"shotgunIdle": ["enemyShotgunIdle1.png","enemyShotgunIdle2.png","enemyShotgunIdle3.png","enemyShotgunIdle4.png","enemyShotgunIdle5.png"],
+	"shotgunShot": ["enemyShotgunShot1.png","enemyShotgunShot2.png"],
+	"silenceDeath": ["enemySilenceDeath1.png","enemySilenceDeath2.png","enemySilenceDeath3.png","enemySilenceDeath4.png","enemySilenceDeath5.png"],
+	"silenceDeathCrit": ["enemySilenceDeathCrit1.png","enemySilenceDeathCrit2.png","enemySilenceDeathCrit3.png","enemySilenceDeathCrit4.png","enemySilenceDeathCrit5.png"],
+	"silenceIdle": ["enemySilenceIdle1.png","enemySilenceIdle2.png","enemySilenceIdle3.png","enemySilenceIdle4.png","enemySilenceIdle5.png"],
+	"silenceShot": ["enemySilenceShot1.png","enemySilenceShot2.png"],
+	"smgDeath": ["enemySmgDeath1.png","enemySmgDeath2.png","enemySmgDeath3.png","enemySmgDeath4.png","enemySmgDeath5.png"],
+	"smgDeathCrit": ["enemySmgDeathCrit1.png","enemySmgDeathCrit2.png","enemySmgDeathCrit3.png","enemySmgDeathCrit4.png","enemySmgDeathCrit5.png"],
+	"smgIdle": ["enemySmgIdle1.png","enemySmgIdle2.png","enemySmgIdle3.png","enemySmgIdle4.png","enemySmgIdle5.png"],
+	"smgShot": ["enemySmgShot1.png","enemySmgShot2.png"],
+	"defaultDeathCrit": ["enemydeathCrit1.png","enemydeathCrit2.png","enemydeathCrit3.png","enemydeathCrit4.png","enemydeathCrit5.png"],
+	"niggaDeath": ["enemyniggaDeath1.png","enemyniggaDeath2.png","enemyniggaDeath3.png","enemyniggaDeath4.png","enemyniggaDeath5.png"],
+	"niggaDeathCrit": ["enemyniggaDeathCrit1.png","enemyniggaDeathCrit2.png","enemyniggaDeathCrit3.png","enemyniggaDeathCrit4.png","enemyniggaDeathCrit5.png"],
+	"niggaIdle": ["enemyniggaIdle1.png","enemyniggaIdle2.png","enemyniggaIdle3.png","enemyniggaIdle4.png","enemyniggaIdle5.png"],
+	"niggaShot": ["enemyniggaShot1.png","enemyniggaShot2.png"]
+},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "enemies.png",
+	"format": "RGBA8888",
+	"size": {"w":128,"h":476},
+	"scale": "1",
+	"smartupdate": "$TexturePacker:SmartUpdate:81656218061c81f486dbae0b54e520da:e603c00ce52f9fbc8792e03e69ed8afe:9b2a76c8b2a408b3f0547a4eddda1e06$"
+}
+}

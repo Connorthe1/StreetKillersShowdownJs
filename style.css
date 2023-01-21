@@ -7,4 +7,9 @@ canvas {
     image-rendering:crisp-edges;               /* CSS4 Proposed  */
     image-rendering:pixelated;                 /* CSS4 Proposed  */
     -ms-interpolation-mode:nearest-neighbor;   /* IE8+           */
+    width: 100%;
+}
+body {
+    margin: 0;
+    padding: 0;
 }
