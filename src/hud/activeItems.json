@@ -1,40 +1,40 @@
 {"frames": {
 
-"money":
-{
-	"frame": {"x":1,"y":1,"w":32,"h":32},
-	"rotated": false,
-	"trimmed": false,
-	"spriteSourceSize": {"x":0,"y":0,"w":32,"h":32},
-	"sourceSize": {"w":32,"h":32}
-},
 "bullet":
 {
-	"frame": {"x":35,"y":8,"w":7,"h":18},
-	"rotated": false,
+	"frame": {"x":69,"y":21,"w":7,"h":18},
+	"rotated": true,
 	"trimmed": false,
 	"spriteSourceSize": {"x":0,"y":0,"w":7,"h":18},
 	"sourceSize": {"w":7,"h":18}
 },
-"grenade":
+"handGrenade":
 {
-	"frame": {"x":35,"y":1,"w":8,"h":5},
-	"rotated": false,
+	"frame": {"x":62,"y":21,"w":8,"h":5},
+	"rotated": true,
 	"trimmed": false,
 	"spriteSourceSize": {"x":0,"y":0,"w":8,"h":5},
 	"sourceSize": {"w":8,"h":5}
 },
-"grenade_icon":
+"handGrenadeIcon":
 {
-	"frame": {"x":21,"y":35,"w":17,"h":29},
-	"rotated": true,
+	"frame": {"x":43,"y":1,"w":17,"h":29},
+	"rotated": false,
 	"trimmed": true,
 	"spriteSourceSize": {"x":8,"y":2,"w":17,"h":29},
 	"sourceSize": {"w":32,"h":32}
 },
+"heart":
+{
+	"frame": {"x":1,"y":1,"w":40,"h":30},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":40,"h":30},
+	"sourceSize": {"w":40,"h":30}
+},
 "stimpack":
 {
-	"frame": {"x":1,"y":35,"w":18,"h":18},
+	"frame": {"x":62,"y":1,"w":18,"h":18},
 	"rotated": false,
 	"trimmed": false,
 	"spriteSourceSize": {"x":0,"y":0,"w":18,"h":18},
@@ -45,8 +45,8 @@
 	"version": "1.0",
 	"image": "activeItems.png",
 	"format": "RGBA8888",
-	"size": {"w":51,"h":54},
-	"scale": "1",
-	"smartupdate": "$TexturePacker:SmartUpdate:668fc45dac2b19a1866f65c740ac40dd:7bf5ace8085e972d237d9df0a387506a:7ca370a14e0b0c47971afd4b2613b9c0$"
+	"size": {"w":88,"h":32},
+	"scale": "0.5",
+	"smartupdate": "$TexturePacker:SmartUpdate:57bcccb0db95c12807a9a3598598da1d:01100865431b09d82ea4c49787cf12d2:7ca370a14e0b0c47971afd4b2613b9c0$"
 }
 }

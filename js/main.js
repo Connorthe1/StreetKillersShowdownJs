@@ -16,16 +16,17 @@ const playerState = {
     invincible: false,
     inZipLine: false,
     inBossFight: false,
+    health: 3,
 }
 const gameState = {
-    distance: 0,
     points: 0,
+    pointsToAdd: 0,
     kills: 0,
-    score: 'D',
-    multiplier: 0,
-    killStreak: 0
+    score: 'F',
+    multiplier: 1,
+    scoreStreak: 0
 }
-const canHealth = 2
+const canHealth = 1
 let player
 const playerPos = CANVAS_HEIGHT - 200
 const secondFloor = CANVAS_HEIGHT - 390
@@ -66,6 +67,74 @@ const gun = {
     type: 'pistol'
 }
 
+const textStyles = {
+    default180:  new PIXI.TextStyle({
+        fontFamily: 'ACastle3',
+        fontSize: 180,
+        fill: '#ffffff',
+        wordWrap: true,
+        wordWrapWidth: gameWidth - 100,
+        align: 'center',
+    }),
+    default60:  new PIXI.TextStyle({
+        fontFamily: 'ACastle3',
+        fontSize: 60,
+        fill: '#ffffff',
+        wordWrap: true,
+        wordWrapWidth: gameWidth - 100,
+        align: 'center',
+    }),
+    default80:  new PIXI.TextStyle({
+        fontFamily: 'ACastle3',
+        fontSize: 80,
+        fill: '#ffffff',
+        wordWrap: true,
+        wordWrapWidth: gameWidth - 100,
+        align: 'center',
+    }),
+    default100:  new PIXI.TextStyle({
+        fontFamily: 'ACastle3',
+        fontSize: 100,
+        fill: '#ffffff',
+        wordWrap: true,
+        wordWrapWidth: gameWidth - 100,
+        align: 'center',
+    }),
+    default40:  new PIXI.TextStyle({
+        fontFamily: 'ACastle3',
+        fontSize: 40,
+        fill: '#ffffff',
+        wordWrap: true,
+        wordWrapWidth: gameWidth - 100,
+        align: 'center',
+    }),
+    default30:  new PIXI.TextStyle({
+        fontFamily: 'ACastle3',
+        fontSize: 30,
+        fill: '#ffffff',
+        wordWrap: true,
+        wordWrapWidth: gameWidth - 100,
+        align: 'center',
+        lineHeight: 20
+    }),
+    default56:  new PIXI.TextStyle({
+        fontFamily: 'ACastle3',
+        fontSize: 56,
+        fill: '#ffffff',
+        wordWrap: true,
+        wordWrapWidth: gameWidth - 100,
+        align: 'center',
+    }),
+    green60:  new PIXI.TextStyle({
+        fontFamily: 'ACastle3',
+        fontSize: 60,
+        fill: '#81ff6e',
+        wordWrap: true,
+        wordWrapWidth: gameWidth - 100,
+        align: 'center',
+    }),
+}
+
 const walls = []
 const traps = []
 const enemies = []
@@ -86,6 +155,11 @@ let engine
 let fg
 let hudLayer
 
+let isPause = false
+let isMenu = true
+let gameStart = false
+let gameEnd = false
+
 window.onload = async function () {
     const app = new PIXI.Application({
         width: gameWidth,
@@ -103,7 +177,6 @@ window.onload = async function () {
     app.stage.addChild(new PIXI.layers.Layer(hudLayer));
 
     PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
-    app.stage.scale.set(1.4)
     PIXI.sound.volumeAll = 0.05
 
     PIXI.Assets.addBundle('sounds', sounds);
@@ -135,6 +208,10 @@ window.onload = async function () {
     const puddleTexture = await loader.load('./src/entity/puddle.json');
     const garbageTexture = await loader.load('./src/entity/garbage.json');
     const activeItems = await loader.load('./src/hud/activeItems.json');
+    const menuButtons = await loader.load('./src/hud/menuButtons.json')
+    const menuIcons = await loader.load('./src/hud/menuIcons.json')
+    const menuPause = await loader.load('./src/hud/menuPause.json')
+    await loader.load('./src/fonts/anothercastle3.ttf');
     await PIXI.Assets.loadBundle('sounds')
     // await character.parse();
 
@@ -143,35 +220,284 @@ window.onload = async function () {
 
     function init() {
         world = new PIXI.Container()
+        world.name = 'world'
         app.stage.addChild(world)
         world.sortableChildren = true;
+        world.scale.set(1.4)
         fg = new PIXI.layers.Group(9, true)
         world.addChild(new PIXI.layers.Layer(fg));
 
         hud = new PIXI.Container()
+        hud.name = 'hud'
         app.stage.addChild(hud)
         hud.sortableChildren = true;
         hud.parentGroup = hudLayer
         hud.zOrder = 99
-        HUDbullets()
-        HUDpoints()
 
         background = createBg(bg)
         ground = new PIXI.Container()
+        ground.name = 'ground'
         world.addChild(ground)
+        createMenu()
 
         for (let i = 0; i <= 3; i++) {
             createFloor(i, 0)
         }
+    }
+
+    function startGame() {
+        HUDbullets()
+        HUDpoints()
+        HUDpause()
         createPlayer()
         document.addEventListener('keyup', events)
-
-        createCan()
+        createBochka()
         app.ticker.add(ticker)
+        scoreTimer()
         trailTimer()
     }
 
+    function restartGame() {
+        app.stage.removeChild(app.stage.getChildByName('endScreen'))
+        app.stage.removeChild(world)
+        app.ticker.remove(ticker)
+        zeroLeft = 0
+        zeroRight = CANVAS_WIDTH
+        gameSpeed = 1
+
+        playerState.state = ''
+        playerState.afterRoll = true
+        playerState.inCover = false
+        playerState.invincible = false
+        playerState.inZipLine = false
+        playerState.inBossFight = false
+        playerState.health = 3
+        gameState.points = 0
+        gameState.pointsToAdd = 0
+        gameState.kills = 0
+        gameState.score = 'F'
+        gameState.multiplier = 1
+        gameState.scoreStreak = 0
+        player = null
+        playerBullets.length = 0
+        enemyBullets.length = 0
+
+        playerDefaultSpeed = 2
+        playerSpeed = playerDefaultSpeed
+        distance = 0
+
+        background = null
+        bgPosition = 0
+        bgSpeed = 0.2;
+
+        world = null
+        ground = null
+        hud = null
+        floorPosition = 0
+        isFence = false
+        isBuilding = false
+        afterBuilding = 0
+        isClub = false
+        buildingType = 0
+
+        gun.currentAmmo = 5
+        gun.ammo = 5
+        gun.angle = 0.2
+        gun.type = 'pistol'
+
+        walls.length = 0
+        traps.length = 0
+        enemies.length = 0
+        physParticles.length = 0
+        bounceParticles.length = 0
+        buildings.length = 0
+        trails.length = 0
+        zipLines.length = 0
+        grenades.length = 0
+        puddles.length = 0
+        garbages.length = 0
+        currentBoss = null
+        bgCar = null
+        currentDogEnemy = null
+        currentCan = null
+
+        isPause = false
+        gameStart = false
+        gameEnd = false
+        init()
+    }
+    async function endGame(toRestart) {
+        gameEnd = true
+        app.stage.removeChild(hud)
+        if (toRestart) {
+            restartGame()
+            return
+        }
+        const endScreen = new PIXI.Container()
+        let skip = false
+        app.stage.addChild(endScreen)
+        let bg = new PIXI.Graphics();
+        bg.interactive = true
+        bg.beginFill(0x000);
+        bg.alpha = 0.3
+        bg.drawRect(0, 0, gameWidth, gameHeight);
+        endScreen.addChild(bg)
+        endScreen.name = 'endScreen'
+
+        bg.on('pointerdown', (event) => {
+            if (skip) return
+            skip = true
+        });
+
+        const center = gameWidth / 2
+
+        //RESULTS
+        const results = new PIXI.Text('results', textStyles.default100);
+        results.anchor.set(0.5);
+        results.position.set(center, 100)
+        endScreen.addChild(results)
+
+        await new Promise(resolve => {
+            let delay = 0
+            const interval = setInterval(() => {
+                delay++
+                if (skip) {
+                    clearInterval(interval)
+                }
+                if (delay > 10) {
+                    resolve()
+                    clearInterval(interval)
+                }
+            }, 10);
+        });
+
+        //SCORE
+        const finalScore = new PIXI.Text('final score:', textStyles.default40);
+        finalScore.anchor.set(0.5);
+        finalScore.position.set(center, results.y + 70)
+        endScreen.addChild(finalScore)
+
+        const finalScoreValue = new PIXI.Text('0', textStyles.default60);
+        finalScoreValue.anchor.set(0.5);
+        finalScoreValue.position.set(center, finalScore.y + 40)
+        endScreen.addChild(finalScoreValue)
+
+        let initScore = 0
+        const scoreUpdate = Math.floor(gameState.points / 100)
+        await new Promise(resolve => {
+            const interval = setInterval(() => {
+                if (skip) {
+                    initScore = gameState.points
+                    clearInterval(interval)
+                }
+                initScore += Math.max(1, scoreUpdate)
+                if (initScore >= gameState.points) {
+                    resolve('foo');
+                    initScore = gameState.points
+                    clearInterval(interval)
+                }
+                finalScoreValue.text = initScore
+            }, 10);
+        });
+
+        //DISTANCE MONEY
+        const distanceMoney = new PIXI.Text('distance money:', textStyles.default40);
+        distanceMoney.anchor.set(0.5);
+        distanceMoney.position.set(center, finalScoreValue.y + 70)
+        endScreen.addChild(distanceMoney)
+
+        const distanceMoneyValue = new PIXI.Text('0$', textStyles.green60);
+        distanceMoneyValue.anchor.set(0.5);
+        distanceMoneyValue.position.set(center, distanceMoney.y + 40)
+        endScreen.addChild(distanceMoneyValue)
+
+        let initDMoney = 0
+        const pointsToMoney = Math.floor(gameState.points / 50)
+        const dMoneyUpdate = Math.floor(pointsToMoney / 200)
+        await new Promise(resolve => {
+            const interval = setInterval(() => {
+                if (skip) {
+                    initDMoney = pointsToMoney
+                    clearInterval(interval)
+                }
+                initDMoney += Math.max(1, dMoneyUpdate)
+                if (initDMoney >= pointsToMoney) {
+                    resolve('foo');
+                    initDMoney = pointsToMoney
+                    clearInterval(interval)
+                }
+                distanceMoneyValue.text = `${initDMoney}$`
+            }, 10);
+        });
+
+        //COLLECTED MONEY
+        const collectedMoney = new PIXI.Text('collected money:', textStyles.default40);
+        collectedMoney.anchor.set(0.5);
+        collectedMoney.position.set(center, distanceMoneyValue.y + 70)
+        endScreen.addChild(collectedMoney)
+
+        const collectedMoneyValue = new PIXI.Text('0$', textStyles.green60);
+        collectedMoneyValue.anchor.set(0.5);
+        collectedMoneyValue.position.set(center, collectedMoney.y + 40)
+        endScreen.addChild(collectedMoneyValue)
+
+        let initCMoney = 0
+        const collectedToMoney = 1000
+        const cMoneyUpdate = Math.floor(collectedToMoney / 200)
+        await new Promise(resolve => {
+            const interval = setInterval(() => {
+                if (skip) {
+                    initCMoney = collectedToMoney
+                    clearInterval(interval)
+                }
+                initCMoney += Math.max(1, cMoneyUpdate)
+                if (initCMoney >= collectedToMoney) {
+                    resolve('foo');
+                    initCMoney = collectedToMoney
+                    clearInterval(interval)
+                }
+                collectedMoneyValue.text = `${initCMoney}$`
+            }, 10);
+        });
+
+        //AVERAGE SCORE
+        const score = new PIXI.Text('F', textStyles.default180);
+        score.scale.set(5)
+        score.rotation = -0.2
+        score.anchor.set(0.5);
+        score.position.set(center, collectedMoneyValue.y + 100)
+        endScreen.addChild(score)
+
+        let scale = 5
+        await new Promise(resolve => {
+            const interval = setInterval(() => {
+                scale-= 0.1
+                score.scale.set(scale)
+                if (scale <= 1) {
+                    resolve('foo');
+                    clearInterval(interval)
+                }
+            }, 10);
+        });
+
+        //EXIT
+        const exit = new PIXI.Sprite(menuButtons.textures.exit)
+        exit.scale.set(0.7, 0.6)
+        exit.interactive = true;
+        exit.anchor.set(0.5, 0)
+        exit.position.set(center, score.y + 80)
+        endScreen.addChild(exit)
+
+        exit.on('pointerdown', (event) => {
+            restartGame()
+        });
+    }
+
     function ticker(delta) {
+        if (gameEnd || isPause) return
+        if (player.x > 100) {
+            gameStart = true
+        }
         Matter.Engine.update(engine);
         if (meleeKill) {
             const UiBounds = meleeKill.getLocalBounds()
@@ -188,7 +514,13 @@ window.onload = async function () {
                 meleeKillSelectorSide = true
             }
         }
-        hud.getChildByName('points').text = Math.floor(gameState.distance)
+        if (gameState.pointsToAdd > 0) {
+            gameState.pointsToAdd--
+            gameState.points++
+            hud.getChildByName('points').text = gameState.points;
+        }
+        hud.getChildByName('scale').text = `x${gameState.multiplier.toFixed(1)}`;
+        updateScore()
         updateGarbage()
         updatePlayer(delta)
         updateBg()
@@ -237,9 +569,110 @@ window.onload = async function () {
         }
     }
 
+    function createMenu() {
+        isMenu = true
+        gameStart = false
+        gameEnd = false
+        const menu = new PIXI.Container()
+        app.stage.addChild(menu)
+        menu.name = 'menu'
+        let bg = new PIXI.Graphics();
+        bg.interactive = true
+        bg.beginFill(0x000);
+        bg.alpha = 0.3
+        bg.drawRect(0, 0, gameWidth, gameHeight);
+        menu.addChild(bg)
+
+        const startText = new PIXI.Text('Tap to start', textStyles.default56);
+        startText.anchor.set(0.5);
+        startText.zIndex = 1
+        startText.x = gameWidth / 2
+        startText.y = gameHeight - 220;
+        menu.addChild(startText)
+
+        //TOPMENU
+        const topMenu = new PIXI.Container()
+        menu.addChild(topMenu)
+        const topMenuBg = new PIXI.Sprite(menuButtons.textures.button)
+        topMenuBg.tint = 5197647
+        topMenuBg.width = gameWidth
+        topMenuBg.height = 50
+        topMenu.addChild(topMenuBg)
+
+        const cup = new PIXI.Sprite(menuIcons.textures.cup)
+        cup.position.set(16, 16)
+        topMenu.addChild(cup)
+        const topDistance = new PIXI.Text('1337', textStyles.default30);
+        topDistance.position.set(52, 20)
+        topMenu.addChild(topDistance)
+
+        const money = new PIXI.Text('1337', textStyles.default30);
+        money.position.set(gameWidth - 16, 20)
+        money.anchor.set(1,0)
+        topMenu.addChild(money)
+        const moneyIcon = new PIXI.Sprite(menuIcons.textures.money)
+        moneyIcon.scale.set(0.45)
+        moneyIcon.anchor.set(1,0)
+        moneyIcon.position.set(money.x - money.width - 10, 14)
+        topMenu.addChild(moneyIcon)
+
+        const gold = new PIXI.Text('1337', textStyles.default30);
+        gold.position.set(moneyIcon.x - moneyIcon.width - 20, 20)
+        gold.anchor.set(1,0)
+        topMenu.addChild(gold)
+        const goldIcon = new PIXI.Sprite(menuIcons.textures.goldbar)
+        goldIcon.scale.set(0.3)
+        goldIcon.anchor.set(1,0)
+        goldIcon.position.set(gold.x - gold.width - 10, 16)
+        topMenu.addChild(goldIcon)
+
+
+        //STORE
+        const store = new PIXI.Sprite(menuButtons.textures.shop)
+        store.interactive = true;
+        store.anchor.set(1, 0)
+        store.position.set(gameWidth - 20, 60)
+        menu.addChild(store)
+
+        //MISSIONS
+        const missions = new PIXI.Sprite(menuButtons.textures.missions)
+        missions.scale.set(0.8)
+        missions.interactive = true;
+        missions.anchor.set(0, 0)
+        missions.position.set(20, 60)
+        menu.addChild(missions)
+
+
+        //SETTINGS
+        const settings = new PIXI.Sprite(menuButtons.textures.settings)
+        settings.scale.set(0.6)
+        settings.interactive = true;
+        settings.anchor.set(1, 1)
+        settings.position.set(gameWidth - 20, gameHeight - 20)
+        menu.addChild(settings)
+
+
+        bg.on('pointerdown', (event) => {
+            if (!isMenu) return
+            isMenu = false
+            const menuLeft = setInterval(() => {
+                menu.x -= 20
+            }, 10)
+            sleep(300).then(() => {
+                clearInterval(menuLeft)
+                startGame()
+                app.stage.removeChild(menu)
+            })
+        });
+    }
+
     function trailTimer() {
-        setInterval(() => {
-            if (playerSpeed > 0) {
+        const interval = setInterval(() => {
+            if (gameEnd || !player) {
+                clearInterval(interval)
+                return
+            }
+            if (playerSpeed > 0 && !isPause) {
                 spawnTrailParticle(player)
                 if (playerState.state === 'roll' || playerState.state === 'rollEnd') {
                     spawnTrailParticle(player)
@@ -318,6 +751,14 @@ window.onload = async function () {
             const selectorPosition = meleeKill.getChildAt(2).getBounds()
             if (selectorPosition.x + selectorPosition.width / 2 > greenBarPosition.x && selectorPosition.x + selectorPosition.width / 2 < greenBarPosition.x + greenBarPosition.width) {
                 damageEnemy(meleeKill.enemy, 100)
+                traps.forEach(trap => {
+                    const t = trap.getLocalBounds()
+                    if (player.x > t.x && player.x < t.x + t.width) {
+                        trap.dead = true
+                    }
+                })
+                addPoints(50 + meleeKillStreak * 10)
+                gameState.scoreStreak += 3 + meleeKillStreak
                 meleeKillStreak += 0.5
             } else {
                 damagePlayer()
@@ -329,35 +770,35 @@ window.onload = async function () {
         hud.removeChild(meleeKill)
         meleeKill = null
         clearTimeout(meleeKillStreakTimer)
-        setTimeout(() => {
+        sleep(5000).then(() => {
             if (meleeKillStreak > 0) {
                 meleeKillStreak -= 0.5
             }
-        }, 5000)
+        })
     }
 
     function HUDmeleeKill(enemy) {
-        gameSpeed = 0.2
+        gameSpeed = 0.1
         meleeKill = new PIXI.Container()
         const redBar = PIXI.Sprite.from(PIXI.Texture.WHITE);
         redBar.height = 50
-        redBar.width = CANVAS_WIDTH / 1.5
+        redBar.width = gameWidth / 1.5
         redBar.anchor.set(0.5)
-        redBar.position.set(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2)
+        redBar.position.set(gameWidth / 2, gameHeight / 2)
         redBar.tint = 16731469
         const greenBar = PIXI.Sprite.from(PIXI.Texture.WHITE);
         greenBar.height = 50
-        greenBar.width = CANVAS_WIDTH / 6
+        greenBar.width = gameWidth / 6
         greenBar.anchor.set(0, 0.5)
         const greenBarPosition = Math.floor(Math.random() * ((redBar.x + redBar.width / 2 - greenBar.width) - (redBar.x - redBar.width / 2)) + (redBar.x - redBar.width / 2))
-        greenBar.position.set(greenBarPosition, CANVAS_HEIGHT / 2)
+        greenBar.position.set(greenBarPosition, gameHeight / 2)
         greenBar.tint = 6088284
         const selector = PIXI.Sprite.from(PIXI.Texture.WHITE);
         selector.height = 90
         selector.width = 10
         selector.anchor.set(0, 0.5)
         const selectorPosition = Math.floor(Math.random() * ((redBar.x + redBar.width / 2 - greenBar.width) - (redBar.x - redBar.width / 2)) + (redBar.x - redBar.width / 2))
-        selector.position.set(selectorPosition, CANVAS_HEIGHT / 2)
+        selector.position.set(selectorPosition, gameHeight / 2)
         meleeKill.enemy = enemy
         meleeKill.addChild(redBar)
         meleeKill.addChild(greenBar)
@@ -371,6 +812,7 @@ window.onload = async function () {
     }
 
     function createGarbage(posX, posY, type) {
+        if (isClub) return
         const rand = type || random(1, 10)
         const garbage = new PIXI.Sprite(garbageTexture.textures[`trash${rand}`])
         garbage.type = rand
@@ -422,7 +864,7 @@ window.onload = async function () {
         if (buildings.length > 0) {
             const activeBuilding = buildings[0]
             const lastBuilding = buildings[buildings.length - 1].getLocalBounds()
-            if ((lastBuilding.x + lastBuilding.width > zeroRight && activeBuilding.getLocalBounds().x < zeroRight) && activeBuilding.secondFloor) {
+            if ((lastBuilding.x + lastBuilding.width > zeroRight && activeBuilding.getLocalBounds().x < zeroRight) && (activeBuilding.secondFloor || activeBuilding.club)) {
                 return
             }
         }
@@ -445,6 +887,8 @@ window.onload = async function () {
             if (player.x + player.width > puddle.x + 20 && puddle.x + puddle.width > player.x) {
                 puddle.dead = true
                 if (playerState.state === 'roll' || playerState.state === 'rollEnd') {
+                    addPoints(20)
+                    gameState.scoreStreak += 1
                     playerSpeed = playerDefaultSpeed + 2.5
                     soundPlayer.waterStep()
                     for (let i = 0; i <= 20; i++) {
@@ -455,12 +899,12 @@ window.onload = async function () {
                     for (let i = 0; i <= 14; i++) {
                         createParticles({x: puddle.x - 20, y: puddle.y - 10}, 'drop')
                     }
-                    setTimeout(() => {
+                    sleep(250).then(() => {
                         soundPlayer.waterStep()
                         for (let i = 0; i <= 14; i++) {
                             createParticles({x: puddle.x + 20, y: puddle.y - 10}, 'drop')
                         }
-                    }, 250)
+                    })
                 }
             }
         })
@@ -504,6 +948,8 @@ window.onload = async function () {
                 if (can.x > b.x && b.x + b.width > can.x && can.y > b.y && b.y + b.height > can.y && !enemy.params.dead) {
                     currentCan.dealDamage = true
                     currentCan.health -= 1
+                    gameState.scoreStreak += 2.5
+                    addPoints(50)
                     damageEnemy(enemy, Math.floor(currentCan.body.speed))
                     currentCan.body.speed = 0.5
                     Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.01, 0.015, true, true) , y: -random(0.002, 0.006, true, true)});
@@ -515,6 +961,7 @@ window.onload = async function () {
                 if (can.x > b.x && b.x + b.width > can.x && can.y > b.y && b.y + b.height > can.y && !currentDogEnemy.params.dead) {
                     currentCan.dealDamage = true
                     currentCan.health -= 1
+                    gameState.scoreStreak += 2.5
                     damageEnemy(currentDogEnemy, Math.floor(currentCan.body.speed))
                     currentCan.body.speed = 0.5
                     Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.01, 0.015, true, true) , y: -random(0.002, 0.006, true, true)});
@@ -526,6 +973,8 @@ window.onload = async function () {
                 if (can.x > b.x && b.x + b.width > can.x && can.y > b.y && b.y + b.height > can.y && !currentBoss.params.dead) {
                     currentCan.dealDamage = true
                     currentCan.health -= 1
+                    gameState.scoreStreak += 2.5
+                    addPoints(50)
                     damageEnemy(currentBoss, Math.floor(currentCan.body.speed), true)
                     currentCan.body.speed = 0.5
                     Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.01, 0.015, true, true) , y: -random(0.002, 0.006, true, true)});
@@ -537,6 +986,8 @@ window.onload = async function () {
                 if (can.x > b.x && b.x + b.width > can.x && can.y > b.y && b.y + b.height > can.y && !trap.dead) {
                     currentCan.dealDamage = true
                     currentCan.health -= 1
+                    gameState.scoreStreak += 2.5
+                    addPoints(50)
                     currentCan.body.speed = 0.5
                     Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.01, 0.015, true, true) , y: -random(0.002, 0.006, true, true)});
                     if (trap.type) {
@@ -557,6 +1008,7 @@ window.onload = async function () {
         const defaultIntensity = intensity || 2
         const intensityStep = defaultIntensity / 4
         const timer = setInterval(() => {
+            if (isPause || gameEnd) return
             time++
             switch (true) {
                 case time > part * 7 : {
@@ -599,26 +1051,39 @@ window.onload = async function () {
     }
 
     function damagePlayer() {
+        gameState.scoreStreak -= 30
         cameraShake(4, 600)
         playerState.invincible = true
         player.tint = 16737894
-        setTimeout(() => {
+        playerState.health--
+        hud.getChildByName('hearts').removeChildAt(0)
+        if (playerState.health <= 0) {
+            for (let i = 0; i <= 20; i++) {
+                createParticles(player, 'blood', secondFloor === player.y)
+            }
+            world.removeChild(player)
+            sleep(1000).then(() => {
+                endGame()
+            })
+            return
+        }
+        sleep(200).then(() => {
             playerState.invincible = false
             if (playerState.inCover) {
                 player.tint = player.shadow
             } else {
                 player.tint = player.color
             }
-        }, 200)
-        console.log('damaged')
+        })
     }
 
     function updatePlayer(delta) {
-        gameState.distance = player.x
-        const dtX = 1 - Math.exp(-delta / 5)
-        const dtY = 1 - Math.exp(-delta / 20)
-        world.pivot.x = ((player.x - 60) - world.pivot.x) * dtX + world.pivot.x;
-        world.pivot.y = ((player.y - CANVAS_HEIGHT + 200) - world.pivot.y) * dtY + world.pivot.y;
+        if (gameStart) {
+            const dtX = 1 - Math.exp(-delta / 5)
+            const dtY = 1 - Math.exp(-delta / 20)
+            world.pivot.x = ((player.x - 60) - world.pivot.x) * dtX + world.pivot.x;
+            world.pivot.y = ((player.y - CANVAS_HEIGHT + 200) - world.pivot.y) * dtY + world.pivot.y;
+        }
         player.x += (0.5 * playerSpeed) * gameSpeed;
         zeroLeft = player.x - 100
         zeroRight = player.x - 100 + CANVAS_WIDTH
@@ -646,7 +1111,7 @@ window.onload = async function () {
         player.loop = true
         player.parentGroup = fg
         player.zOrder = 5
-        player.position.set(100, playerPos)
+        player.position.set(-100, playerPos)
         world.addChild(player)
         player.play()
     }
@@ -910,7 +1375,7 @@ window.onload = async function () {
                 playerSpeed = 0
                 playAnim('zipLine')
                 player.rotation = 4.8
-                setTimeout(() => {
+                sleep(650).then(() => {
                     playerState.inZipLine = ''
                     player.rotation = 0
                     playerSpeed = playerDefaultSpeed
@@ -926,7 +1391,7 @@ window.onload = async function () {
                         }
                         events(e)
                     }
-                }, 650)
+                })
             }
         })
     }
@@ -1373,11 +1838,11 @@ window.onload = async function () {
     function enemyShotAnim(char, times) {
         char.textures = char.params.animset.shot
         char.play()
-        setTimeout(() => {
+        sleep(times * 200).then(() => {
             if (char.params.dead) return
             char.textures = char.params.animset.idle
             char.play()
-        }, times * 200)
+        })
     }
 
     function createBoss(propType, propPos) {
@@ -1499,6 +1964,7 @@ window.onload = async function () {
                     currentBoss.textures = currentBoss.params.animset.walk
                     currentBoss.play()
                     walking = setInterval(() => {
+                        if (isPause) return
                         if (!currentBoss || currentBoss.params.dead) return
                         currentBoss.x -= 1
                     }, 10)
@@ -1528,14 +1994,15 @@ window.onload = async function () {
     async function shotRapid(char, offsetX, offsetY, times, gun, cd) {
         const shotTime = cd ? cd :200
         const repeat = setInterval(() => {
+            if (isPause) return
             if (char.params.dead) return
             shot(char, offsetX, offsetY, gun)
         }, shotTime)
         return new Promise(function(resolve) {
-            setTimeout(function() {
+            sleep(times * shotTime).then(() => {
                 clearInterval(repeat)
                 resolve()
-            }, times * shotTime);
+            })
         });
     }
 
@@ -1668,7 +2135,9 @@ window.onload = async function () {
         let level = playerPos
         if (buildings.length > 0) {
             const activeBuilding = buildings[0]
-            if (afterBuilding > randomPos && activeBuilding.getLocalBounds().x < randomPos && activeBuilding.secondFloor) {
+            const lastBuilding = buildings[buildings.length - 1].getLocalBounds()
+            if ((lastBuilding.x + lastBuilding.width > randomPos && activeBuilding.getLocalBounds().x < randomPos) && activeBuilding.secondFloor) {
+                level = secondFloor
                 level = secondFloor
             }
         }
@@ -1778,6 +2247,8 @@ window.onload = async function () {
 
     function damageEnemy(enemy, damage, isBoss) {
         enemy.params.health -= damage
+        addPoints(5)
+        gameState.scoreStreak += 0.5
         for (let i = 0; i < 20; i++) {
             createParticles(enemy, isBoss || (enemy.params.shield && !enemy.params.knocked) ? 'spark' : 'blood', enemy.secondFloor)
         }
@@ -1800,8 +2271,11 @@ window.onload = async function () {
             }
             cameraShake(0.6, 400)
             enemy.params.dead = true
+            gameState.scoreStreak += enemy.params.points / 10
+            addPoints(enemy.params.points)
             enemy.loop = false
             if (damage > 1 || isBoss) {
+                addPoints(10)
                 enemy.textures = enemy.params.animset.deathCrit || enemy.params.animset.death
                 for (let i = 0; i < 20; i++) {
                     createParticles(enemy, 'blood', enemy.secondFloor)
@@ -1846,7 +2320,7 @@ window.onload = async function () {
                     }
                 }
                 playerBullets.forEach((bullet, idx) => {
-                    if (enemy.x + enemy.width > bullet.x && enemy.x < bullet.x && enemy.y - enemy.height / 2 < bullet.y && enemy.y + enemy.height / 2 > bullet.y) {
+                    if (enemy.x + 10 < bullet.x + bullet.width && enemy.x + enemy.width > bullet.x && enemy.y - enemy.height / 2 < bullet.y && enemy.y + enemy.height / 2 > bullet.y) {
                         if (enemy.params.inCover) return
                         world.removeChild(bullet)
                         playerBullets.splice(idx, 1)
@@ -1857,7 +2331,7 @@ window.onload = async function () {
                         }
                     }
                 })
-                if (!enemy.skip && (player.x > enemy.x - 20 && player.x + player.width < enemy.x + enemy.width)) {
+                if (!enemy.skip && (player.x > enemy.x - 30 && player.x + player.width < enemy.x + enemy.width)) {
                     if (!meleeKill && (playerState.state === 'roll' || playerState.state === 'rollEnd')) {
                         if (playerState.invincible) {
                             damageEnemy(enemy, 10)
@@ -1866,7 +2340,11 @@ window.onload = async function () {
                         }
                     } else {
                         if (enemy.params.inCover) return
-                        damagePlayer()
+                        gameState.points -= 250 * gameState.multiplier
+                        if (gameState.points < 0) {
+                            gameState.points = 0
+                        }
+                        gameState.scoreStreak -= 20
                     }
                     enemy.skip = true
                 }
@@ -1972,16 +2450,19 @@ window.onload = async function () {
 
     function createBg(img) {
         const tiling = new PIXI.TilingSprite(img, 550, 1920)
+        tiling.scale.set(0.8)
         tiling.zIndex = -10
-        tiling.position.set(0,-400)
+        tiling.position.set(0,-550)
         world.addChild(tiling)
         return tiling
     }
 
     function updateBg() {
-        bgPosition -= (bgSpeed * playerSpeed) * gameSpeed
-        background.x = zeroLeft
-        background.tilePosition.x = bgPosition
+        if (gameStart) {
+            bgPosition -= (bgSpeed * playerSpeed) * gameSpeed
+            background.x = zeroLeft
+            background.tilePosition.x = bgPosition
+        }
     }
 
     function createBochka() {
@@ -2029,6 +2510,8 @@ window.onload = async function () {
     }
 
     async function barrelDead(barrel) {
+        addPoints(30)
+        gameState.scoreStreak += 2
         soundPlayer.damageMetal()
         soundPlayer.beep()
         barrel.dead = true
@@ -2036,7 +2519,7 @@ window.onload = async function () {
         const b = barrel.getBounds()
         if (currentDogEnemy) {
             const e = currentDogEnemy.getBounds()
-            if (e.x + e.width > b.x - 100 && e.x < b.x + 100) {
+            if (e.x + e.width > b.x - 100 && e.x < b.x + 200) {
                 if (currentDogEnemy.params.dead) return
                 damageEnemy(currentDogEnemy, 4)
             }
@@ -2073,6 +2556,7 @@ window.onload = async function () {
                         if (trap.type === 'window') soundPlayer.glassBreak()
                         trap.play()
                         trap.dead = true
+                        addPoints(25)
                     } else {
                         if (playerState.state === 'roll' || playerState.state === 'rollEnd') return
                         barrelDead(trap)
@@ -2085,7 +2569,9 @@ window.onload = async function () {
                             if (trap.type === 'window') soundPlayer.glassBreak()
                             if (trap.type === 'door') return;
                             trap.play()
+                            gameState.scoreStreak += 5
                             trap.dead = true
+                            addPoints(25)
                             damageEnemy(currentDogEnemy, 1)
                         } else {
                             barrelDead(trap)
@@ -2094,13 +2580,15 @@ window.onload = async function () {
                 }
                 playerBullets.forEach((bullet, bulletIdx) => {
                     const bulletBound = bullet.getBounds()
-                    if (bulletBound.x > trapB.x + (trapB.type ? 30 : 0) && bulletBound.x < trapB.x + trapB.width && bulletBound.y > trapB.y && bulletBound.y < trapB.y + trapB.height) {
+                    if (bulletBound.x + bulletBound.width > trapB.x + (trap.type ? trapB.width / 2 : trapB.width / 4) && bulletBound.x < trapB.x + trapB.width && bulletBound.y > trapB.y && bulletBound.y < trapB.y + trapB.height) {
                         world.removeChild(bullet)
                         playerBullets.splice(bulletIdx, 1)
                         if (trap.type) {
                             if (trap.type === 'window') soundPlayer.glassBreak()
                             trap.play()
                             trap.dead = true
+                            addPoints(25)
+                            gameState.scoreStreak += 1
                         } else {
                             barrelDead(trap)
                         }
@@ -2232,9 +2720,9 @@ window.onload = async function () {
         spawnBounceParticle(shot, 'shell')
         world.addChild(shot)
         shot.play()
-        setTimeout(() => {
+        sleep(150).then(() => {
             world.removeChild(shot)
-        }, 150)
+        })
     }
 
     function spawnBullet(x, y, char) {
@@ -2257,6 +2745,7 @@ window.onload = async function () {
             b.position.y -= (Math.sin(b.rotation) * bulletSpeed) * gameSpeed;
 
             if (b.position.x < zeroLeft || b.position.x > zeroRight + 100) {
+                gameState.scoreStreak -= 0.5
                 world.removeChild(b)
                 enemyBullets.splice(idx, 1)
             }
@@ -2265,7 +2754,7 @@ window.onload = async function () {
             b.position.x += (Math.cos(b.rotation) * bulletSpeed) * gameSpeed;
             b.position.y += (Math.sin(b.rotation) * bulletSpeed) * gameSpeed;
 
-            if (b.position.x < zeroLeft || b.position.x - b.width > zeroRight) {
+            if (b.position.x < zeroLeft || b.x - b.width * 2 > zeroRight) {
                 world.removeChild(b)
                 playerBullets.splice(idx, 1)
             }
@@ -2303,6 +2792,7 @@ window.onload = async function () {
     }
 
     function events(e) {
+        if (gameEnd || isPause || isMenu) return
         if (playerState.inZipLine) return
         switch (true) {
             //RELOAD
@@ -2312,7 +2802,7 @@ window.onload = async function () {
                     playAnim('reload')
                     playerSpeed = 0
                     spawnBounceParticle(player, 'mag')
-                    setTimeout(() => {
+                    sleep(1100).then(() => {
                         HUDbullets()
                         gun.currentAmmo = gun.ammo
                         if (playerState.inCover) {
@@ -2321,19 +2811,21 @@ window.onload = async function () {
                         }
                         playerSpeed = playerDefaultSpeed
                         playAnim()
-                    }, 1100)
+                    })
                 }
             break
             //ROLL
             case e.code === 'Space':
                 if (!playerState.state && !playerState.inBossFight) {
+                    gameState.scoreStreak += 1
                     soundPlayer.slide()
                     playAnim('roll')
                     playerSpeed = playerDefaultSpeed + 1.5
                     const rollTime = 25
-                    const rollEndTime = 65
+                    const rollEndTime = 80
                     let rollCounter = 0
                     const rollInterval = setInterval(() => {
+                        if (isPause) return
                         if (!(gameSpeed < 1 && playerState.state === 'rollEnd')) {
                             rollCounter++
                         }
@@ -2349,10 +2841,14 @@ window.onload = async function () {
                             playAnim('rollEnd')
                         }
                         if (rollCounter >= rollEndTime) {
-                            if (playerState.inCover === true) clearInterval(rollInterval)
-                            playerSpeed = playerDefaultSpeed
-                            playAnim()
-                            clearInterval(rollInterval)
+                            if (playerState.inCover === true || playerState.inZipLine) {
+                                gameState.scoreStreak += 1
+                                clearInterval(rollInterval)
+                            } else {
+                                playerSpeed = playerDefaultSpeed
+                                playAnim()
+                                clearInterval(rollInterval)
+                            }
                         }
 
                     }, 10)
@@ -2376,18 +2872,18 @@ window.onload = async function () {
                     }
                     gun.currentAmmo--
                     hud.getChildByName('magazine').removeChildAt(0)
-                    hud.getChildByName('magazine').x -= 10
+                    hud.getChildByName('magazine').x -= 16
                     playAnim('shot')
                     shot(player, 30, 12, gun.type, true)
                     playerSpeed = 0
-                    setTimeout(() => {
+                    sleep(150).then(() => {
                         if (playerState.inCover) {
                             playAnim('idle')
                             return
                         }
                         playerSpeed = playerDefaultSpeed
                         playAnim()
-                    }, 150)
+                    })
                 }
             break
             case e.code === 'KeyQ':
@@ -2408,18 +2904,18 @@ window.onload = async function () {
         const magazine = new PIXI.Container()
         for (let i = 0; i < gun.ammo; i++) {
             const bullet = new PIXI.Sprite(activeItems.textures.bullet)
-            bullet.position.x = i * 10
+            bullet.position.x = i * (bullet.width + 2)
             magazine.addChild(bullet)
         }
         magazine.name = 'magazine'
-        magazine.position.set(20, CANVAS_HEIGHT - 60)
+        magazine.position.set(20, gameHeight - 60)
         hud.addChild(magazine)
     }
 
     function HUDpoints() {
         const pointsStyle = new PIXI.TextStyle({
-            fontFamily: 'Arial',
-            fontSize: 36,
+            fontFamily: 'ACastle3',
+            fontSize: 56,
             fontStyle: 'italic',
             fontWeight: 'bold',
             fill: ['#ffffff', '#00ff99'], // gradient
@@ -2436,13 +2932,13 @@ window.onload = async function () {
         });
         const points = new PIXI.Text('0', pointsStyle);
         points.anchor.set(1, 0)
-        points.x = CANVAS_WIDTH - 20
-        points.y = 20
+        points.x = gameWidth - 20
+        points.y = 40
         points.name = 'points'
 
         const scaleStyle = new PIXI.TextStyle({
-            fontFamily: 'Arial',
-            fontSize: 16,
+            fontFamily: 'ACastle3',
+            fontSize: 32,
             fontStyle: 'italic',
             fontWeight: 'bold',
             fill: ['#ffffff', '#00ff99'], // gradient
@@ -2459,18 +2955,303 @@ window.onload = async function () {
         });
         const scale = new PIXI.Text('x0', scaleStyle);
         scale.anchor.set(1, 0)
-        scale.x = CANVAS_WIDTH - 20
-        scale.y = 70
+        scale.x = gameWidth - 20
+        scale.y = 90
         scale.name = 'scale'
 
+        const scoreStyle = new PIXI.TextStyle({
+            fontFamily: 'ACastle3',
+            fontSize: 100,
+            fontStyle: 'italic',
+            fontWeight: 'bold',
+            fill: ['#ffffff', '#00ff99'], // gradient
+            stroke: '#4a1850',
+            strokeThickness: 5,
+            dropShadow: true,
+            dropShadowColor: '#000000',
+            dropShadowBlur: 4,
+            dropShadowAngle: Math.PI / 6,
+            dropShadowDistance: 6,
+            wordWrap: true,
+            wordWrapWidth: 440,
+            lineJoin: 'round',
+        });
+        const score = new PIXI.Text('F', scoreStyle);
+        score.anchor.set(1, 0)
+        score.x = gameWidth - 20
+        score.y = 140
+        score.name = 'score'
+
+        const hearts = new PIXI.Container()
+        for (let i = 0; i < playerState.health; i++) {
+            const heart = new PIXI.Sprite(activeItems.textures.heart)
+            heart.scale.set(0.5)
+            heart.position.x = (2 - i) * (heart.width / 2 + 10)
+            hearts.addChild(heart)
+        }
+        hearts.name = 'hearts'
+        hearts.position.set(20, 46)
+
+        const stimpack = new PIXI.Sprite(activeItems.textures.stimpack)
+        stimpack.scale.set(0.8)
+        stimpack.position.set(20, hearts.y + 50)
+        const stimpackText = new PIXI.Text('0', textStyles.default30);
+        stimpackText.position.set(stimpack.x + stimpack.width, stimpack.y + stimpack.height / 2)
+
+        const handGrenade = new PIXI.Sprite(activeItems.textures.handGrenadeIcon)
+        handGrenade.scale.set(0.5)
+        handGrenade.position.set(17, stimpack.y + 40)
+        const handGrenadeText = new PIXI.Text('0', textStyles.default30);
+        handGrenadeText.position.set(handGrenade.x + handGrenade.width, handGrenade.y + handGrenade.height / 2)
+
+        hud.addChild(stimpackText)
+        hud.addChild(stimpack)
+        hud.addChild(handGrenadeText)
+        hud.addChild(handGrenade)
+        hud.addChild(hearts)
+        hud.addChild(score)
         hud.addChild(scale);
         hud.addChild(points);
+    }
+
+    function addPoints(points) {
+        gameState.pointsToAdd += points * gameState.multiplier
+    }
+
+    function scoreTimer() {
+        const interval = setInterval(() => {
+            if (isPause) return
+            if (gameEnd || isMenu) {
+                clearInterval(interval)
+                return;
+            }
+            if (gameState.scoreStreak <= 0) return
+            gameState.scoreStreak--
+            playerDefaultSpeed = 2 + Number((gameState.points / 10000).toFixed(1))
+        }, 500)
+    }
+
+    function HUDpause() {
+        const hudPause = new PIXI.Container()
+        hud.addChild(hudPause)
+
+        const pause = new PIXI.Sprite(menuPause.textures.pause)
+        pause.interactive = true
+        pause.anchor.set(1)
+        pause.position.set(gameWidth - 20, gameHeight - 20)
+        hudPause.addChild(pause)
+
+        const pauseMenu = new PIXI.Container()
+        hudPause.addChild(pauseMenu)
+        pauseMenu.visible = false
+
+        const bg = new PIXI.Graphics();
+        bg.beginFill(0x000);
+        bg.alpha = 0.4
+        bg.drawRect(0, 0, gameWidth, gameHeight);
+        pauseMenu.addChild(bg)
+
+        const play = new PIXI.Sprite(menuPause.textures.play)
+        play.interactive = true
+        play.anchor.set(1)
+        play.position.set(gameWidth - 20, gameHeight - 20)
+        pauseMenu.addChild(play)
+
+        const heading = new PIXI.Text('PAUSE', textStyles.default80);
+        heading.anchor.set(0.5, 1)
+        heading.position.set(gameWidth / 2, gameHeight / 4)
+        pauseMenu.addChild(heading)
+
+        const distance = new PIXI.Text(`record: ${222}`, textStyles.default40);
+        distance.anchor.set(0, 1)
+        distance.position.set(20, gameHeight - 20)
+        pauseMenu.addChild(distance)
+
+        const leave = new PIXI.Sprite(menuButtons.textures.exit)
+        leave.interactive = true
+        leave.anchor.set(0.5)
+        leave.scale.set(0.6)
+        leave.position.set(gameWidth / 2, gameHeight / 2)
+        pauseMenu.addChild(leave)
+
+        const leaveMenu = new PIXI.Container()
+        hudPause.addChild(leaveMenu)
+        leaveMenu.visible = false
+        const leaveText = new PIXI.Text('leaving?', textStyles.default56);
+        leaveText.anchor.set(0.5, 0)
+        leaveText.position.set(gameWidth / 2, gameHeight / 2.5)
+        leaveMenu.addChild(leaveText)
+        const leaveDesc = new PIXI.Text('your run progress will be lost are you sure?', textStyles.default30);
+        leaveDesc.anchor.set(0.5, 0)
+        leaveDesc.position.set(gameWidth / 2, leaveText.y + leaveText.height + 20)
+        leaveMenu.addChild(leaveDesc)
+
+        const cancelButton = new PIXI.Sprite(menuButtons.textures.buttonRounded)
+        cancelButton.interactive = true
+        cancelButton.anchor.set(1, 0)
+        cancelButton.tint = 14483456
+        cancelButton.scale.set(1, 0.6)
+        cancelButton.position.set(gameWidth / 2 - 10, leaveDesc.y + leaveDesc.height + 20)
+        leaveMenu.addChild(cancelButton)
+        const cancelButtonText = new PIXI.Text('leave', textStyles.default40);
+        cancelButtonText.anchor.set(0.5)
+        cancelButtonText.position.set(cancelButton.x - cancelButton.width / 2, cancelButton.y + cancelButton.height / 2 + 2)
+        leaveMenu.addChild(cancelButtonText)
+
+        const stayButton = new PIXI.Sprite(menuButtons.textures.buttonRounded)
+        stayButton.interactive = true
+        stayButton.anchor.set(0)
+        stayButton.tint = 9236340
+        stayButton.scale.set(1, 0.6)
+        stayButton.position.set(gameWidth / 2 + 10, leaveDesc.y + leaveDesc.height + 20)
+        leaveMenu.addChild(stayButton)
+        const stayButtonText = new PIXI.Text('stay', textStyles.default40);
+        stayButtonText.anchor.set(0.5)
+        stayButtonText.position.set(stayButton.x + stayButton.width / 2, stayButton.y + stayButton.height / 2 + 2)
+        leaveMenu.addChild(stayButtonText)
+
+        const timerMenu = new PIXI.Container()
+        hudPause.addChild(timerMenu)
+        timerMenu.visible = false
+        const bgTimer = new PIXI.Graphics();
+        bgTimer.beginFill(0x000);
+        bgTimer.alpha = 0.4
+        bgTimer.drawRect(0, 0, gameWidth, gameHeight);
+        timerMenu.addChild(bgTimer)
+        const timerText = new PIXI.Text('0', textStyles.default180);
+        timerText.anchor.set(0.5)
+        timerText.position.set(gameWidth / 2, gameHeight / 2)
+        timerMenu.addChild(timerText)
+
+        pause.on('pointerdown', () => {
+            const allAnimated = world.children.filter(item => item.animationSpeed)
+            allAnimated.forEach(item => {
+                item.stop()
+            })
+            isPause = true
+            hud.getChildByName('magazine').visible = false
+            pauseMenu.visible = true
+            leave.visible = true
+            pause.visible = false
+        })
+
+        play.on('pointerdown', () => {
+            pauseMenu.visible = false
+            leaveMenu.visible = false
+            timerMenu.visible = true
+            let timer = 3
+            timerText.text = timer
+            const delay = setInterval(() => {
+                timer--
+                timerText.text = timer
+                if (timer <= 0) {
+                    clearInterval(delay)
+                    hud.getChildByName('magazine').visible = true
+                    timerMenu.visible = false
+                    const allAnimated = world.children.filter(item => item.animationSpeed)
+                    allAnimated.forEach(item => {
+                        item.play()
+                    })
+                    isPause = false
+                    pause.visible = true
+                }
+            }, 1000)
+        })
+
+        leave.on('pointerdown', () => {
+            leaveMenu.visible = true
+            leave.visible = false
+        })
+
+        cancelButton.on('pointerdown', () => {
+            endGame(true)
+        })
+
+        stayButton.on('pointerdown', () => {
+            leaveMenu.visible = false
+            leave.visible = true
+        })
+    }
+
+    function updateScore() {
+        switch (true) {
+            case gameState.scoreStreak < 10: {
+                hud.getChildByName('score').text = 'F';
+                hud.getChildByName('score').style._fill = ["#ffffff","#ff0000"];
+                gameState.multiplier = 1
+                break
+            }
+            case gameState.scoreStreak < 20: {
+                hud.getChildByName('score').text = 'E';
+                hud.getChildByName('score').style._fill = ["#ffffff","#ff5858"];
+                gameState.multiplier = 1.1
+                break
+            }
+            case gameState.scoreStreak < 30: {
+                hud.getChildByName('score').text = 'D';
+                hud.getChildByName('score').style._fill = ["#ffffff","#ffa4d5"];
+                gameState.multiplier = 1.2
+                break
+            }
+            case gameState.scoreStreak < 40: {
+                hud.getChildByName('score').text = 'C';
+                hud.getChildByName('score').style._fill = ["#ffffff","#83b9ff"];
+                gameState.multiplier = 1.3
+                break
+            }
+            case gameState.scoreStreak < 50: {
+                hud.getChildByName('score').text = 'B';
+                hud.getChildByName('score').style._fill = ["#ffffff","#b0ff89"];
+                gameState.multiplier = 1.4
+                break
+            }
+            case gameState.scoreStreak < 60: {
+                hud.getChildByName('score').text = 'A';
+                hud.getChildByName('score').style._fill = ["#ffffff","#9eff11"];
+                gameState.multiplier = 1.5
+                break
+            }
+            case gameState.scoreStreak < 70: {
+                hud.getChildByName('score').text = 'A+';
+                hud.getChildByName('score').style._fill = ["#ffffff","#ffec6e"];
+                gameState.multiplier = 1.6
+                break
+            }
+            case gameState.scoreStreak < 80: {
+                hud.getChildByName('score').text = 'S';
+                hud.getChildByName('score').style._fill = ["#ffffff","#ffcd00"];
+                gameState.multiplier = 1.7
+                break
+            }
+            case gameState.scoreStreak < 90: {
+                hud.getChildByName('score').text = 'S+';
+                hud.getChildByName('score').style._fill = ["#ffffff","#ffa33c"];
+                gameState.multiplier = 1.8
+                break
+            }
+            case gameState.scoreStreak >= 90: {
+                hud.getChildByName('score').text = 'S++';
+                hud.getChildByName('score').style._fill = ["#ffffff","#ff6200"];
+                gameState.multiplier = 2
+                break
+            }
+        }
     }
 }
 
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+async function sleep(ms) {
+    let time = 0
+    return await new Promise(resolve => {
+        const interval = setInterval(() => {
+            if (isPause || gameEnd) return
+            time++
+            if (time >= ms / 10) {
+                resolve();
+                clearInterval(interval);
+            };
+        }, 10);
+    });
 }
 
 function random(min, max, noFloor, noMin) {

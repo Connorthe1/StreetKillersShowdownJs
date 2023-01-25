@@ -10,7 +10,8 @@ export default {
         detect: false,
         warning: null,
         detectRange: 0,
-        gun: 'pistol'
+        gun: 'pistol',
+        points: 50
     },
     smg: {
         angle: 0.2,
@@ -24,7 +25,8 @@ export default {
         detect: false,
         warning: null,
         detectRange: 0,
-        gun: 'smg'
+        gun: 'smg',
+        points: 80
     },
     nigga: {
         angle: 0.1,
@@ -37,7 +39,8 @@ export default {
         detect: false,
         warning: null,
         detectRange: 0,
-        gun: 'pistol'
+        gun: 'pistol',
+        points: 60
     },
     shield: {
         angle: 0.4,
@@ -52,7 +55,8 @@ export default {
         detect: false,
         warning: null,
         detectRange: 0,
-        gun: 'shotgun'
+        gun: 'shotgun',
+        points: 120
     },
     silence: {
         angle: 0.05,
@@ -66,7 +70,8 @@ export default {
         detect: false,
         warning: null,
         detectRange: 100,
-        gun: 'silence'
+        gun: 'silence',
+        points: 100
     },
     shotgun: {
         angle: 0.4,
@@ -81,11 +86,13 @@ export default {
         detectRange: 0,
         offsetY: 12,
         offsetX: 4,
-        gun: 'shotgun'
+        gun: 'shotgun',
+        points: 90
     },
     dog: {
         health: 1,
         dead: false,
+        points: 75
     },
     bossGun: {
         angle: 0.1,
@@ -93,13 +100,14 @@ export default {
         warningMax: 800,
         reloadMin: 300,
         reloadMax: 500,
-        health: 5,
+        health: 6,
         dead: false,
         detect: false,
         warning: null,
         rapidFire: 7,
         melee: true,
-        walk: true
+        walk: true,
+        points: 150
     },
     bossSmg: {
         angle: 0.4,
@@ -112,6 +120,7 @@ export default {
         detect: false,
         warning: null,
         rapidFire: 10,
+        points: 150
     },
     bossLauncher: {
         angle: 0.1,
@@ -119,10 +128,11 @@ export default {
         warningMax: 800,
         reloadMin: 400,
         reloadMax: 600,
-        health: 5,
+        health: 7,
         dead: false,
         detect: false,
         warning: null,
+        points: 150
     },
     bossVan: {
         angle: 0.1,
@@ -135,6 +145,7 @@ export default {
         detect: false,
         warning: null,
         rapidFire: 7,
-        deathType: 'bigExplode'
+        deathType: 'bigExplode',
+        points: 200
     },
 }

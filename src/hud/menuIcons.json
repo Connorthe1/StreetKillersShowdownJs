@@ -1,0 +1,76 @@
+{"frames": {
+
+"money":
+{
+	"frame": {"x":49,"y":1,"w":32,"h":32},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":32,"h":32},
+	"sourceSize": {"w":32,"h":32}
+},
+"boostAmmo":
+{
+	"frame": {"x":35,"y":69,"w":31,"h":32},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":1,"y":0,"w":31,"h":32},
+	"sourceSize": {"w":32,"h":32}
+},
+"boostGun":
+{
+	"frame": {"x":49,"y":35,"w":32,"h":32},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":32,"h":32},
+	"sourceSize": {"w":32,"h":32}
+},
+"boostShield":
+{
+	"frame": {"x":1,"y":42,"w":32,"h":32},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":32,"h":32},
+	"sourceSize": {"w":32,"h":32}
+},
+"cup":
+{
+	"frame": {"x":35,"y":42,"w":13,"h":11},
+	"rotated": true,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":13,"h":11},
+	"sourceSize": {"w":13,"h":11}
+},
+"goldbar":
+{
+	"frame": {"x":1,"y":1,"w":46,"h":39},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":46,"h":39},
+	"sourceSize": {"w":46,"h":39}
+},
+"gunTrigger":
+{
+	"frame": {"x":1,"y":76,"w":18,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":18,"h":18},
+	"sourceSize": {"w":18,"h":18}
+},
+"muzzleBrake":
+{
+	"frame": {"x":69,"y":69,"w":18,"h":11},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":4,"w":18,"h":11},
+	"sourceSize": {"w":18,"h":18}
+}},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "menuIcons.png",
+	"format": "RGBA8888",
+	"size": {"w":82,"h":101},
+	"scale": "0.5",
+	"smartupdate": "$TexturePacker:SmartUpdate:bc6375b6d3b47e68d6f371c90e81c9b2:3e6673f0b97c4cfad4e526092e467f65:d92fc30e61dc54fc8cc00397bedc8e3f$"
+}
+}

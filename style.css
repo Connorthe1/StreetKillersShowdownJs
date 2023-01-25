@@ -1,3 +1,7 @@
+@font-face {
+    font-family: ACastle3;
+    src: url('/src/fonts/anothercastle3.ttf') format('truetype')
+}
 canvas {
     image-rendering:optimizeSpeed;             /* Legal fallback */
     image-rendering:-moz-crisp-edges;          /* Firefox        */
@@ -12,4 +16,8 @@ canvas {
 body {
     margin: 0;
     padding: 0;
+}
+.loadFont {
+    font-family: 'ACastle3';
+    font-size: 0px;
 }
