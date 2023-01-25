@@ -161,11 +161,6 @@ let gameStart = false
 let gameEnd = false
 
 window.onload = async function () {
-    VK.init(function() {
-        console.log('vk init complete')
-    }, function() {
-        console.log('error')
-    }, '5.131');
     const app = new PIXI.Application({
         width: gameWidth,
         height: gameHeight,
