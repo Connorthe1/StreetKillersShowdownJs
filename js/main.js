@@ -180,39 +180,8 @@ const storage = {
     lastUpdate: 0,
 }
 
-//VK CONNECT
-vkBridge.subscribe((e) => console.log(e));
-vkBridge.send('VKWebAppInit')
-vkBridge.send('VKWebAppStorageGet', {key: 'activeAcc'})
-    .then((data) => {
-        console.log(1)
-        if (data.keys) {
-            // Значения получены
-        }
-    })
-    .catch((error) => {
-        // Ошибка
-        console.log(error);
-    });
-// VK.init( function() {
-//     console.log('vk init');
-//     (async () => {
-//         const checkAcc = await VK.api("storage.get",{key: 'activeAcc', test_mode: 1})
-//         console.log(checkAcc)
-//         if (!checkAcc.response[0].value) {
-//             await Object.values(storage).forEach((item) => {
-//                 VK.api("storage.set", {key: item, value: storage[item], test_mode: 1})
-//             })
-//         }
-//         const gameKeys = Object.values(storage)
-//         const getKeys = await VK.api("storage.get",{keys: gameKeys.toString(), test_mode: 1})
-//         console.log(getKeys)
-//     })();
-// }, function() {
-//     console.log('vk error')
-// }, '5.131');
-
 window.onload = async function () {
+    getData()
     const app = new PIXI.Application({
         width: gameWidth,
         height: gameHeight,
@@ -3317,6 +3286,16 @@ window.onload = async function () {
                 gameState.multiplier = 2
                 break
             }
+        }
+    }
+
+    async function getData() {
+        try {
+            await vkBridge.send('VKWebAppInit')
+            const checkAcc = await vkBridge.send('VKWebAppStorageGet', {keys: ['checkAcc']})
+            console.log(checkAcc)
+        } catch (e) {
+            console.log(e)
         }
     }
 }
