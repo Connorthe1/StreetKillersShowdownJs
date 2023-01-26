@@ -169,18 +169,19 @@ let isMenu = true
 let gameStart = false
 let gameEnd = false
 
+const storage = {
+    record: 0,
+    money: 0,
+    gold: 0,
+    activeAcc: true,
+    lang: 'ru',
+    muteSound: false,
+    muteMusic: false,
+    lastUpdate: 0,
+}
+
 window.onload = async function () {
-    VK.init(function() {
-        console.log('vk init')
-        VK.api("storage.set", {key: 'money', value: 99, test_mode: 1}, function (data) {
-            console.log(data.response)
-        });
-        VK.api("storage.get",{key: 'money', test_mode: 1}, function (data) {
-            console.log(data.response)
-        });
-    }, function() {
-        console.log('vk error')
-    }, '5.131');
+    getData()
     console.log(gameWidth)
     console.log(gameHeight)
     const app = new PIXI.Application({
@@ -372,6 +373,11 @@ window.onload = async function () {
             restartGame()
             return
         }
+        if (storage.record < gameState.points) {
+            await VK.api("storage.set", {key: 'record', value: gameState.points, test_mode: 1})
+        }
+
+
         const endScreen = new PIXI.Container()
         let skip = false
         app.stage.addChild(endScreen)
@@ -3282,6 +3288,20 @@ window.onload = async function () {
                 break
             }
         }
+    }
+
+    async function getData() {
+        const init = await VK.init()
+        console.log(init)
+        const checkAcc = await VK.api("storage.get",{key: 'activeAcc', test_mode: 1})
+        if (!checkAcc.data.response[0].value) {
+            await Object.values(storage).forEach((item) => {
+                VK.api("storage.set", {key: item, value: storage[item], test_mode: 1})
+            })
+        }
+        const gameKeys = Object.values(storage)
+        const getKeys = await VK.api("storage.get",{keys: gameKeys.toString(), test_mode: 1})
+        console.log(getKeys)
     }
 }
 
