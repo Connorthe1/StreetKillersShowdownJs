@@ -3294,7 +3294,7 @@ window.onload = async function () {
     async function getData() {
         try {
             await vkBridge.send('VKWebAppInit')
-            const checkAcc = await vkBridge.send('VKWebAppStorageGet', {keys: ['checkAcc']})
+            const checkAcc = await vkBridge.send('VKWebAppStorageGet', {keys: ['activeAcc']})
             console.log(checkAcc)
             if (checkAcc.keys[0].value.length === 0) {
                 await Object.keys(storage).forEach((item) => {
