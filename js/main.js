@@ -185,6 +185,7 @@ VK.init( function() {
     console.log('vk init');
     (async () => {
         const checkAcc = await VK.api("storage.get",{key: 'activeAcc', test_mode: 1})
+        console.log(checkAcc)
         if (!checkAcc.response[0].value) {
             await Object.values(storage).forEach((item) => {
                 VK.api("storage.set", {key: item, value: storage[item], test_mode: 1})
