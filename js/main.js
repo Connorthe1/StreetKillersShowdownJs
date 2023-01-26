@@ -3299,7 +3299,7 @@ window.onload = async function () {
                 })
             }
             const gameKeys = Object.keys(storage)
-            const getKeys = await vkBridge.send("VKWebAppStorageGet",{keys: gameKeys.toString()})
+            const getKeys = await vkBridge.send("VKWebAppStorageGet",{keys: gameKeys})
             Object.values(storage).forEach((item, idx) => {
                 storage[item] = getKeys[idx].value
             })
