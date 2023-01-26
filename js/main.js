@@ -3294,11 +3294,11 @@ window.onload = async function () {
             await vkBridge.send('VKWebAppInit')
             const checkAcc = await vkBridge.send('VKWebAppStorageGet', {keys: ['checkAcc']})
             if (!checkAcc.keys[0].value) {
-                await Object.values(storage).forEach((item) => {
+                await Object.keys(storage).forEach((item) => {
                     vkBridge.send("VKWebAppStorageSet", {key: item, value: storage[item]})
                 })
             }
-            const gameKeys = Object.values(storage)
+            const gameKeys = Object.keys(storage)
             const getKeys = await vkBridge.send("VKWebAppStorageGet",{keys: gameKeys.toString()})
             Object.values(storage).forEach((item, idx) => {
                 storage[item] = getKeys[idx].value
