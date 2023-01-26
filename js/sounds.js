@@ -61,4 +61,8 @@ export default {
     waterStep0: './src/sounds/footstep_water_splash_light_wading_05.wav',
     waterStep1: './src/sounds/footstep_water_splash_light_wading_06.wav',
     waterStep2: './src/sounds/footstep_water_splash_light_wading_07.wav',
+    footStep0: './src/sounds/footstep_concrete_run_04.wav',
+    footStep1: './src/sounds/footstep_concrete_run_05.wav',
+    footStep2: './src/sounds/footstep_concrete_run_06.wav',
+    footStep3: './src/sounds/footstep_concrete_run_07.wav',
 }

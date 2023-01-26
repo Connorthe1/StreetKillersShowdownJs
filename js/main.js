@@ -51,6 +51,7 @@ let bgSpeed = 0.2;
 let world
 let ground
 let hud
+let stepSound = 0
 let floorPosition = 0
 const fenceChance = 4
 let isFence = false
@@ -161,6 +162,14 @@ let gameStart = false
 let gameEnd = false
 
 window.onload = async function () {
+    VK.init(function() {
+        console.log('vk init')
+        VK.api("account.getProfileInfo", function (data) {
+            console.log(data.response)
+        });
+    }, function() {
+        console.log('vk error')
+    }, '5.131');
     const app = new PIXI.Application({
         width: gameWidth,
         height: gameHeight,
@@ -179,6 +188,22 @@ window.onload = async function () {
     PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
     PIXI.sound.volumeAll = 0.05
 
+    const loaderView = new PIXI.Container()
+    app.stage.addChild(loaderView)
+    const loaderGif = await loader.load('./src/loading/loader.json');
+    const logo = await loader.load('./src/loading/logopng.png');
+    const logoSprite = new PIXI.Sprite(logo)
+    logoSprite.width = gameWidth
+    logoSprite.height = gameHeight
+    loaderView.addChild(logoSprite)
+    const loaderSprite = new PIXI.AnimatedSprite(loaderGif.animations.loader)
+    loaderSprite.animationSpeed = 0.5
+    loaderSprite.anchor.set(0.5)
+    loaderSprite.position.set(gameWidth / 2, gameHeight - 200)
+    loaderSprite.play()
+    loaderView.addChild(loaderSprite)
+
+    await loader.load('./src/fonts/anothercastle3.ttf');
     PIXI.Assets.addBundle('sounds', sounds);
     const textures = await loader.load('./src/textures/textures.json');
     const build1 = await loader.load('./src/textures/build1.json');
@@ -211,11 +236,12 @@ window.onload = async function () {
     const menuButtons = await loader.load('./src/hud/menuButtons.json')
     const menuIcons = await loader.load('./src/hud/menuIcons.json')
     const menuPause = await loader.load('./src/hud/menuPause.json')
-    await loader.load('./src/fonts/anothercastle3.ttf');
+    const menuUI = await loader.load('./src/hud/menuUI.json')
     await PIXI.Assets.loadBundle('sounds')
     // await character.parse();
 
     const bg = await loader.load('./src/BG.png')
+    app.stage.removeChild(loaderView)
     init()
 
     function init() {
@@ -644,7 +670,7 @@ window.onload = async function () {
 
 
         //SETTINGS
-        const settings = new PIXI.Sprite(menuButtons.textures.settings)
+        const settings = new PIXI.Sprite(menuUI.textures.settingsicon)
         settings.scale.set(0.6)
         settings.interactive = true;
         settings.anchor.set(1, 1)
@@ -670,6 +696,7 @@ window.onload = async function () {
         const interval = setInterval(() => {
             if (gameEnd || !player) {
                 clearInterval(interval)
+                stepSound = 0
                 return
             }
             if (playerSpeed > 0 && !isPause) {
@@ -678,6 +705,12 @@ window.onload = async function () {
                     spawnTrailParticle(player)
                     spawnTrailParticle(player)
                     spawnTrailParticle(player)
+                } else {
+                    stepSound++
+                    if (stepSound > 3) {
+                        soundPlayer.footStep()
+                        stepSound = 0
+                    }
                 }
             }
         }, 100)
@@ -2449,10 +2482,10 @@ window.onload = async function () {
     }
 
     function createBg(img) {
-        const tiling = new PIXI.TilingSprite(img, 550, 1920)
+        const tiling = new PIXI.TilingSprite(img, gameWidth + 100, gameHeight)
         tiling.scale.set(0.8)
         tiling.zIndex = -10
-        tiling.position.set(0,-550)
+        tiling.tilePosition.y = gameHeight - 300
         world.addChild(tiling)
         return tiling
     }
@@ -3067,10 +3100,10 @@ window.onload = async function () {
         distance.position.set(20, gameHeight - 20)
         pauseMenu.addChild(distance)
 
-        const leave = new PIXI.Sprite(menuButtons.textures.exit)
+        const leave = new PIXI.Sprite(menuUI.textures.shortexit)
         leave.interactive = true
         leave.anchor.set(0.5)
-        leave.scale.set(0.6)
+        leave.scale.set(0.5)
         leave.position.set(gameWidth / 2, gameHeight / 2)
         pauseMenu.addChild(leave)
 
@@ -3086,11 +3119,10 @@ window.onload = async function () {
         leaveDesc.position.set(gameWidth / 2, leaveText.y + leaveText.height + 20)
         leaveMenu.addChild(leaveDesc)
 
-        const cancelButton = new PIXI.Sprite(menuButtons.textures.buttonRounded)
+        const cancelButton = new PIXI.Sprite(menuUI.textures.exitclear)
         cancelButton.interactive = true
         cancelButton.anchor.set(1, 0)
-        cancelButton.tint = 14483456
-        cancelButton.scale.set(1, 0.6)
+        cancelButton.scale.set(0.5, 0.4)
         cancelButton.position.set(gameWidth / 2 - 10, leaveDesc.y + leaveDesc.height + 20)
         leaveMenu.addChild(cancelButton)
         const cancelButtonText = new PIXI.Text('leave', textStyles.default40);
@@ -3098,11 +3130,10 @@ window.onload = async function () {
         cancelButtonText.position.set(cancelButton.x - cancelButton.width / 2, cancelButton.y + cancelButton.height / 2 + 2)
         leaveMenu.addChild(cancelButtonText)
 
-        const stayButton = new PIXI.Sprite(menuButtons.textures.buttonRounded)
+        const stayButton = new PIXI.Sprite(menuUI.textures.stayclear)
         stayButton.interactive = true
         stayButton.anchor.set(0)
-        stayButton.tint = 9236340
-        stayButton.scale.set(1, 0.6)
+        stayButton.scale.set(0.5, 0.4)
         stayButton.position.set(gameWidth / 2 + 10, leaveDesc.y + leaveDesc.height + 20)
         leaveMenu.addChild(stayButton)
         const stayButtonText = new PIXI.Text('stay', textStyles.default40);

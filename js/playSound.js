@@ -65,6 +65,10 @@ class SoundPlayer {
         const randSound = random(0, 2)
         PIXI.sound.play(`waterStep${randSound}`, {volume: 1})
     }
+    footStep() {
+        const randSound = random(0, 3)
+        PIXI.sound.play(`footStep${randSound}`, {volume: 1})
+    }
 }
 
 const soundPlayer = new SoundPlayer()
