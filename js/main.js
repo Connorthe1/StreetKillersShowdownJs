@@ -375,6 +375,7 @@ window.onload = async function () {
         }
         if (storage.record < gameState.points) {
             await VK.api("storage.set", {key: 'record', value: gameState.points, test_mode: 1})
+            storage.record = gameState.points
         }
 
 
@@ -647,11 +648,11 @@ window.onload = async function () {
         const cup = new PIXI.Sprite(menuIcons.textures.cup)
         cup.position.set(16, 16)
         topMenu.addChild(cup)
-        const topDistance = new PIXI.Text('1337', textStyles.default30);
+        const topDistance = new PIXI.Text(storage.record, textStyles.default30);
         topDistance.position.set(52, 20)
         topMenu.addChild(topDistance)
 
-        const money = new PIXI.Text('1337', textStyles.default30);
+        const money = new PIXI.Text(storage.money, textStyles.default30);
         money.position.set(gameWidth - 16, 20)
         money.anchor.set(1,0)
         topMenu.addChild(money)
@@ -661,7 +662,7 @@ window.onload = async function () {
         moneyIcon.position.set(money.x - money.width - 10, 14)
         topMenu.addChild(moneyIcon)
 
-        const gold = new PIXI.Text('1337', textStyles.default30);
+        const gold = new PIXI.Text(storage.gold, textStyles.default30);
         gold.position.set(moneyIcon.x - moneyIcon.width - 20, 20)
         gold.anchor.set(1,0)
         topMenu.addChild(gold)
@@ -3290,18 +3291,21 @@ window.onload = async function () {
         }
     }
 
-    async function getData() {
-        const init = await VK.init()
-        console.log(init)
-        const checkAcc = await VK.api("storage.get",{key: 'activeAcc', test_mode: 1})
-        if (!checkAcc.data.response[0].value) {
-            await Object.values(storage).forEach((item) => {
-                VK.api("storage.set", {key: item, value: storage[item], test_mode: 1})
-            })
-        }
-        const gameKeys = Object.values(storage)
-        const getKeys = await VK.api("storage.get",{keys: gameKeys.toString(), test_mode: 1})
-        console.log(getKeys)
+    function getData() {
+        VK.init( async function() {
+            console.log('vk init')
+            const checkAcc = await VK.api("storage.get",{key: 'activeAcc', test_mode: 1})
+            if (!checkAcc.response[0].value) {
+                await Object.values(storage).forEach((item) => {
+                    VK.api("storage.set", {key: item, value: storage[item], test_mode: 1})
+                })
+            }
+            const gameKeys = Object.values(storage)
+            const getKeys = await VK.api("storage.get",{keys: gameKeys.toString(), test_mode: 1})
+            console.log(getKeys)
+        }, function() {
+            console.log('vk error')
+        }, '5.131');
     }
 }
 
