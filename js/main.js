@@ -181,7 +181,6 @@ const storage = {
 }
 
 window.onload = async function () {
-    getData()
     const app = new PIXI.Application({
         width: gameWidth,
         height: gameHeight,
@@ -215,6 +214,7 @@ window.onload = async function () {
     loaderSprite.play()
     loaderView.addChild(loaderSprite)
 
+    await getData()
     await loader.load('./src/fonts/anothercastle3.ttf');
     PIXI.Assets.addBundle('sounds', sounds);
     const textures = await loader.load('./src/textures/textures.json');
@@ -3307,6 +3307,7 @@ window.onload = async function () {
                 storage[item] = getKeys.keys[idx].value
             })
             console.log(getKeys)
+            console.log(storage)
         } catch (e) {
             console.log(e)
         }
