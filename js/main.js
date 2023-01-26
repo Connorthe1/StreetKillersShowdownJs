@@ -170,14 +170,14 @@ let gameStart = false
 let gameEnd = false
 
 const storage = {
-    record: 0,
-    money: 0,
-    gold: 0,
-    activeAcc: true,
+    record: '0',
+    money: '0',
+    gold: '0',
+    activeAcc: '1',
     lang: 'ru',
-    muteSound: false,
-    muteMusic: false,
-    lastUpdate: 0,
+    muteSound: '0',
+    muteMusic: '0',
+    lastUpdate: '0',
 }
 
 window.onload = async function () {
