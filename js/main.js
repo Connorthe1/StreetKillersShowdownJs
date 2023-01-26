@@ -372,7 +372,7 @@ window.onload = async function () {
             return
         }
         if (storage.record < gameState.points) {
-            await VK.api("storage.set", {key: 'record', value: gameState.points, test_mode: 1})
+            await vkBridge.set("VKWebAppStorageSet", {key: 'record', value: gameState.points})
             storage.record = gameState.points
         }
 
@@ -3293,7 +3293,16 @@ window.onload = async function () {
         try {
             await vkBridge.send('VKWebAppInit')
             const checkAcc = await vkBridge.send('VKWebAppStorageGet', {keys: ['checkAcc']})
-            console.log(checkAcc)
+            if (!checkAcc.keys[0].value) {
+                await Object.values(storage).forEach((item) => {
+                    vkBridge.send("VKWebAppStorageSet", {key: item, value: storage[item]})
+                })
+            }
+            const gameKeys = Object.values(storage)
+            const getKeys = await vkBridge.send("VKWebAppStorageGet",{keys: gameKeys.toString()})
+            Object.values(storage).forEach((item, idx) => {
+                storage[item] = getKeys[idx].value
+            })
         } catch (e) {
             console.log(e)
         }
