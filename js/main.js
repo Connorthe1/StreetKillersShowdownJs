@@ -181,18 +181,19 @@ const storage = {
 }
 
 //VK CONNECT
-console.log('getData')
-VK.init( async function() {
-    console.log('vk init')
-    const checkAcc = await VK.api("storage.get",{key: 'activeAcc', test_mode: 1})
-    if (!checkAcc.response[0].value) {
-        await Object.values(storage).forEach((item) => {
-            VK.api("storage.set", {key: item, value: storage[item], test_mode: 1})
-        })
-    }
-    const gameKeys = Object.values(storage)
-    const getKeys = await VK.api("storage.get",{keys: gameKeys.toString(), test_mode: 1})
-    console.log(getKeys)
+VK.init( function() {
+    console.log('vk init');
+    (async () => {
+        const checkAcc = await VK.api("storage.get",{key: 'activeAcc', test_mode: 1})
+        if (!checkAcc.response[0].value) {
+            await Object.values(storage).forEach((item) => {
+                VK.api("storage.set", {key: item, value: storage[item], test_mode: 1})
+            })
+        }
+        const gameKeys = Object.values(storage)
+        const getKeys = await VK.api("storage.get",{keys: gameKeys.toString(), test_mode: 1})
+        console.log(getKeys)
+    })();
 }, function() {
     console.log('vk error')
 }, '5.131');
