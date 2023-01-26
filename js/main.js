@@ -1,8 +1,8 @@
 import {default as enemyParams} from './enemyParams.js'
 import {default as sounds} from './sounds.js'
 import { soundPlayer } from './playSound.js'
-const gameWidth = window.screen.width;
-const gameHeight = window.screen.height;
+const gameWidth = document.body.offsetWidth;
+const gameHeight = document.body.offsetHeight;
 const CANVAS_WIDTH = gameWidth / 1.4;
 const CANVAS_HEIGHT = gameHeight / 1.35;
 let zeroLeft = 0
@@ -164,12 +164,17 @@ let gameEnd = false
 window.onload = async function () {
     VK.init(function() {
         console.log('vk init')
-        VK.api("account.getProfileInfo", function (data) {
+        VK.api("storage.set", {money: '0'}, function (data) {
+            console.log(data.response)
+        });
+        VK.api("storage.get",{key: 'money'}, function (data) {
             console.log(data.response)
         });
     }, function() {
         console.log('vk error')
     }, '5.131');
+    console.log(gameWidth)
+    console.log(gameHeight)
     const app = new PIXI.Application({
         width: gameWidth,
         height: gameHeight,
@@ -2482,10 +2487,12 @@ window.onload = async function () {
     }
 
     function createBg(img) {
-        const tiling = new PIXI.TilingSprite(img, gameWidth + 100, gameHeight)
+        const tiling = new PIXI.TilingSprite(img, gameWidth + 100, gameHeight + secondFloor)
         tiling.scale.set(0.8)
+        tiling.anchor.set(0, 1)
         tiling.zIndex = -10
-        tiling.tilePosition.y = gameHeight - 300
+        tiling.y = gameHeight - 150
+        tiling.tilePosition.y = gameHeight
         world.addChild(tiling)
         return tiling
     }
