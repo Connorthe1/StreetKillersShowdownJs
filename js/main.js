@@ -648,7 +648,7 @@ window.onload = async function () {
         const cup = new PIXI.Sprite(menuIcons.textures.cup)
         cup.position.set(16, 16)
         topMenu.addChild(cup)
-        const topDistance = new PIXI.Text(storage.record, textStyles.default30);
+        const topDistance = new PIXI.Text(storage.record.toString(), textStyles.default30);
         topDistance.position.set(52, 20)
         topMenu.addChild(topDistance)
 
@@ -3295,7 +3295,8 @@ window.onload = async function () {
         try {
             await vkBridge.send('VKWebAppInit')
             const checkAcc = await vkBridge.send('VKWebAppStorageGet', {keys: ['checkAcc']})
-            if (!checkAcc.keys[0].value) {
+            console.log(checkAcc)
+            if (checkAcc.keys[0].value.length === 0) {
                 await Object.keys(storage).forEach((item) => {
                     vkBridge.send("VKWebAppStorageSet", {key: item, value: storage[item]})
                 })
