@@ -1,8 +1,16 @@
 import {default as enemyParams} from './enemyParams.js'
 import {default as sounds} from './sounds.js'
 import { soundPlayer } from './playSound.js'
-const gameWidth = document.body.offsetWidth;
-const gameHeight = document.body.offsetHeight;
+
+let gameWidth
+let gameHeight
+if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent)) {
+    gameWidth = screen.width
+    gameHeight = screen.height
+} else {
+    gameWidth = document.documentElement.clientWidth;
+    gameHeight = document.documentElement.clientHeight;
+}
 const CANVAS_WIDTH = gameWidth / 1.4;
 const CANVAS_HEIGHT = gameHeight / 1.35;
 let zeroLeft = 0
