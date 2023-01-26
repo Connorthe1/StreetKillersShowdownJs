@@ -371,8 +371,10 @@ window.onload = async function () {
             restartGame()
             return
         }
-        if (storage.record < gameState.points) {
-            await vkBridge.set("VKWebAppStorageSet", {key: 'record', value: gameState.points})
+        console.log(storage)
+        if (Number(storage.record) < gameState.points) {
+            console.log('updateRecord')
+            await vkBridge.set("VKWebAppStorageSet", {key: 'record', value: gameState.points.toString()})
             storage.record = gameState.points
         }
 
