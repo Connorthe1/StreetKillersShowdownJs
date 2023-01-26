@@ -172,7 +172,7 @@ let gameEnd = false
 window.onload = async function () {
     VK.init(function() {
         console.log('vk init')
-        VK.api("storage.set", {money: '0', test_mode: 1}, function (data) {
+        VK.api("storage.set", {key: 'money', value: 99, test_mode: 1}, function (data) {
             console.log(data.response)
         });
         VK.api("storage.get",{key: 'money', test_mode: 1}, function (data) {
