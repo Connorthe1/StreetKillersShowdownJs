@@ -478,7 +478,7 @@ window.onload = async function () {
                 distanceMoneyValue.text = `${initDMoney}$`
             }, 10);
         });
-        storage.money += pointsToMoney
+        storage.money = Number(storage.money) + pointsToMoney
         await vkBridge.send("VKWebAppStorageSet", {key: 'money', value: storage.money.toString()})
 
         //COLLECTED MONEY
@@ -510,7 +510,7 @@ window.onload = async function () {
                 collectedMoneyValue.text = `${initCMoney}$`
             }, 10);
         });
-        storage.money += collectedToMoney
+        storage.money = Number(storage.money) + collectedToMoney
         await vkBridge.send("VKWebAppStorageSet", {key: 'money', value: storage.money.toString()})
 
         //AVERAGE SCORE
