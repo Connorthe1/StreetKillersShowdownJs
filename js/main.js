@@ -214,7 +214,10 @@ window.onload = async function () {
     loaderSprite.play()
     loaderView.addChild(loaderSprite)
 
+    //LOAD VK
     await getData()
+
+    //LOAD ASSETS
     await loader.load('./src/fonts/anothercastle3.ttf');
     PIXI.Assets.addBundle('sounds', sounds);
     const textures = await loader.load('./src/textures/textures.json');
@@ -475,6 +478,8 @@ window.onload = async function () {
                 distanceMoneyValue.text = `${initDMoney}$`
             }, 10);
         });
+        storage.money += pointsToMoney
+        await vkBridge.send("VKWebAppStorageSet", {key: 'money', value: storage.money.toString()})
 
         //COLLECTED MONEY
         const collectedMoney = new PIXI.Text('collected money:', textStyles.default40);
@@ -505,6 +510,8 @@ window.onload = async function () {
                 collectedMoneyValue.text = `${initCMoney}$`
             }, 10);
         });
+        storage.money += collectedToMoney
+        await vkBridge.send("VKWebAppStorageSet", {key: 'money', value: storage.money.toString()})
 
         //AVERAGE SCORE
         const score = new PIXI.Text('F', textStyles.default180);
