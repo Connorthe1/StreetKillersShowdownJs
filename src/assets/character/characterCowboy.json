@@ -1,0 +1,293 @@
+{"frames": {
+
+"Char_Skin_Cowboy_idle1.png":
+{
+	"frame": {"x":244,"y":1,"w":18,"h":25},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":4,"w":18,"h":25},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_idle2.png":
+{
+	"frame": {"x":532,"y":1,"w":18,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":5,"w":18,"h":24},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_idle3.png":
+{
+	"frame": {"x":264,"y":1,"w":18,"h":25},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":4,"w":18,"h":25},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_idle4.png":
+{
+	"frame": {"x":244,"y":1,"w":18,"h":25},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":4,"w":18,"h":25},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_reload1.png":
+{
+	"frame": {"x":197,"y":1,"w":25,"h":24},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":5,"y":5,"w":25,"h":24},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_reload2.png":
+{
+	"frame": {"x":309,"y":1,"w":23,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":5,"y":5,"w":23,"h":24},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_reload3.png":
+{
+	"frame": {"x":334,"y":1,"w":22,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":5,"w":22,"h":24},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_reload4.png":
+{
+	"frame": {"x":358,"y":1,"w":21,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":5,"w":21,"h":24},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_reload5.png":
+{
+	"frame": {"x":447,"y":1,"w":20,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":5,"w":20,"h":24},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_reload6.png":
+{
+	"frame": {"x":469,"y":1,"w":19,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":5,"w":19,"h":24},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_reload7.png":
+{
+	"frame": {"x":490,"y":1,"w":19,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":5,"w":19,"h":24},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_reload8.png":
+{
+	"frame": {"x":469,"y":1,"w":19,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":5,"w":19,"h":24},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_reload9.png":
+{
+	"frame": {"x":490,"y":1,"w":19,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":5,"w":19,"h":24},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_reload10.png":
+{
+	"frame": {"x":469,"y":1,"w":19,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":5,"w":19,"h":24},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_reload11.png":
+{
+	"frame": {"x":490,"y":1,"w":19,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":5,"w":19,"h":24},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_reload12.png":
+{
+	"frame": {"x":284,"y":1,"w":23,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":5,"w":23,"h":24},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_reload13.png":
+{
+	"frame": {"x":381,"y":1,"w":20,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":5,"w":20,"h":24},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_reload14.png":
+{
+	"frame": {"x":403,"y":1,"w":20,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":5,"w":20,"h":24},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_reload15.png":
+{
+	"frame": {"x":425,"y":1,"w":20,"h":24},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":5,"w":20,"h":24},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_roll1.png":
+{
+	"frame": {"x":589,"y":1,"w":32,"h":16},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":0,"y":11,"w":32,"h":16},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_roll2.png":
+{
+	"frame": {"x":571,"y":1,"w":22,"h":16},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":14,"w":22,"h":16},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_roll3.png":
+{
+	"frame": {"x":511,"y":1,"w":24,"h":19},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":13,"w":24,"h":19},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_roll4.png":
+{
+	"frame": {"x":552,"y":1,"w":23,"h":17},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":3,"y":13,"w":23,"h":17},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_run1.png":
+{
+	"frame": {"x":63,"y":1,"w":20,"h":26},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":4,"y":3,"w":20,"h":26},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_run2.png":
+{
+	"frame": {"x":1,"y":1,"w":18,"h":27},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":5,"y":3,"w":18,"h":27},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_run3.png":
+{
+	"frame": {"x":223,"y":1,"w":19,"h":25},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":4,"y":4,"w":19,"h":25},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_run4.png":
+{
+	"frame": {"x":163,"y":1,"w":15,"h":26},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":8,"y":4,"w":15,"h":26},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_run5.png":
+{
+	"frame": {"x":107,"y":1,"w":17,"h":26},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":4,"w":17,"h":26},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_run6.png":
+{
+	"frame": {"x":180,"y":1,"w":15,"h":26},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":8,"y":3,"w":15,"h":26},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_run7.png":
+{
+	"frame": {"x":145,"y":1,"w":16,"h":26},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":4,"w":16,"h":26},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_run8.png":
+{
+	"frame": {"x":126,"y":1,"w":17,"h":26},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":4,"w":17,"h":26},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_shot1.png":
+{
+	"frame": {"x":40,"y":1,"w":21,"h":26},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":8,"y":3,"w":21,"h":26},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_shot2.png":
+{
+	"frame": {"x":85,"y":1,"w":20,"h":26},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":7,"y":3,"w":20,"h":26},
+	"sourceSize": {"w":32,"h":32}
+},
+"Char_Skin_Cowboy_shot3.png":
+{
+	"frame": {"x":21,"y":1,"w":17,"h":27},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":2,"w":17,"h":27},
+	"sourceSize": {"w":32,"h":32}
+}},
+"animations": {
+	"idle": ["Char_Skin_Cowboy_idle1.png","Char_Skin_Cowboy_idle2.png","Char_Skin_Cowboy_idle3.png","Char_Skin_Cowboy_idle4.png"],
+	"reload": ["Char_Skin_Cowboy_reload1.png","Char_Skin_Cowboy_reload2.png","Char_Skin_Cowboy_reload3.png","Char_Skin_Cowboy_reload4.png","Char_Skin_Cowboy_reload5.png","Char_Skin_Cowboy_reload6.png","Char_Skin_Cowboy_reload7.png","Char_Skin_Cowboy_reload8.png","Char_Skin_Cowboy_reload9.png","Char_Skin_Cowboy_reload10.png","Char_Skin_Cowboy_reload11.png","Char_Skin_Cowboy_reload12.png","Char_Skin_Cowboy_reload13.png","Char_Skin_Cowboy_reload14.png","Char_Skin_Cowboy_reload15.png"],
+	"roll": ["Char_Skin_Cowboy_roll1.png","Char_Skin_Cowboy_roll2.png","Char_Skin_Cowboy_roll3.png","Char_Skin_Cowboy_roll4.png"],
+	"rollEnd": ["Char_Skin_Cowboy_roll4.png"],
+	"run": ["Char_Skin_Cowboy_run1.png","Char_Skin_Cowboy_run2.png","Char_Skin_Cowboy_run3.png","Char_Skin_Cowboy_run4.png","Char_Skin_Cowboy_run5.png","Char_Skin_Cowboy_run6.png","Char_Skin_Cowboy_run7.png","Char_Skin_Cowboy_run8.png"],
+	"shot": ["Char_Skin_Cowboy_shot1.png","Char_Skin_Cowboy_shot2.png","Char_Skin_Cowboy_shot3.png"],
+	"zipLine": ["Char_Skin_Cowboy_roll2.png"]
+},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "characterCowboy.png",
+	"format": "RGBA8888",
+	"size": {"w":622,"h":29},
+	"scale": "1",
+	"smartupdate": "$TexturePacker:SmartUpdate:14cefed983727072af46fe49b289bb80:afab3937117c5b6a30f435ef31117157:10dbfed7329e228397e2500acc739462$"
+}
+}

@@ -1,0 +1,47 @@
+[
+  {
+    "name": "AMMO BOOSTER",
+    "initPrice": 600,
+    "maxLvl": 5,
+    "icon": "menuIcons.textures.boostAmmo",
+    "currentLvl": 1
+  },
+  {
+    "name": "DAMAGE BOOSTER",
+    "initPrice": 700,
+    "maxLvl": 5,
+    "icon": "menuIcons.textures.boostGun",
+    "currentLvl": 1
+  },
+  {
+    "name": "ARMOR BOOSTER",
+    "initPrice": 500,
+    "maxLvl": 5,
+    "icon": "menuIcons.textures.boostShield",
+    "currentLvl": 1
+  },
+  {
+    "name": "TITANIUM CAN",
+    "initPrice": 1000,
+    "maxLvl": 2,
+    "icon": "canTexture.textures.pixelCan",
+    "scale": 4,
+    "currentLvl": 1
+  },
+  {
+    "name": "GUN TRIGGER",
+    "initPrice": 2000,
+    "maxLvl": 5,
+    "icon": "menuIcons.textures.gunTrigger",
+    "scale": 1.5,
+    "currentLvl": 1
+  },
+  {
+    "name": "ACCURACY MUZZLE BRAKE",
+    "initPrice": 1000,
+    "maxLvl": 5,
+    "icon": "menuIcons.textures.muzzleBrake",
+    "scale": 1.5,
+    "currentLvl": 1
+  }
+]

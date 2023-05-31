@@ -1,0 +1,60 @@
+{"frames": {
+
+"bullet":
+{
+	"frame": {"x":20,"y":21,"w":7,"h":18},
+	"rotated": true,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":7,"h":18},
+	"sourceSize": {"w":7,"h":18}
+},
+"goldHeart":
+{
+	"frame": {"x":1,"y":32,"w":17,"h":17},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":17,"h":17},
+	"sourceSize": {"w":17,"h":17}
+},
+"handGrenade":
+{
+	"frame": {"x":20,"y":49,"w":8,"h":5},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":8,"h":5},
+	"sourceSize": {"w":8,"h":5}
+},
+"handGrenadeIcon":
+{
+	"frame": {"x":1,"y":1,"w":17,"h":29},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":8,"y":2,"w":17,"h":29},
+	"sourceSize": {"w":32,"h":32}
+},
+"heart":
+{
+	"frame": {"x":20,"y":30,"w":17,"h":17},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":17,"h":17},
+	"sourceSize": {"w":17,"h":17}
+},
+"stimpack":
+{
+	"frame": {"x":20,"y":1,"w":18,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":18,"h":18},
+	"sourceSize": {"w":18,"h":18}
+}},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "activeItems.png",
+	"format": "RGBA8888",
+	"size": {"w":39,"h":55},
+	"scale": "0.5",
+	"smartupdate": "$TexturePacker:SmartUpdate:9fda5224aff56d1c1293e1f1d68162c2:caa2dd0f20a22aa440385cc9bf572645:7ca370a14e0b0c47971afd4b2613b9c0$"
+}
+}

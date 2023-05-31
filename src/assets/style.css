@@ -1,0 +1,22 @@
+@font-face {
+    font-family: ACastle3;
+    src: url('./fonts/anothercastle3.ttf') format('truetype')
+}
+canvas {
+    width: 100%;
+    height: 100%;
+}
+html {
+    width: 100%;
+    height: 100%;
+}
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+}
+.loadFont {
+    font-family: 'ACastle3';
+    font-size: 0px;
+}

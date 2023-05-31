@@ -1,0 +1,261 @@
+{"frames": {
+
+"Char_Skin_Nigga_Premium_idle1.png":
+{
+	"frame": {"x":114,"y":1,"w":18,"h":24},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":14,"y":5,"w":18,"h":24},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_idle2.png":
+{
+	"frame": {"x":140,"y":1,"w":18,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":14,"y":6,"w":18,"h":23},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_idle3.png":
+{
+	"frame": {"x":165,"y":1,"w":18,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":14,"y":6,"w":18,"h":23},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_idle4.png":
+{
+	"frame": {"x":114,"y":1,"w":18,"h":24},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":14,"y":5,"w":18,"h":24},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_reload1.png":
+{
+	"frame": {"x":102,"y":43,"w":24,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":6,"w":24,"h":23},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_reload2.png":
+{
+	"frame": {"x":128,"y":43,"w":24,"h":23},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":6,"w":24,"h":23},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_reload3.png":
+{
+	"frame": {"x":1,"y":40,"w":22,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":13,"y":6,"w":22,"h":23},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_reload4.png":
+{
+	"frame": {"x":26,"y":40,"w":22,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":13,"y":6,"w":22,"h":23},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_reload5.png":
+{
+	"frame": {"x":51,"y":42,"w":22,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":13,"y":6,"w":22,"h":23},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_reload6.png":
+{
+	"frame": {"x":55,"y":20,"w":20,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":14,"y":6,"w":20,"h":23},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_reload7.png":
+{
+	"frame": {"x":89,"y":1,"w":17,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":15,"y":6,"w":17,"h":23},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_reload8.png":
+{
+	"frame": {"x":64,"y":1,"w":17,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":15,"y":6,"w":17,"h":23},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_reload9.png":
+{
+	"frame": {"x":89,"y":1,"w":17,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":15,"y":6,"w":17,"h":23},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_reload10.png":
+{
+	"frame": {"x":64,"y":1,"w":17,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":15,"y":6,"w":17,"h":23},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_reload11.png":
+{
+	"frame": {"x":219,"y":1,"w":19,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":14,"y":6,"w":19,"h":23},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_reload12.png":
+{
+	"frame": {"x":1,"y":19,"w":19,"h":23},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":14,"y":6,"w":19,"h":23},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_roll1.png":
+{
+	"frame": {"x":26,"y":19,"w":27,"h":19},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":11,"w":27,"h":19},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_roll2.png":
+{
+	"frame": {"x":190,"y":1,"w":27,"h":18},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":6,"y":12,"w":27,"h":18},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_roll3.png":
+{
+	"frame": {"x":1,"y":1,"w":28,"h":16},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":3,"y":14,"w":28,"h":16},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_roll4.png":
+{
+	"frame": {"x":31,"y":1,"w":31,"h":16},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":2,"y":14,"w":31,"h":16},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_run1.png":
+{
+	"frame": {"x":80,"y":20,"w":20,"h":25},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":4,"w":20,"h":25},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_run2.png":
+{
+	"frame": {"x":107,"y":21,"w":20,"h":26},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":10,"y":4,"w":20,"h":26},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_run3.png":
+{
+	"frame": {"x":76,"y":42,"w":22,"h":24},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":10,"y":5,"w":22,"h":24},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_run4.png":
+{
+	"frame": {"x":181,"y":44,"w":25,"h":25},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":10,"y":5,"w":25,"h":25},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_run5.png":
+{
+	"frame": {"x":208,"y":45,"w":25,"h":25},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":5,"w":25,"h":25},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_run6.png":
+{
+	"frame": {"x":154,"y":43,"w":24,"h":25},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":10,"y":4,"w":24,"h":25},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_run7.png":
+{
+	"frame": {"x":189,"y":21,"w":21,"h":25},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":10,"y":5,"w":21,"h":25},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_run8.png":
+{
+	"frame": {"x":135,"y":21,"w":20,"h":25},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":9,"y":5,"w":20,"h":25},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_shotl1.png":
+{
+	"frame": {"x":216,"y":22,"w":21,"h":25},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":15,"y":4,"w":21,"h":25},
+	"sourceSize": {"w":43,"h":32}
+},
+"Char_Skin_Nigga_Premium_shotl2.png":
+{
+	"frame": {"x":162,"y":21,"w":20,"h":25},
+	"rotated": true,
+	"trimmed": true,
+	"spriteSourceSize": {"x":13,"y":4,"w":20,"h":25},
+	"sourceSize": {"w":43,"h":32}
+}},
+"animations": {
+	"idle": ["Char_Skin_Nigga_Premium_idle1.png","Char_Skin_Nigga_Premium_idle2.png","Char_Skin_Nigga_Premium_idle3.png","Char_Skin_Nigga_Premium_idle4.png"],
+	"reload": ["Char_Skin_Nigga_Premium_reload1.png","Char_Skin_Nigga_Premium_reload2.png","Char_Skin_Nigga_Premium_reload3.png","Char_Skin_Nigga_Premium_reload4.png","Char_Skin_Nigga_Premium_reload5.png","Char_Skin_Nigga_Premium_reload6.png","Char_Skin_Nigga_Premium_reload7.png","Char_Skin_Nigga_Premium_reload8.png","Char_Skin_Nigga_Premium_reload9.png","Char_Skin_Nigga_Premium_reload10.png","Char_Skin_Nigga_Premium_reload11.png","Char_Skin_Nigga_Premium_reload12.png"],
+	"roll": ["Char_Skin_Nigga_Premium_roll1.png","Char_Skin_Nigga_Premium_roll2.png","Char_Skin_Nigga_Premium_roll3.png","Char_Skin_Nigga_Premium_roll4.png"],
+	"rollEnd": ["Char_Skin_Nigga_Premium_roll4.png"],
+	"run": ["Char_Skin_Nigga_Premium_run1.png","Char_Skin_Nigga_Premium_run2.png","Char_Skin_Nigga_Premium_run3.png","Char_Skin_Nigga_Premium_run4.png","Char_Skin_Nigga_Premium_run5.png","Char_Skin_Nigga_Premium_run6.png","Char_Skin_Nigga_Premium_run7.png","Char_Skin_Nigga_Premium_run8.png"],
+	"shot": ["Char_Skin_Nigga_Premium_shotl1.png","Char_Skin_Nigga_Premium_shotl2.png"],
+	"zipLine": ["Char_Skin_Nigga_Premium_roll2.png"]
+},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "characterPremiumNigga.png",
+	"format": "RGBA8888",
+	"size": {"w":243,"h":71},
+	"scale": "1",
+	"smartupdate": "$TexturePacker:SmartUpdate:3b4c0c8e9ec6b439ca66c7f89498c221:beb2809ec28b6fbfeb7c22e044d02279:7b60f0891ca37dd18d694220728c006c$"
+}
+}

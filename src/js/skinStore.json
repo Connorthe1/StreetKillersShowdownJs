@@ -1,0 +1,67 @@
+[
+  {
+    "name": "STANDART",
+    "desc": "no special ablities",
+    "icon": "CharIdle-0.png",
+    "price": 0,
+    "priceType": 0,
+    "gun": "pistol"
+  },
+  {
+    "name": "JAMES",
+    "price": 10000,
+    "priceType": 0,
+    "icon": "Char_Skin_Premium_idle1.png",
+    "desc": "silenced pistol",
+    "gun": "silence"
+  },
+  {
+    "name": "ROBERT",
+    "price": 10000,
+    "priceType": 0,
+    "icon": "Char_Skin_Nigga_Premium_idle1.png",
+    "desc": "has a shotgun \n only 2 shots \n fast speed and reload \n 4 bullets per shot",
+    "gun": "shotgun",
+    "gunAmmo": 2,
+    "gunAngle": 0.5,
+    "speedAmp": 0.5
+  },
+  {
+    "name": "AKAME",
+    "price": 15000,
+    "priceType": 1,
+    "desc": "double pistols \n 8 shots \n dont stop for shot \n fast gameplay",
+    "icon": "Char_logo_idle1.png",
+    "gun": "doubles",
+    "gunAmmo": 8,
+    "speedAmp": 0.2,
+    "noStop": true,
+    "offsetY": 8,
+    "offsetX": 32,
+    "reloadTime": 1400
+  },
+  {
+    "name": "WILLIAM",
+    "price": 7500,
+    "desc": "has a revoler \n only 4 short \n double damage \n slow shot and reload",
+    "icon": "Char_Skin_Cowboy_idle1.png",
+    "priceType": 1,
+    "description": "",
+    "gun": "revolver",
+    "gunAmmo": 4,
+    "offsetY": 14,
+    "reloadTime": 1200,
+    "gunDamage": 2,
+    "gunShotDelay": 250
+  },
+  {
+    "name": "IZUMI",
+    "price": 5000,
+    "priceType": 1,
+    "offsetX": 20,
+    "desc": "melee attack animation",
+    "icon": "Char_Skin_Anime_idle1.png",
+    "gun": "pistol",
+    "melee": true
+  }
+]
