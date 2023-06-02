@@ -33,7 +33,8 @@ const playerState = {
     health: 3,
     currentSkin: 0,
     activePowerUp: null,
-    skillCD: false
+    skillCD: false,
+    stimpack: false
 }
 let playerDefaultSpeed = 1.8
 let playerSpeed = playerDefaultSpeed
@@ -94,6 +95,8 @@ const gun = {
 }
 const shotsArr = []
 
+const groundColor = ['#eaaaaa','#7f8bff','#a2e0ae']
+let selectGroundColor = 0
 const textStyles = {
     default180:  new PIXI.TextStyle({
         fontFamily: 'ACastle3',
@@ -193,16 +196,28 @@ let gameEnd = false
 
 //STORAGE
 const storage = {
-    record: '0',
-    money: '10000',
-    gold: '0',
-    activeAcc: '1',
+    record: 0,
+    money: 10000,
+    gold: 0,
+    activeAcc: 1,
     lang: 'ru',
-    muteSound: '0',
-    muteMusic: '0',
-    lastUpdate: '0',
-    selectedSkin: '5',
-    ownedSkins: [0]
+    muteSound: false,
+    muteMusic: false,
+    lastUpdate: 0,
+    selectedSkin: 5,
+    ownedSkins: [0],
+    activeItems: {
+        stimpack: 0,
+        grenades: 0
+    },
+    upgrades: {
+        ammoBooster: 0,
+        damageBooster: 0,
+        armorBooster: 0,
+        can: 0,
+        gunTrigger: 0,
+        accuracy: 0,
+    }
 }
 
 window.onload = async function () {
@@ -318,6 +333,7 @@ window.onload = async function () {
         world.addChild(ground)
         createMenu()
 
+        selectGroundColor = random(0,2)
         for (let i = 0; i <= 3; i++) {
             createFloor(i, 0)
         }
@@ -626,6 +642,7 @@ window.onload = async function () {
         }
         Matter.Engine.update(engine);
         if (meleeKill) {
+            if (meleeKill.enemy.params.dead) return setMeleeSelector(true, true)
             const UiBounds = meleeKill.getLocalBounds()
             const selector = meleeKill.getChildAt(2)
             if (meleeKillSelectorSide) {
@@ -1104,6 +1121,13 @@ window.onload = async function () {
                 stepSound = 0
                 return
             }
+            if (playerState.stimpack) {
+                spawnTrailParticle({x:player.x,y:player.y}, '#ffdd00')
+                spawnTrailParticle({x:player.x,y:player.y - 10}, '#ffdd00')
+                spawnTrailParticle({x:player.x,y:player.y - 20}, '#ffdd00')
+                spawnTrailParticle({x:player.x,y:player.y - 30}, '#ffdd00')
+                spawnTrailParticle({x:player.x,y:player.y - 40}, '#ffdd00')
+            }
             if (playerSpeed > 0 && !isPause) {
                 spawnTrailParticle(player)
                 if (playerState.state === 'roll' || playerState.state === 'rollEnd') {
@@ -1183,7 +1207,7 @@ window.onload = async function () {
         }
     }
 
-    function setMeleeSelector(skip) {
+    function setMeleeSelector(skip, noDamage) {
         if (!skip) {
             const greenBarPosition = meleeKill.getChildAt(1).getBounds()
             const selectorPosition = meleeKill.getChildAt(2).getBounds()
@@ -1197,7 +1221,7 @@ window.onload = async function () {
                 })
                 addPoints(50 + meleeKillStreak * 10)
                 gameState.scoreStreak += 3 + meleeKillStreak
-                meleeKillStreak += 0.5
+                meleeKillStreak += 1
                 if (gun.melee) {
                     playAnim('melee')
                     sleep(150).then(() => {
@@ -1210,15 +1234,15 @@ window.onload = async function () {
                 damagePlayer()
             }
         } else {
-            damagePlayer()
+            if (!noDamage) damagePlayer()
         }
         gameSpeed = 1
         hud.removeChild(meleeKill)
         meleeKill = null
         clearTimeout(meleeKillStreakTimer)
-        sleep(5000).then(() => {
+        sleep(10000).then(() => {
             if (meleeKillStreak > 0) {
-                meleeKillStreak -= 0.5
+                meleeKillStreak -= 1
             }
         })
     }
@@ -1505,10 +1529,16 @@ window.onload = async function () {
             hud.removeChild(hud.getChildByName('powerUp'))
             playerState.activePowerUp = null
         } else {
-            gameState.scoreStreak -= 30
-            player.tint = 16737894
-            playerState.health--
-            hud.getChildByName('hearts').removeChildAt(0)
+            if (playerState.stimpack) {
+                soundPlayer.damageMetal()
+                player.tint = 16777021
+                playerState.stimpack = false
+            } else {
+                gameState.scoreStreak -= 30
+                player.tint = 16737894
+                playerState.health--
+                hud.getChildByName('hearts').removeChildAt(0)
+            }
         }
         if (playerState.health <= 0) {
             for (let i = 0; i <= 20; i++) {
@@ -1586,7 +1616,7 @@ window.onload = async function () {
         player.play()
     }
 
-    function spawnTrailParticle(pos) {
+    function spawnTrailParticle(pos, tint) {
         const rectangle = PIXI.Sprite.from(PIXI.Texture.WHITE);
         const randomParams = Math.floor(Math.random() * (3 + 1))
         switch (true) {
@@ -1639,8 +1669,12 @@ window.onload = async function () {
                 rectangle.initY = rectangle.y
             break
         }
+        if (tint) {
+            rectangle.tint = tint
+        } else {
+            rectangle.alpha = 0.7
+        }
         rectangle.endSize = Math.floor(Math.random() * (10 - 5 + 1) + 5)
-        rectangle.alpha = 0.7
         world.addChild(rectangle);
         trails.push(rectangle)
     }
@@ -2203,46 +2237,48 @@ window.onload = async function () {
         Matter.Body.applyForce(grenade.body, grenade.body.position, {x: 0.0008, y: -0.0008});
 
         activeGrenade = grenade
-        sleep(1000).then(() => {
-            if (!activeGrenade) return
-            world.removeChild(grenade)
-            Matter.World.remove(engine.world, grenade.body)
-            createExplode(grenade, 0,0, false)
-            const g = activeGrenade.getBounds()
-            enemies.forEach(enemy => {
-                const e = enemy.position
-                if (e.x > g.x - 150 && e.x < g.x + 150) {
-                    if (enemy.params.dead) return
-                    damageEnemy(enemy, 8)
-                }
-            })
-            traps.forEach(trap => {
-                const t = trap.position
-                if (t.x > g.x - 150 && t.x < g.x + 150) {
-                    if (trap.dead) return
-                    if (trap.type) {
-                        if (trap.type === 'window') soundPlayer.glassBreak()
-                        trap.play()
-                        trap.dead = true
-                    } else {
-                        barrelDead(trap)
-                    }
-                }
-            })
-            if (currentDogEnemy) {
-                if (currentDogEnemy.x > g.x - 150 && currentDogEnemy.x < g.x + 150) {
-                    if (currentDogEnemy.params.dead) return
-                    damageEnemy(currentDogEnemy, 8)
-                }
-            }
-            if (currentBoss) {
-                if (currentBoss.x > g.x - 150 && currentBoss.x < g.x + 150) {
-                    if (currentBoss.params.dead) return
-                    damageEnemy(currentBoss, 8, true)
-                }
-            }
-            activeGrenade = null
+        sleep(650).then(() => {
+            grenadeExplode()
         })
+    }
+
+    function grenadeExplode() {
+        createExplode(activeGrenade, 0,0, false)
+        const g = activeGrenade.getBounds()
+        enemies.forEach(enemy => {
+            const e = enemy.getBounds()
+            if (e.x > g.x - 200 && e.x < g.x + 200) {
+                if (enemy.params.dead) return
+                damageEnemy(enemy, 8)
+            }
+        })
+        traps.forEach(trap => {
+            const t = trap.getBounds()
+            if (t.x > g.x - 200 && t.x < g.x + 200 && !trap.dead) {
+                if (trap.type) {
+                    if (trap.type === 'window') soundPlayer.glassBreak()
+                    trap.play()
+                    trap.dead = true
+                } else {
+                    barrelDead(trap)
+                }
+            }
+        })
+        if (currentDogEnemy) {
+            if (currentDogEnemy.getBounds().x > g.x - 200 && currentDogEnemy.getBounds().x < g.x + 200) {
+                if (currentDogEnemy.params.dead) return
+                damageEnemy(currentDogEnemy, 8)
+            }
+        }
+        if (currentBoss) {
+            if (currentBoss.getBounds().x > g.x - 200 && currentBoss.getBounds().x < g.x + 200) {
+                if (currentBoss.params.dead) return
+                damageEnemy(currentBoss, 8, true)
+            }
+        }
+        world.removeChild(activeGrenade)
+        Matter.World.remove(engine.world, activeGrenade.body)
+        activeGrenade = null
     }
 
     function updateGrenade() {
@@ -2422,6 +2458,51 @@ window.onload = async function () {
             char.textures = char.params.animset.idle
             char.play()
         })
+    }
+
+    function bossReward() {
+        const rewardContainer = new PIXI.Container()
+        const rand = random(1,3)
+        let icon
+        let text
+        switch (true) {
+            case rand === 1:
+                icon = new PIXI.Sprite(activeItems.textures.stimpack)
+                text = new PIXI.Text('+1', textStyles.default80)
+                icon.scale.set(2)
+                storage.activeItems.stimpack += 1
+            break
+            case rand === 2:
+                icon = new PIXI.Sprite(activeItems.textures.handGrenadeIcon)
+                text = new PIXI.Text('+1', textStyles.default80)
+                icon.scale.set(1.5)
+                storage.activeItems.grenades += 1
+            break
+            case rand === 3:
+                icon = new PIXI.Sprite(menuIcons.textures.money)
+                text = new PIXI.Text('+500', textStyles.default80)
+                icon.scale.set(1.5)
+                gameState.collectedMoney += 500
+            break
+        }
+        icon.anchor.set(0.5)
+        text.anchor.set(0.5)
+        icon.position.set(0,0)
+        text.position.set(0, icon.y + icon.height / 2 + 30)
+        rewardContainer.addChild(icon)
+        rewardContainer.addChild(text)
+        rewardContainer.position.set(gameWidth / 2, gameHeight / 2)
+
+        hud.addChild(rewardContainer)
+
+        const move = setInterval(() => {
+            rewardContainer.position.y -= 1
+            rewardContainer.alpha -= 0.01
+            if (rewardContainer.alpha <= 0) {
+                clearInterval(move)
+                hud.removeChild(rewardContainer)
+            }
+        }, 10)
     }
 
     function createBoss(propType, propPos) {
@@ -2877,6 +2958,7 @@ window.onload = async function () {
                     spawnDropMoney(enemy)
                 }
             }
+            if (isBoss) bossReward()
             enemy.play()
             return
         }
@@ -3002,6 +3084,7 @@ window.onload = async function () {
         const part = new PIXI.Container()
         const floor = new PIXI.Sprite(textures.textures.ground)
         floor.position.set((floorPosition + idx) * floor.width, CANVAS_HEIGHT - floor.height + 60)
+        floor.tint = groundColor[selectGroundColor]
         let bgWall
         const randomWall = Math.floor(Math.random() * (10 - 1 + 1) + 1)
         if (randomWall < fenceChance) {
@@ -3381,35 +3464,23 @@ window.onload = async function () {
             if (playerState.activePowerUp?.type === 'boostGun') {
                 shot.tint = 16757683
             }
-            shot.position.set(player.x + offsetX, player.y - offsetY)
+            shot.position.set(char.x + offsetX, char.y - offsetY)
             if (gun.noStop) {
                 shotsArr.push(shot)
                 sleep(150).then(() => {
                     shotsArr.splice(0, 1)
                 })
             }
-        } else {
-            shot.position.set(((char.x + 4) - char.width / 2) + offsetX, (char.y - 10) + offsetY)
-        }
-        if (eventGun === 'shotgun') {
-            for (let i = 0; i < 3; i++) {
-                if (friendly) {
-                    playerBullets.push(spawnBullet(shot.x, shot.y))
-                } else {
-                    enemyBullets.push(spawnBullet(shot.x, shot.y, char))
-                }
+            for (let i = 0; i < (eventGun === 'shotgun' ? 3 : 1); i++) {
+                playerBullets.push(spawnBullet(shot.x, shot.y))
             }
         } else {
-            if (friendly) {
-                playerBullets.push(spawnBullet(shot.x, shot.y))
-            } else {
+            shot.position.set(((char.x + 4) - char.width / 2) + offsetX, (char.y - 10) + offsetY)
+            for (let i = 0; i < (eventGun === 'shotgun' ? 3 : 1); i++) {
                 enemyBullets.push(spawnBullet(shot.x, shot.y, char))
             }
         }
-        if (eventGun === 'shotgun' || eventGun === 'revolver') {
-        } else {
-            spawnBounceParticle(char, 'shell')
-        }
+        if (eventGun !== 'shotgun' && eventGun !== 'revolver') spawnBounceParticle(char, 'shell')
         world.addChild(shot)
         shot.play()
         sleep(150).then(() => {
@@ -3595,6 +3666,11 @@ window.onload = async function () {
                     hud.getChildByName('magazine').x -= 16
                     playAnim('shot')
                     shot(player, gun.offsetX, gun.offsetY, gun.type, true)
+                    if (playerState.stimpack) {
+                        sleep(100).then(() => {
+                            shot(player, gun.offsetX, gun.offsetY, gun.type, true)
+                        })
+                    }
                     if (!gun.noStop) playerSpeed = 0
                     sleep(gun.shotDelay).then(() => {
                         if (playerState.inCover) {
@@ -3608,13 +3684,28 @@ window.onload = async function () {
             break
             //THROW GRENADE
             case e.code === 'KeyE':
-                if (playerState.skillCD) return;
+                if (playerState.skillCD || storage.activeItems.grenades === 0) return;
+                storage.activeItems.grenades -= 1
                 playerState.skillCD = true
                 hud.getChildByName('skills').alpha = 0.3
                 grenadeBounce()
                 sleep(5000).then(() => {
                     hud.getChildByName('skills').alpha = 1
                     playerState.skillCD = false
+                })
+            break
+            //USE STIMPACK
+            case e.code === 'KeyW':
+                if (playerState.skillCD || storage.activeItems.stimpack === 0) return;
+                storage.activeItems.stimpack -= 1
+                playerState.skillCD = true
+                hud.getChildByName('skills').alpha = 0.3
+                playerState.stimpack = true
+                soundPlayer.useSkill()
+                sleep(5000).then(() => {
+                    hud.getChildByName('skills').alpha = 1
+                    playerState.skillCD = false
+                    playerState.stimpack = false
                 })
             break
             case e.code === 'KeyQ':
@@ -3872,6 +3963,7 @@ window.onload = async function () {
         timerMenu.addChild(timerText)
 
         pause.on('pointerdown', () => {
+            if (meleeKill) return
             const allAnimated = world.children.filter(item => item.animationSpeed)
             allAnimated.forEach(item => {
                 item.stop()
@@ -3983,6 +4075,9 @@ window.onload = async function () {
                 gameState.multiplier = 2
                 break
             }
+        }
+        if (playerState.stimpack) {
+            gameState.multiplier = gameState.multiplier * 2
         }
     }
 

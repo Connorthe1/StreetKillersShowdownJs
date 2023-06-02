@@ -86,4 +86,5 @@ export default {
     coins1: '../assets/sounds/coins1.mp3',
     coins2: '../assets/sounds/coins2.mp3',
     coins3: '../assets/sounds/coins3.mp3',
+    useSkill: '../assets/sounds/fire_start_light_flame_ignite_01.wav'
 }

@@ -120,6 +120,9 @@ class SoundPlayer {
         const randSound = random(0, 3)
         sound.play(`coins${randSound}`, {volume: 3})
     }
+    useSkill() {
+        sound.play('useSkill', {volume: 2})
+    }
 }
 
 const soundPlayer = new SoundPlayer()
