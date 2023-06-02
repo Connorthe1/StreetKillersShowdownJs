@@ -7,6 +7,7 @@ import * as Matter from 'matter-js'
 import { Scrollbox } from 'pixi-scrollbox';
 import skinStore from './skinStore.json'
 import storeUpgrades from './upgrades.json'
+import bridge from '@vkontakte/vk-bridge';
 
 let gameWidth
 let gameHeight
@@ -32,7 +33,7 @@ const playerState = {
     inBossFight: false,
     health: 3,
     currentSkin: 0,
-    activePowerUp: null,
+    activePowerUps: [],
     skillCD: false,
     stimpack: false
 }
@@ -48,7 +49,6 @@ const gameState = {
     scoreStreak: 0,
     collectedMoney: 0,
 }
-const canHealth = 1
 let player
 const playerPos = CANVAS_HEIGHT - 200
 const secondFloor = CANVAS_HEIGHT - 390
@@ -211,9 +211,9 @@ const storage = {
         grenades: 0
     },
     upgrades: {
-        ammoBooster: 0,
-        damageBooster: 0,
-        armorBooster: 0,
+        boostAmmo: 0,
+        boostGun: 0,
+        boostShield: 0,
         can: 0,
         gunTrigger: 0,
         accuracy: 0,
@@ -333,13 +333,14 @@ window.onload = async function () {
         world.addChild(ground)
         createMenu()
 
-        selectGroundColor = random(0,2)
+        selectGroundColor = random(0,groundColor.length - 1)
         for (let i = 0; i <= 3; i++) {
             createFloor(i, 0)
         }
     }
 
     function startGame() {
+        createPowerUp()
         createEnemy(zeroRight)
         createWall(zeroRight + 10)
         if (skinStore[Number(storage.selectedSkin)].gunAmmo) {
@@ -402,6 +403,9 @@ window.onload = async function () {
         playerState.inZipLine = false
         playerState.inBossFight = false
         playerState.health = 3
+        playerState.activePowerUps.length = 0
+        playerState.stimpack = false
+        playerState.skillCD = false
         gameState.points = 0
         gameState.pointsToAdd = 0
         gameState.kills = 0
@@ -467,7 +471,7 @@ window.onload = async function () {
         console.log(storage)
         if (Number(storage.record) < gameState.points) {
             console.log('updateRecord')
-            await vkBridge.send("VKWebAppStorageSet", {key: 'record', value: gameState.points.toString()})
+            await bridge.send("VKWebAppStorageSet", {key: 'record', value: gameState.points.toString()})
             storage.record = gameState.points
         }
 
@@ -600,7 +604,7 @@ window.onload = async function () {
         });
         storage.money = Number(storage.money) + pointsToMoney + collectedToMoney
         storage.money = Number(storage.money) + collectedToMoney
-        await vkBridge.send("VKWebAppStorageSet", {key: 'money', value: storage.money.toString()})
+        await bridge.send("VKWebAppStorageSet", {key: 'money', value: storage.money.toString()})
 
         //AVERAGE SCORE
         const score = new PIXI.Text('F', textStyles.default180);
@@ -630,7 +634,7 @@ window.onload = async function () {
         exit.position.set(center, score.y + 80)
         endScreen.addChild(exit)
 
-        exit.on('pointerdown', (event) => {
+        exit.on('pointerdown', () => {
             restartGame()
         });
     }
@@ -842,26 +846,35 @@ window.onload = async function () {
         bg.drawRect(0, 0, gameWidth, gameHeight);
         store.addChild(bg)
 
+        updateMoney()
         //PLAYER MONEY
-        const money = new PIXI.Text(storage.money, textStyles.default40);
-        money.position.set(70, gameHeight - 80)
-        money.anchor.set(0,1)
-        store.addChild(money)
-        const moneyIcon = new PIXI.Sprite(menuIcons.textures.money)
-        moneyIcon.scale.set(0.6)
-        moneyIcon.anchor.set(0,1)
-        moneyIcon.position.set(20, gameHeight - 70)
-        store.addChild(moneyIcon)
+        function updateMoney() {
+            const moneyContainer = new PIXI.Container()
+            moneyContainer.name = 'moneyContainer'
+            moneyContainer.position.set(20, gameHeight - 70)
 
-        const gold = new PIXI.Text(storage.gold, textStyles.default40);
-        gold.position.set(70, gameHeight - 36)
-        gold.anchor.set(0,1)
-        store.addChild(gold)
-        const goldIcon = new PIXI.Sprite(menuIcons.textures.goldbar)
-        goldIcon.scale.set(0.4)
-        goldIcon.anchor.set(0,1)
-        goldIcon.position.set(20, gameHeight - 30)
-        store.addChild(goldIcon)
+            const moneyIcon = new PIXI.Sprite(menuIcons.textures.money)
+            moneyIcon.scale.set(0.6)
+            moneyIcon.anchor.set(0,1)
+            moneyIcon.position.set(0,0)
+            moneyContainer.addChild(moneyIcon)
+            const money = new PIXI.Text(storage.money, textStyles.default40);
+            money.anchor.set(0,0.5)
+            money.position.set(moneyIcon.x + 45, moneyIcon.y - 18)
+            moneyContainer.addChild(money)
+
+            const goldIcon = new PIXI.Sprite(menuIcons.textures.goldbar)
+            goldIcon.scale.set(0.4)
+            goldIcon.anchor.set(0,1)
+            goldIcon.position.set(0, moneyIcon.y + 40)
+            moneyContainer.addChild(goldIcon)
+            const gold = new PIXI.Text(storage.gold, textStyles.default40);
+            gold.anchor.set(0,0.5)
+            gold.position.set(goldIcon.x + 45, goldIcon.y - 18)
+            moneyContainer.addChild(gold)
+
+            store.addChild(moneyContainer)
+        }
 
         const skinButton = new PIXI.Sprite(menuUI.textures.skin)
         skinButton.scale.set(1.3)
@@ -892,121 +905,162 @@ window.onload = async function () {
         })
         scrollUpgrades.position.set(0, 160)
 
-        const topMenu = new PIXI.Container()
-        scrollUpgrades.content.addChild(topMenu)
-        const topMenuBg = new PIXI.Sprite(menuButtons.textures.button)
-        topMenuBg.tint = 5197647
-        topMenuBg.width = gameWidth
-        topMenuBg.height = 50
-        topMenu.addChild(topMenuBg)
-        const upgradeText = new PIXI.Text('UPGRADES', textStyles.default40);
-        upgradeText.position.set(gameWidth / 2,20)
-        upgradeText.anchor.set(0.5,0)
-        topMenu.addChild(upgradeText)
-
         const storeUsed = [
             {
                 name: 'STIMPACK',
-                initPrice: 700,
+                initPrice: 1200,
                 scale: 1.5,
                 icon: activeItems.textures.stimpack,
+                idName: "stimpack"
             },
             {
                 name: 'HAND GRENADE',
-                initPrice: 900,
+                initPrice: 1000,
                 scale: 1.1,
                 icon: activeItems.textures.handGrenadeIcon,
+                idName: "grenades"
             }
         ]
 
-        storeUpgrades.forEach((item, idx) => {
-            const upgrade = new PIXI.Container()
-            const upgradeSprite = new PIXI.Sprite(eval(item.icon))
-            const upgradeUpgrade = new PIXI.Sprite(menuUI.textures.buy)
-            const upgradeLevel = new PIXI.Text(`LV.${item.currentLvl}`, textStyles.default30);
-            const upgradeName = new PIXI.Text(item.name, textStyles.default30);
-            const upgradePrice = new PIXI.Text(item.initPrice, textStyles.default40);
-            const upgradePriceIcon = new PIXI.Sprite(menuIcons.textures.money)
-            upgrade.height = 100
-            upgrade.position.set(0, 60 + 100 * idx)
-            upgrade.addChild(upgradeSprite)
-            upgrade.addChild(upgradeName)
-            upgrade.addChild(upgradePrice)
-            upgrade.addChild(upgradePriceIcon)
-            upgrade.addChild(upgradeUpgrade)
-            upgrade.addChild(upgradeLevel)
+        reloadStoreUpgrades()
 
-            if (item.scale) upgradeSprite.scale.set(item.scale)
-            upgradeSprite.position.set(10,5)
-            upgradeName.position.set(85,10)
-            upgradePrice.position.set(85,55)
-            upgradePriceIcon.scale.set(0.5)
-            upgradePriceIcon.position.set(upgradePrice.x + upgradePrice.width + 10,50)
+        function reloadStoreUpgrades() {
+            const topMenu = new PIXI.Container()
+            scrollUpgrades.content.addChild(topMenu)
+            const topMenuBg = new PIXI.Sprite(menuButtons.textures.button)
+            topMenuBg.tint = 5197647
+            topMenuBg.width = gameWidth
+            topMenuBg.height = 50
+            topMenu.addChild(topMenuBg)
+            const upgradeText = new PIXI.Text('UPGRADES', textStyles.default40);
+            upgradeText.position.set(gameWidth / 2,20)
+            upgradeText.anchor.set(0.5,0)
+            topMenu.addChild(upgradeText)
 
-            upgradeUpgrade.anchor.set(1,0)
-            upgradeUpgrade.scale.set(1.1)
-            upgradeUpgrade.position.set(gameWidth - 10,0)
-            upgradeLevel.anchor.set(0.5)
-            upgradeLevel.position.set(upgradeUpgrade.x - upgradeUpgrade.width / 2,upgradeUpgrade.y + upgradeUpgrade.height / 2)
+            storeUpgrades.forEach((item, idx) => {
+                const upgrade = new PIXI.Container()
+                const upgradeSprite = new PIXI.Sprite(eval(item.icon))
+                const upgradeUpgrade = new PIXI.Sprite(menuUI.textures.buy)
+                const upgradeLevel = new PIXI.Text(item.maxLvl === storage.upgrades[item.idName] ? 'MAX' : `LV.${Math.min(storage.upgrades[item.idName] + 1)}`, textStyles.default30);
+                const upgradeName = new PIXI.Text(item.name, textStyles.default30);
+                upgrade.height = 100
+                upgrade.position.set(0, 60 + 100 * idx)
+                upgrade.addChild(upgradeSprite)
+                upgrade.addChild(upgradeName)
+                upgrade.addChild(upgradeUpgrade)
+                upgrade.addChild(upgradeLevel)
 
-            for (let i = 0; i < item.maxLvl; i++) {
-                const upgradeLevelIcon = new PIXI.Sprite(PIXI.Texture.WHITE)
-                upgradeLevelIcon.width = upgradeLevelIcon.height = 10
-                upgradeLevelIcon.tint = 0xff0000
-                upgradeLevelIcon.position.set(15 * i, 76)
-                upgrade.addChild(upgradeLevelIcon)
-            }
-            scrollUpgrades.content.addChild(upgrade)
-        })
+                if (item.scale) upgradeSprite.scale.set(item.scale)
+                upgradeSprite.position.set(10,5)
+                upgradeName.position.set(85,10)
 
-        const topMenuUsed = new PIXI.Container()
-        scrollUpgrades.content.addChild(topMenuUsed)
-        topMenuUsed.position.set(0, storeUpgrades.length * 110)
-        const topMenuBgUsed = new PIXI.Sprite(menuButtons.textures.button)
-        topMenuBgUsed.tint = 5197647
-        topMenuBgUsed.width = gameWidth
-        topMenuBgUsed.height = 50
-        topMenuUsed.addChild(topMenuBgUsed)
-        const upgradeTextUsed = new PIXI.Text('SINGLE USE', textStyles.default40);
-        upgradeTextUsed.position.set(gameWidth / 2,20)
-        upgradeTextUsed.anchor.set(0.5,0)
-        topMenuUsed.addChild(upgradeTextUsed)
+                upgradeUpgrade.anchor.set(1,0)
+                upgradeUpgrade.scale.set(1.1)
+                upgradeUpgrade.position.set(gameWidth - 10,0)
+                upgradeLevel.anchor.set(0.5)
+                upgradeLevel.position.set(upgradeUpgrade.x - upgradeUpgrade.width / 2,upgradeUpgrade.y + upgradeUpgrade.height / 2)
 
-        storeUsed.forEach((item, idx) => {
-            const upgrade = new PIXI.Container()
-            const upgradeSprite = new PIXI.Sprite(item.icon)
-            const upgradeUpgrade = new PIXI.Sprite(menuUI.textures.stayclear)
-            const upgradeCount = new PIXI.Text('1', textStyles.default30);
-            const upgradeName = new PIXI.Text(item.name, textStyles.default30);
-            const upgradePrice = new PIXI.Text(item.initPrice, textStyles.default40);
-            const upgradePriceIcon = new PIXI.Sprite(menuIcons.textures.money)
-            upgrade.height = 100
-            upgrade.position.set(0, (storeUpgrades.length * 110 + 60) + 90 * idx)
-            upgrade.addChild(upgradeSprite)
-            upgrade.addChild(upgradeName)
-            upgrade.addChild(upgradePrice)
-            upgrade.addChild(upgradePriceIcon)
-            upgrade.addChild(upgradeUpgrade)
-            upgrade.addChild(upgradeCount)
+                for (let i = 0; i < item.maxLvl; i++) {
+                    const upgradeLevelIcon = new PIXI.Sprite(PIXI.Texture.WHITE)
+                    upgradeLevelIcon.width = upgradeLevelIcon.height = 10
+                    if (i < storage.upgrades[item.idName]) {
+                        upgradeLevelIcon.tint = '#5cef13'
+                    } else {
+                        upgradeLevelIcon.tint = '#d30c0c'
+                    }
+                    upgradeLevelIcon.position.set(15 * i, 76)
+                    upgrade.addChild(upgradeLevelIcon)
+                }
 
-            if (item.scale) upgradeSprite.scale.set(item.scale)
-            upgradeSprite.position.set(10,5)
-            upgradeName.position.set(85,10)
-            upgradePrice.position.set(85,45)
-            upgradePriceIcon.scale.set(0.5)
-            upgradePriceIcon.position.set(upgradePrice.x + upgradePrice.width + 10,40)
+                scrollUpgrades.content.addChild(upgrade)
 
-            upgradeUpgrade.anchor.set(1,0)
-            upgradeUpgrade.width = upgradeUpgrade.height = 75
-            upgradeUpgrade.position.set(gameWidth - 10,0)
-            upgradeCount.anchor.set(0.5)
-            upgradeCount.position.set(upgradeUpgrade.x - upgradeUpgrade.width / 2,upgradeUpgrade.y + upgradeUpgrade.height / 2)
+                if (item.maxLvl > storage.upgrades[item.idName]) {
+                    upgradeUpgrade.eventMode = 'static'
+                    upgradeLevel.eventMode = 'passive'
+                    const upgradePrice = new PIXI.Text(item.initPrice + item.initPrice * storage.upgrades[item.idName], textStyles.default40);
+                    const upgradePriceIcon = new PIXI.Sprite(menuIcons.textures.money)
+                    upgrade.addChild(upgradePrice)
+                    upgrade.addChild(upgradePriceIcon)
+                    upgradePrice.position.set(85,55)
+                    upgradePriceIcon.scale.set(0.5)
+                    upgradePriceIcon.position.set(upgradePrice.x + upgradePrice.width + 10,50)
 
-            scrollUpgrades.content.addChild(upgrade)
-        })
+                    upgradeUpgrade.on('pointerdown', () => {
+                        if (storage.money > item.initPrice + item.initPrice * storage.upgrades[item.idName]) {
+                            storage.money -= item.initPrice + item.initPrice * storage.upgrades[item.idName]
+                            storage.upgrades[item.idName]++
+
+                            scrollUpgrades.content.removeChildren(0, scrollUpgrades.content.children.length)
+                            store.removeChild(store.getChildByName('moneyContainer'))
+                            updateMoney()
+                            reloadStoreUpgrades()
+                        }
+                    })
+                }
+            })
+
+            const topMenuUsed = new PIXI.Container()
+            scrollUpgrades.content.addChild(topMenuUsed)
+            topMenuUsed.position.set(0, storeUpgrades.length * 110)
+            const topMenuBgUsed = new PIXI.Sprite(menuButtons.textures.button)
+            topMenuBgUsed.tint = 5197647
+            topMenuBgUsed.width = gameWidth
+            topMenuBgUsed.height = 50
+            topMenuUsed.addChild(topMenuBgUsed)
+            const upgradeTextUsed = new PIXI.Text('SINGLE USE', textStyles.default40);
+            upgradeTextUsed.position.set(gameWidth / 2,20)
+            upgradeTextUsed.anchor.set(0.5,0)
+            topMenuUsed.addChild(upgradeTextUsed)
+
+            storeUsed.forEach((item, idx) => {
+                const upgrade = new PIXI.Container()
+                const upgradeSprite = new PIXI.Sprite(item.icon)
+                const upgradeUpgrade = new PIXI.Sprite(menuUI.textures.stayclear)
+                const upgradeCount = new PIXI.Text(storage.activeItems[item.idName], textStyles.default30);
+                const upgradeName = new PIXI.Text(item.name, textStyles.default30);
+                const upgradePrice = new PIXI.Text(item.initPrice, textStyles.default40);
+                const upgradePriceIcon = new PIXI.Sprite(menuIcons.textures.money)
+                upgrade.height = 100
+                upgrade.position.set(0, (storeUpgrades.length * 110 + 60) + 90 * idx)
+                upgrade.addChild(upgradeSprite)
+                upgrade.addChild(upgradeName)
+                upgrade.addChild(upgradePrice)
+                upgrade.addChild(upgradePriceIcon)
+                upgrade.addChild(upgradeUpgrade)
+                upgrade.addChild(upgradeCount)
+
+                if (item.scale) upgradeSprite.scale.set(item.scale)
+                upgradeSprite.position.set(10,5)
+                upgradeName.position.set(85,10)
+                upgradePrice.position.set(85,45)
+                upgradePriceIcon.scale.set(0.5)
+                upgradePriceIcon.position.set(upgradePrice.x + upgradePrice.width + 10,40)
+
+                upgradeUpgrade.anchor.set(1,0)
+                upgradeUpgrade.width = upgradeUpgrade.height = 75
+                upgradeUpgrade.position.set(gameWidth - 10,0)
+                upgradeCount.anchor.set(0.5)
+                upgradeCount.position.set(upgradeUpgrade.x - upgradeUpgrade.width / 2,upgradeUpgrade.y + upgradeUpgrade.height / 2)
+
+                scrollUpgrades.content.addChild(upgrade)
+
+                upgradeUpgrade.eventMode = 'static'
+                upgradeCount.eventMode = 'passive'
+                upgradeUpgrade.on('pointerdown', () => {
+                    if (storage.money > item.initPrice) {
+                        storage.money -= item.initPrice
+                        storage.activeItems[item.idName]++
+                        scrollUpgrades.content.removeChildren(0, scrollUpgrades.content.children.length)
+                        store.removeChild(store.getChildByName('moneyContainer'))
+                        updateMoney()
+                        reloadStoreUpgrades()
+                    }
+                })
+            })
+            scrollUpgrades.update()
+        }
 
         store.addChild(scrollUpgrades)
-        scrollUpgrades.update()
 
         //SKINSTORE
         const scrollSkins = new Scrollbox({
@@ -1016,8 +1070,6 @@ window.onload = async function () {
         })
         scrollSkins.visible = false
         scrollSkins.position.set(0, 160)
-
-        reloadSkinStore()
 
         function reloadSkinStore() {
             skinStore.forEach((item, idx) => {
@@ -1086,26 +1138,31 @@ window.onload = async function () {
                         case storage.money >= item.price :
                             storage.money -= item.price
                             storage.ownedSkins.push(idx)
-                            money.text = storage.money
                             break
                     }
                     scrollSkins.content.removeChildren(0, scrollSkins.content.children.length)
+                    store.removeChild(store.getChildByName('moneyContainer'))
+                    updateMoney()
                     reloadSkinStore()
                 });
             })
+            scrollSkins.update()
         }
 
         store.addChild(scrollSkins)
-        scrollSkins.update()
 
         skinButton.on('pointerdown', () => {
+            scrollUpgrades.content.removeChildren(0, scrollUpgrades.content.children.length)
             scrollUpgrades.visible = false
             scrollSkins.visible = true
+            reloadSkinStore()
         });
 
         upgrades.on('pointerdown', () => {
+            scrollSkins.content.removeChildren(0, scrollSkins.content.children.length)
             scrollUpgrades.visible = true
             scrollSkins.visible = false
+            reloadStoreUpgrades()
         });
 
         exit.on('pointerdown', () => {
@@ -1146,6 +1203,9 @@ window.onload = async function () {
     }
 
     function spawnEntity() {
+        if (Math.random() < 0.05 && !activePowerUp) {
+            createPowerUp()
+        }
         if (Math.random() < 0.05 && !currentDogEnemy) {
             createDogEnemy()
         }
@@ -1386,7 +1446,7 @@ window.onload = async function () {
         can.height = 16
         can.position;
         can.anchor.set(0, 0.5)
-        can.health = canHealth
+        can.health = storage.upgrades.can + 1
         can.parentGroup = fg
         can.zOrder = 6
         can.body = Matter.Bodies.rectangle(zeroRight, playerPos + 20, 8, 16, {isStatic: false, restitution: 0.2, frictionAir: 0.01, chamfer: { radius: [5,5,0,0] }});
@@ -1523,16 +1583,17 @@ window.onload = async function () {
     function damagePlayer() {
         cameraShake(4, 600)
         playerState.invincible = true
-        if (playerState.activePowerUp?.type === 'boostShield') {
+        if (playerState.activePowerUps.some(item => item.type === 'boostShield')) {
             soundPlayer.damageMetal()
             player.tint = 16777021
-            hud.removeChild(hud.getChildByName('powerUp'))
-            playerState.activePowerUp = null
+            playerState.activePowerUps.splice(playerState.activePowerUps.findIndex(item => item.type === 'boostShield'), 1)
+            HUDupdatePowerUp()
         } else {
             if (playerState.stimpack) {
                 soundPlayer.damageMetal()
                 player.tint = 16777021
                 playerState.stimpack = false
+                HUDremoveShield()
             } else {
                 gameState.scoreStreak -= 30
                 player.tint = 16737894
@@ -1563,20 +1624,22 @@ window.onload = async function () {
 
     function updatePlayer(delta) {
         if (gameEnd) return
-        if (playerState.activePowerUp) {
-            if (Date.now() > playerState.activePowerUp.expired) {
-                hud.removeChild(hud.getChildByName('powerUp'))
-                switch (true) {
-                    case playerState.activePowerUp.type === 'boostAmmo':
-                        gun.ammo = gun.ammo / 2
-                    break
-                    case playerState.activePowerUp.type === 'boostGun':
-                        gun.damage = gun.damage / 2
-                    break
+        if (playerState.activePowerUps.length > 0) {
+            playerState.activePowerUps.forEach((powerUp, idx) => {
+                if (Date.now() > powerUp.expired) {
+                    switch (true) {
+                        case powerUp.type === 'boostAmmo':
+                            gun.ammo = gun.ammo / 2
+                        break
+                        case powerUp.type === 'boostGun':
+                            gun.damage = gun.damage / 2
+                        break
+                    }
+                    playerState.activePowerUps.splice(idx, 1)
+                    HUDupdatePowerUp()
+                    console.log('endPW')
                 }
-                playerState.activePowerUp = null
-                console.log('endPW')
-            }
+            })
         }
         if (gameStart) {
             const dtX = 1 - Math.exp(-delta / 5)
@@ -2154,7 +2217,7 @@ window.onload = async function () {
                 world.removeChild(b)
                 Matter.World.remove(engine.world, b.body)
                 moneyDrop.splice(idx, 1)
-                gameState.collectedMoney++
+                gameState.collectedMoney += random(1, 10)
                 return
             }
             if (b.x < zeroLeft) {
@@ -2471,12 +2534,14 @@ window.onload = async function () {
                 text = new PIXI.Text('+1', textStyles.default80)
                 icon.scale.set(2)
                 storage.activeItems.stimpack += 1
+                HUDupdateSkills()
             break
             case rand === 2:
                 icon = new PIXI.Sprite(activeItems.textures.handGrenadeIcon)
                 text = new PIXI.Text('+1', textStyles.default80)
                 icon.scale.set(1.5)
                 storage.activeItems.grenades += 1
+                HUDupdateSkills()
             break
             case rand === 3:
                 icon = new PIXI.Sprite(menuIcons.textures.money)
@@ -3178,20 +3243,25 @@ window.onload = async function () {
         if (player.x + player.width / 4 > activePowerUp.x) {
             soundPlayer.powerUp()
             world.removeChild(activePowerUp)
-            playerState.activePowerUp = {
-                type: activePowerUp.type,
-                expired: Date.now() + (5 * 1000)
-            }
-            HUDpowerUp()
-            switch (true) {
-                case activePowerUp.type === 'boostAmmo':
-                    gun.currentAmmo = gun.ammo * 2
-                    gun.ammo*= 2
-                    HUDbullets()
-                break
-                case activePowerUp.type === 'boostGun':
-                    gun.damage*= 2
-                break
+            const findAlreadyActive = playerState.activePowerUps.find(item => item.type === activePowerUp.type)
+            if (findAlreadyActive) {
+                findAlreadyActive.expired = Date.now() + ((5 + (5 * storage.upgrades[activePowerUp.type])) * 1000)
+            } else {
+                playerState.activePowerUps.push({
+                    type: activePowerUp.type,
+                    expired: Date.now() + ((5 + (5 * storage.upgrades[activePowerUp.type])) * 1000)
+                })
+                HUDupdatePowerUp()
+                switch (true) {
+                    case activePowerUp.type === 'boostAmmo':
+                        gun.currentAmmo = gun.ammo * 2
+                        gun.ammo*= 2
+                        HUDbullets()
+                    break
+                    case activePowerUp.type === 'boostGun':
+                        gun.damage*= 2
+                    break
+                }
             }
             activePowerUp = null
             return
@@ -3219,7 +3289,7 @@ window.onload = async function () {
         powerUp.anchor.set(0.5)
         powerUp.parentGroup = fg
         powerUp.zOrder = 6
-        powerUp.position.set(randomPos, CANVAS_HEIGHT - 210)
+        powerUp.position.set(randomPos, playerPos - 10)
         powerUp.init = powerUp.y
         powerUp.positive = false
         activePowerUp = powerUp
@@ -3495,7 +3565,7 @@ window.onload = async function () {
         bullet.scale.x = 1.5
         bullet.scale.y = 2
         bullet.position.set(char ? x - 14 : x + 14, y)
-        if (playerState.activePowerUp?.type === 'boostGun' && !char) {
+        if (playerState.activePowerUps.some(item => item.type === 'boostGun') && !char) {
             bullet.tint = 16731469
         }
         let rotate = Math.random() * (char ? char.params.angle : gun.angle)
@@ -3689,7 +3759,8 @@ window.onload = async function () {
                 playerState.skillCD = true
                 hud.getChildByName('skills').alpha = 0.3
                 grenadeBounce()
-                sleep(5000).then(() => {
+                HUDupdateSkills()
+                sleep(6000).then(() => {
                     hud.getChildByName('skills').alpha = 1
                     playerState.skillCD = false
                 })
@@ -3702,7 +3773,10 @@ window.onload = async function () {
                 hud.getChildByName('skills').alpha = 0.3
                 playerState.stimpack = true
                 soundPlayer.useSkill()
-                sleep(5000).then(() => {
+                HUDupdateSkills()
+                HUDcreateShield()
+                sleep(15000).then(() => {
+                    HUDremoveShield()
                     hud.getChildByName('skills').alpha = 1
                     playerState.skillCD = false
                     playerState.stimpack = false
@@ -3820,19 +3894,26 @@ window.onload = async function () {
         const stimpack = new PIXI.Sprite(activeItems.textures.stimpack)
         stimpack.scale.set(0.9)
         stimpack.position.set(0, 0)
-        const stimpackText = new PIXI.Text('0', textStyles.default30);
+        const stimpackText = new PIXI.Text(storage.activeItems.stimpack, textStyles.default30);
+        stimpackText.name = 'stimpackText'
         stimpackText.position.set(stimpack.x + stimpack.width, stimpack.y + stimpack.height / 2)
 
         const handGrenade = new PIXI.Sprite(activeItems.textures.handGrenadeIcon)
         handGrenade.scale.set(0.6)
         handGrenade.position.set(-6, stimpack.y + 40)
-        const handGrenadeText = new PIXI.Text('0', textStyles.default30);
+        const handGrenadeText = new PIXI.Text(storage.activeItems.grenades, textStyles.default30);
+        handGrenadeText.name = 'handGrenadeText'
         handGrenadeText.position.set(handGrenade.x + handGrenade.width, handGrenade.y + handGrenade.height / 2)
+
+        const powerUps = new PIXI.Container()
+        powerUps.name = 'powerUps'
+        powerUps.position.set(90, 120)
 
         skills.addChild(stimpackText)
         skills.addChild(stimpack)
         skills.addChild(handGrenadeText)
         skills.addChild(handGrenade)
+        hud.addChild(powerUps)
         hud.addChild(skills)
         hud.addChild(hearts)
         hud.addChild(score)
@@ -3840,6 +3921,16 @@ window.onload = async function () {
         hud.addChild(points);
     }
 
+    function HUDupdateSkills() {
+        hud.getChildByName('skills').getChildByName('stimpackText').text = storage.activeItems.stimpack
+        hud.getChildByName('skills').getChildByName('handGrenadeText').text = storage.activeItems.grenades
+    }
+    function HUDremoveShield() {
+        const shield = hud.getChildByName('shield')
+        if (shield) {
+            hud.removeChild(hud.getChildByName('shield'))
+        }
+    }
     function HUDcreateShield() {
         const shield = new PIXI.Sprite(activeItems.textures.goldHeart)
         shield.name = 'shield'
@@ -3847,12 +3938,16 @@ window.onload = async function () {
         hud.addChild(shield)
     }
 
-    function HUDpowerUp() {
-        const powerUp = new PIXI.Sprite(menuIcons.textures[playerState.activePowerUp.type])
-        powerUp.name = 'powerUp'
-        powerUp.scale.set(0.5)
-        powerUp.position.set(90, 120)
-        hud.addChild(powerUp)
+    function HUDupdatePowerUp() {
+        const powerUps = hud.getChildByName('powerUps')
+        powerUps.removeChildren(0, powerUps.children.length)
+        if (playerState.activePowerUps.length === 0) return
+        playerState.activePowerUps.forEach((item, idx) => {
+            const powerUp = new PIXI.Sprite(menuIcons.textures[item.type])
+            powerUp.scale.set(0.5)
+            powerUp.position.set(50 * idx, 0)
+            powerUps.addChild(powerUp)
+        })
     }
 
     function addPoints(points) {
@@ -4082,23 +4177,16 @@ window.onload = async function () {
     }
 
     async function getData() {
-        return
         try {
-            await vkBridge.send('VKWebAppInit')
-            const checkAcc = await vkBridge.send('VKWebAppStorageGet', {keys: ['activeAcc']})
+            await bridge.send('VKWebAppInit')
+            const checkAcc = await bridge.send('VKWebAppStorageGet', {keys: ['activeAcc']})
             console.log(checkAcc)
             if (checkAcc.keys[0].value.length === 0) {
-                await Object.keys(storage).forEach((item) => {
-                    vkBridge.send("VKWebAppStorageSet", {key: item, value: storage[item]})
-                })
+                await bridge.send("VKWebAppStorageSet", {key: 'storage', value: JSON.stringify(storage)})
             }
-            const gameKeys = Object.keys(storage)
-            const getKeys = await vkBridge.send("VKWebAppStorageGet",{keys: gameKeys})
-            Object.keys(storage).forEach((item, idx) => {
-                storage[item] = getKeys.keys[idx].value
-            })
-            console.log(getKeys)
-            console.log(storage)
+            const getStorageFromVk = await bridge.send("VKWebAppStorageGet",{keys: ['storage']})
+            const parse = JSON.parse(getStorageFromVk.keys[0].value)
+            console.log(parse)
         } catch (e) {
             console.log(e)
         }
