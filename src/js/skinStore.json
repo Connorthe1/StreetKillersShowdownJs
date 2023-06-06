@@ -24,7 +24,9 @@
     "gun": "shotgun",
     "gunAmmo": 2,
     "gunAngle": 0.5,
-    "speedAmp": 0.5
+    "speedAmp": 0.6,
+    "reloadTime": 750,
+    "reloadAnim": 0.25
   },
   {
     "name": "AKAME",
@@ -38,7 +40,8 @@
     "noStop": true,
     "offsetY": 8,
     "offsetX": 32,
-    "reloadTime": 1400
+    "reloadTime": 1400,
+    "reloadAnim": 0.2
   },
   {
     "name": "WILLIAM",
@@ -50,7 +53,8 @@
     "gun": "revolver",
     "gunAmmo": 4,
     "offsetY": 14,
-    "reloadTime": 1200,
+    "reloadTime": 1400,
+    "reloadAnim": 0.19,
     "gunDamage": 2,
     "gunShotDelay": 250
   },

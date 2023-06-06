@@ -40,9 +40,9 @@ class SoundPlayer {
                 sound.play(`pistolCock${random(0, 2)}`)
             break
             case gun === 'shotgun':
-                await sleep(200)
+                await sleep(100)
                 sound.play(`shotShotgunLoad${random(0, 2)}`)
-                await sleep(300)
+                await sleep(200)
                 sound.play(`shotShotgunLoad${random(0, 2)}`)
                 await sleep(350)
                 sound.play(`shotShotgunCock${random(0, 1)}`)
