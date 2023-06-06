@@ -24,7 +24,8 @@
     "gun": "shotgun",
     "gunAmmo": 2,
     "gunAngle": 0.5,
-    "speedAmp": 0.6,
+    "noRotate": true,
+    "speedAmp": 1.2,
     "reloadTime": 750,
     "reloadAnim": 0.25
   },
@@ -36,7 +37,7 @@
     "icon": "Char_logo_idle1.png",
     "gun": "doubles",
     "gunAmmo": 8,
-    "speedAmp": 0.2,
+    "speedAmp": 0.8,
     "noStop": true,
     "offsetY": 8,
     "offsetX": 32,

@@ -247,7 +247,7 @@
 	"rollEnd": ["Char_Skin_Nigga_Premium_roll4.png"],
 	"run": ["Char_Skin_Nigga_Premium_run1.png","Char_Skin_Nigga_Premium_run2.png","Char_Skin_Nigga_Premium_run3.png","Char_Skin_Nigga_Premium_run4.png","Char_Skin_Nigga_Premium_run5.png","Char_Skin_Nigga_Premium_run6.png","Char_Skin_Nigga_Premium_run7.png","Char_Skin_Nigga_Premium_run8.png"],
 	"shot": ["Char_Skin_Nigga_Premium_shotl1.png","Char_Skin_Nigga_Premium_shotl2.png"],
-	"zipLine": ["Char_Skin_Nigga_Premium_roll2.png"]
+	"zipLine": ["Char_Skin_Nigga_Premium_roll1.png"]
 },
 "meta": {
 	"app": "https://www.codeandweb.com/texturepacker",

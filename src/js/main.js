@@ -18,7 +18,7 @@ if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phon
     gameWidth = document.documentElement.clientWidth;
     gameHeight = document.documentElement.clientHeight;
 }
-const gameScale = (gameWidth / 288)
+const gameScale = 1.6
 const WORLD_WIDTH = Math.floor(gameWidth / gameScale);
 const WORLD_HEIGHT = Math.floor(gameHeight / gameScale);
 let zeroLeft = 0
@@ -38,7 +38,7 @@ const playerState = {
     skillCD: false,
     stimpack: false
 }
-let initSpeed = 1.8
+let initSpeed = 5
 let playerDefaultSpeed = initSpeed
 let playerSpeed = playerDefaultSpeed
 let distance = 0
@@ -56,13 +56,13 @@ const playerPos = WORLD_HEIGHT - 230
 const secondFloor = WORLD_HEIGHT - 420
 let meleeKill = null
 let meleeKillSelectorSide = true
-let meleeKillSelectorSpeed = 2
+let meleeKillSelectorSpeed = 7
 let meleeKillStreak = 0
 let meleeKillStreakTimer = null
 
 const playerBullets = []
 const enemyBullets = []
-const bulletSpeed = 15
+const bulletSpeed = 30
 
 let background
 let bgPosition = 0
@@ -236,7 +236,7 @@ window.onload = async function () {
     app.stage = new Stage();
     document.body.appendChild(app.view)
     engine = Matter.Engine.create();
-    engine.timing.timeScale = 0.5;
+    engine.timing.timeScale = 1;
     app.stage.sortableChildren = true;
 
     hudLayer = new Group(99, true)
@@ -345,9 +345,6 @@ window.onload = async function () {
     }
 
     function startGame() {
-        createPowerUp()
-        createEnemy(zeroRight)
-        createWall()
         if (skinStore[Number(storage.selectedSkin)].gunAmmo) {
             gun.ammo = skinStore[Number(storage.selectedSkin)].gunAmmo
             gun.currentAmmo = skinStore[Number(storage.selectedSkin)].gunAmmo
@@ -394,6 +391,7 @@ window.onload = async function () {
         document.addEventListener('keyup', events)
         createBochka()
         app.ticker.add(ticker)
+        app.ticker.maxFPS = 60
         scoreTimer()
         trailTimer()
     }
@@ -427,7 +425,7 @@ window.onload = async function () {
         playerBullets.length = 0
         enemyBullets.length = 0
 
-        initSpeed = 1.8
+        initSpeed = 5
         playerDefaultSpeed = initSpeed
         playerSpeed = playerDefaultSpeed
         distance = 0
@@ -659,9 +657,9 @@ window.onload = async function () {
             const UiBounds = meleeKill.getLocalBounds()
             const selector = meleeKill.getChildAt(2)
             if (meleeKillSelectorSide) {
-                selector.x += meleeKillSelectorSpeed + meleeKillStreak
+                selector.x += (meleeKillSelectorSpeed + meleeKillStreak)
             } else {
-                selector.x -= meleeKillSelectorSpeed + meleeKillStreak
+                selector.x -= (meleeKillSelectorSpeed + meleeKillStreak)
             }
             if (selector.x + selector.width >= UiBounds.x + UiBounds.width) {
                 meleeKillSelectorSide = false
@@ -716,9 +714,9 @@ window.onload = async function () {
         if (playerState.inZipLine) {
             spawnTrailParticle(player)
             if (playerState.inZipLine === 'top') {
-                player.y -= 2.2
+                player.y -= 5
             } else {
-                player.y += 2.2
+                player.y += 5
             }
         }
         if (shotsArr.length > 0) {
@@ -1261,7 +1259,7 @@ window.onload = async function () {
             createCan()
         }
         if (!isBuilding && !currentBoss && (afterBuilding < zeroRight - WORLD_WIDTH / 2)) {
-            if (Math.random() < Math.min(gameState.points / 40000, 0.1)) {
+            if (Math.random() < Math.min(gameState.points / 40000, 0.1) && gameState.points > 2000) {
                 console.log('boss')
                 createBoss()
                 return
@@ -1293,7 +1291,7 @@ window.onload = async function () {
                 })
                 addPoints(50 + meleeKillStreak * 10)
                 gameState.scoreStreak += 3 + meleeKillStreak
-                meleeKillStreak += 1
+                meleeKillStreak += 2
                 if (gun.melee) {
                     playAnim('melee')
                     sleep(150).then(() => {
@@ -1431,7 +1429,7 @@ window.onload = async function () {
                 if (playerState.state === 'roll' || playerState.state === 'rollEnd') {
                     addPoints(20)
                     gameState.scoreStreak += 1
-                    playerSpeed = playerDefaultSpeed + 2.5
+                    playerSpeed = playerDefaultSpeed * 2
                     soundPlayer.waterStep()
                     for (let i = 0; i <= 20; i++) {
                         createParticles({x: puddle.x, y: puddle.y - 10}, 'drop')
@@ -1480,7 +1478,7 @@ window.onload = async function () {
         if (player.x + 40 > currentCan.x + 40 && player.x < currentCan.x + 20 && currentCan.y > player.y && player.y + player.height > currentCan.y && (playerState.state === 'roll' || playerState.state === 'rollEnd') && !currentCan.touched) {
             currentCan.dealDamage = false
             soundPlayer.canDrop()
-            Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: random(0.01, 0.014, true, true) , y: -random(0.002, 0.00, true, true)});
+            Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: random(0.005, 0.01, true, true) , y: -random(0.002, 0.00, true, true)});
         }
         //CAN DAMAGE
         if (!currentCan.dealDamage && currentCan.body.speed > 1) {
@@ -1494,7 +1492,7 @@ window.onload = async function () {
                     addPoints(50)
                     damageEnemy(enemy, Math.floor(currentCan.body.speed))
                     currentCan.body.speed = 0.5
-                    Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.01, 0.015, true, true) , y: -random(0.002, 0.006, true, true)});
+                    Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.005, 0.01, true, true) , y: -random(0.002, 0.006, true, true)});
                 }
             })
             if (currentDogEnemy) {
@@ -1506,7 +1504,7 @@ window.onload = async function () {
                     gameState.scoreStreak += 2.5
                     damageEnemy(currentDogEnemy, Math.floor(currentCan.body.speed))
                     currentCan.body.speed = 0.5
-                    Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.01, 0.015, true, true) , y: -random(0.002, 0.006, true, true)});
+                    Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.005, 0.01, true, true) , y: -random(0.002, 0.006, true, true)});
                 }
             }
             if (currentBoss) {
@@ -1519,7 +1517,7 @@ window.onload = async function () {
                     addPoints(50)
                     damageEnemy(currentBoss, Math.floor(currentCan.body.speed), true)
                     currentCan.body.speed = 0.5
-                    Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.01, 0.015, true, true) , y: -random(0.002, 0.006, true, true)});
+                    Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.005, 0.01, true, true) , y: -random(0.002, 0.006, true, true)});
                 }
             }
             traps.forEach(trap => {
@@ -1531,7 +1529,7 @@ window.onload = async function () {
                     gameState.scoreStreak += 2.5
                     addPoints(50)
                     currentCan.body.speed = 0.5
-                    Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.01, 0.015, true, true) , y: -random(0.002, 0.006, true, true)});
+                    Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.005, 0.01, true, true) , y: -random(0.002, 0.006, true, true)});
                     if (trap.type) {
                         if (trap.type === 'window') soundPlayer.glassBreak()
                         trap.play()
@@ -1882,7 +1880,7 @@ window.onload = async function () {
                     buildConnect = new PIXI.Sprite(build2.textures.Build2fOneConnect)
                     buildContainer.outroof = true
                     buildBack.anchor.set(0.5)
-                    buildBack.position.set(position + buildBack.width / 2, ground.getLocalBounds().y - 10)
+                    buildBack.position.set(position + buildBack.width / 2, ground.getLocalBounds().y - 3)
                     if (Math.random() < 0.5) {
                         createCoverInBuild(position + buildBack.width - 250, true, true)
                     }
@@ -1955,7 +1953,7 @@ window.onload = async function () {
                 playerState.inZipLine = b.end ? "bot" : "top"
                 playerSpeed = 0
                 playAnim('zipLine')
-                player.rotation = 4.8
+                player.rotation = skinStore[Number(storage.selectedSkin)].noRotate ? 0 : 4.8
                 sleep(650).then(() => {
                     playerState.inZipLine = ''
                     player.rotation = 0
@@ -2253,7 +2251,7 @@ window.onload = async function () {
         let randomMassX = Math.random() * money.body.mass
         const randomMassY = Math.random() * money.body.mass
         randomMassX *= Math.round(Math.random()) ? 1 : -1;
-        Matter.Body.applyForce(money.body, money.body.position, {x: randomMassX / 25, y: -randomMassY / 20});
+        Matter.Body.applyForce(money.body, money.body.position, {x: randomMassX / 50, y: -randomMassY / 35});
 
         moneyDrop.push(money)
     }
@@ -2276,7 +2274,7 @@ window.onload = async function () {
         let randomMassX = Math.random() * particle.body.mass
         const randomMassY = Math.random() * particle.body.mass
         randomMassX *= Math.round(Math.random()) ? 1 : -1;
-        Matter.Body.applyForce(particle.body, particle.body.position, {x: randomMassX / 25, y: -randomMassY / 20});
+        Matter.Body.applyForce(particle.body, particle.body.position, {x: randomMassX / 50, y: -randomMassY / 35});
 
         bounceParticles.push(particle)
     }
@@ -2309,7 +2307,7 @@ window.onload = async function () {
         world.addChild(grenade)
 
         Matter.World.add(engine.world, grenade.body);
-        Matter.Body.applyForce(grenade.body, grenade.body.position, {x: 0.0008, y: -0.0008});
+        Matter.Body.applyForce(grenade.body, grenade.body.position, {x: 0.0005, y: -0.0003});
 
         activeGrenade = grenade
         sleep(650).then(() => {
@@ -2434,7 +2432,7 @@ window.onload = async function () {
         let randomMassX = Math.random() * particle.body.mass
         const randomMassY = Math.random() * particle.body.mass
         randomMassX *= Math.round(Math.random()) ? 1 : -1;
-        Matter.Body.applyForce(particle.body, particle.body.position, {x: randomMassX / 25, y: -randomMassY / 25});
+        Matter.Body.applyForce(particle.body, particle.body.position, {x: randomMassX / 50, y: -randomMassY / 50});
         physParticles.push(particle)
     }
 
@@ -3376,7 +3374,7 @@ window.onload = async function () {
         }
         enemies.forEach(enemy => {
             const e = enemy.getBounds()
-            if (e.x + e.width > b.x - 100 && e.x < b.x + 100) {
+            if (e.x + e.width > b.x - 100 && e.x < b.x + b.width + 100) {
                 if (enemy.params.dead) return
                 damageEnemy(enemy, 4)
             }
@@ -3482,7 +3480,7 @@ window.onload = async function () {
         let p = player.getBounds()
         return walls.find(w => {
             let wall = w.getBounds()
-            if (p.x > (wall.x - wall.width / 2) + w.bound && p.x < (wall.x - wall.width / 2) + 5 + w.bound) {
+            if (p.x > (wall.x - wall.width / 2) + w.bound && p.x < (wall.x - wall.width / 2) + 40 + w.bound) {
                 return w
             }
         })
@@ -3710,7 +3708,7 @@ window.onload = async function () {
                     gameState.scoreStreak += 1
                     soundPlayer.slide()
                     playAnim('roll')
-                    playerSpeed = playerDefaultSpeed + 1.5
+                    playerSpeed = playerDefaultSpeed * 1.5
                     const rollTime = 25
                     const rollEndTime = 80
                     let rollCounter = 0
