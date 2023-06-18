@@ -26,8 +26,7 @@
     "gunAngle": 0.5,
     "noRotate": true,
     "speedAmp": 1.2,
-    "reloadTime": 750,
-    "reloadAnim": 0.25
+    "reloadTime": 600
   },
   {
     "name": "AKAME",

@@ -9,6 +9,7 @@ import skinStore from './skinStore.json'
 import storeUpgrades from './upgrades.json'
 import bridge from '@vkontakte/vk-bridge';
 
+const timeouts = []
 let gameWidth
 let gameHeight
 if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent)) {
@@ -18,9 +19,9 @@ if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phon
     gameWidth = document.documentElement.clientWidth;
     gameHeight = document.documentElement.clientHeight;
 }
-const gameScale = 1.6
-const WORLD_WIDTH = Math.floor(gameWidth / gameScale);
-const WORLD_HEIGHT = Math.floor(gameHeight / gameScale);
+const gameScale = 1.2
+let WORLD_WIDTH = Math.floor(gameWidth / gameScale);
+let WORLD_HEIGHT = Math.floor(gameHeight / gameScale);
 let zeroLeft = 0
 let zeroRight = WORLD_WIDTH
 let gameSpeed = 1
@@ -52,11 +53,11 @@ const gameState = {
     collectedMoney: 0,
 }
 let player
-const playerPos = WORLD_HEIGHT - 230
-const secondFloor = WORLD_HEIGHT - 420
+let playerPos = WORLD_HEIGHT - 230
+let secondFloor = WORLD_HEIGHT - 420
 let meleeKill = null
 let meleeKillSelectorSide = true
-let meleeKillSelectorSpeed = 7
+let meleeKillSelectorSpeed = 6
 let meleeKillStreak = 0
 let meleeKillStreakTimer = null
 
@@ -68,7 +69,9 @@ let background
 let bgPosition = 0
 let bgSpeed = 0.2;
 
+let stage
 let world
+let particleContainer
 let ground
 let woodsBG
 const woodsBGarr = []
@@ -226,12 +229,13 @@ let storage = baseStorage
 
 window.onload = async function () {
     const app = new PIXI.Application({
-        width: gameWidth,
-        height: gameHeight,
+        resizeTo: window, // Auto fill the screen
+        autoDensity: true, // Handles high DPI screens
         backgroundColor: 'black',
         resolution: window.devicePixelRatio,
-        antialias: true,
-    })
+        useContextAlpha: false,
+        antialias: false
+})
     globalThis.__PIXI_APP__ = app;
     app.stage = new Stage();
     document.body.appendChild(app.view)
@@ -241,11 +245,39 @@ window.onload = async function () {
 
     hudLayer = new Group(99, true)
     app.stage.addChild(new Layer(hudLayer));
+    PIXI.BaseTexture.defaultOptions.scaleMode = 0
 
-    PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
+    stage = new PIXI.Container();
+    stage.width = 375;
+    stage.height = 667;
+    stage.scale.x = actualWidth() / 375;
+    stage.scale.y = actualHeight() / 667;
+    stage.x = 0;
+    stage.y = 0;
+
+    gameWidth = (app.screen.width - stage.x) / stage.scale.x
+    gameHeight = (app.screen.height - stage.y) / stage.scale.y
+    WORLD_WIDTH = gameWidth
+    WORLD_HEIGHT = gameHeight
+
+    // app.renderer.view.style.marginTop = `${stage.y / 2}px`
+    // app.renderer.view.style.marginBottom = `${stage.y / 2}px`
+
+    function actualWidth() {
+        const { width, height } = app.screen;
+        const isWidthConstrained = width < height * 9 / 16;
+        return isWidthConstrained ? width : height * 9 / 16;
+    }
+
+    function actualHeight() {
+        const { width, height } = app.screen;
+        const isHeightConstrained = width * 16 / 9 > height;
+        return isHeightConstrained ? height : width * 16 / 9;
+    }
+    app.stage.addChild(stage)
 
     const loaderView = new PIXI.Container()
-    app.stage.addChild(loaderView)
+    stage.addChild(loaderView)
     const loaderGif = await PIXI.Assets.load('./assets/loading/loader.json');
     const logo = await PIXI.Assets.load('./assets/loading/logopng.png');
     const logoSprite = new PIXI.Sprite(logo)
@@ -255,13 +287,13 @@ window.onload = async function () {
     const loaderSprite = new PIXI.AnimatedSprite(loaderGif.animations.loader)
     loaderSprite.animationSpeed = 0.5
     loaderSprite.anchor.set(0.5)
-    loaderSprite.position.set(gameWidth / 2, gameHeight - 200)
+    loaderSprite.position.set(gameWidth / 2, getPercent(gameHeight, 80))
     loaderSprite.play()
     loaderView.addChild(loaderSprite)
 
     createSwipes()
     //VK load
-    await getData()
+    // await getData()
 
     //LOAD ASSETS
     await PIXI.Assets.load('./assets/fonts/anothercastle3.ttf');
@@ -308,22 +340,32 @@ window.onload = async function () {
     // await character.parse();
 
     const bg = await PIXI.Assets.load('./assets/BG.png')
-    app.stage.removeChild(loaderView)
+    stage.removeChild(loaderView)
     init()
 
     function init() {
         world = new PIXI.Container()
         world.name = 'world'
-        app.stage.addChild(world)
+        stage.addChild(world)
         world.sortableChildren = true;
-        world.y = 100
-        world.scale.set(gameScale)
+        // world.y = 100
+        // world.scale.set(gameScale)
         fg = new Group(9, true)
         world.addChild(new Layer(fg));
 
+        particleContainer = new PIXI.ParticleContainer(100, {
+            scale: true,
+            position: true,
+            rotation: true,
+            tint: true,
+            uvs: true,
+        });
+        particleContainer.zIndex = 1
+        world.addChild(particleContainer);
+
         hud = new PIXI.Container()
         hud.name = 'hud'
-        app.stage.addChild(hud)
+        stage.addChild(hud)
         hud.sortableChildren = true;
         hud.parentGroup = hudLayer
         hud.zOrder = 99
@@ -342,6 +384,8 @@ window.onload = async function () {
         for (let i = 0; i <= 3; i++) {
             createFloor(i, 0)
         }
+        playerPos = ground.getLocalBounds().y + 70
+        secondFloor = ground.getLocalBounds().y - 120
     }
 
     function startGame() {
@@ -389,16 +433,16 @@ window.onload = async function () {
         HUDpause()
         createPlayer()
         document.addEventListener('keyup', events)
-        createBochka()
-        app.ticker.add(ticker)
         app.ticker.maxFPS = 60
+        app.ticker.minFPS = 60
+        app.ticker.add(ticker)
         scoreTimer()
         trailTimer()
     }
 
     function restartGame() {
-        app.stage.removeChild(app.stage.getChildByName('endScreen'))
-        app.stage.removeChild(world)
+        stage.removeChild(app.stage.getChildByName('endScreen'))
+        stage.removeChild(world)
         app.ticker.remove(ticker)
         zeroLeft = 0
         zeroRight = WORLD_WIDTH
@@ -466,6 +510,12 @@ window.onload = async function () {
         currentDogEnemy = null
         currentCan = null
 
+        meleeKill = null
+        meleeKillSelectorSide = true
+        meleeKillSelectorSpeed = 6
+        meleeKillStreak = 0
+        meleeKillStreakTimer = null
+
         isPause = false
         gameStart = false
         gameEnd = false
@@ -473,7 +523,8 @@ window.onload = async function () {
     }
     async function endGame(toRestart) {
         gameEnd = true
-        app.stage.removeChild(hud)
+        stage.removeChild(hud)
+        timeouts.length = 0
         if (toRestart) {
             restartGame()
             return
@@ -485,7 +536,7 @@ window.onload = async function () {
 
         const endScreen = new PIXI.Container()
         let skip = false
-        app.stage.addChild(endScreen)
+        stage.addChild(endScreen)
         let bg = new PIXI.Graphics();
         bg.eventMode = 'static'
         bg.beginFill(0x000);
@@ -651,6 +702,7 @@ window.onload = async function () {
         if (player.x > 100) {
             gameStart = true
         }
+        hud.getChildByName('fps').text = Math.floor(app.ticker.FPS)
         Matter.Engine.update(engine);
         if (meleeKill) {
             if (meleeKill.enemy.params.dead) return setMeleeSelector(true, true)
@@ -715,8 +767,27 @@ window.onload = async function () {
             spawnTrailParticle(player)
             if (playerState.inZipLine === 'top') {
                 player.y -= 5
+                if (player.y < secondFloor) {
+                    playerState.inZipLine = ''
+                    player.rotation = 0
+                    playerSpeed = playerDefaultSpeed
+                    player.y = secondFloor
+                    playerState.secondFloor = true
+                    const e = {
+                        code: 'Space'
+                    }
+                    events(e)
+                }
             } else {
                 player.y += 5
+                if (player.y > playerPos) {
+                    playerState.inZipLine = ''
+                    player.rotation = 0
+                    playerSpeed = playerDefaultSpeed
+                    player.y = playerPos
+                    playerState.secondFloor = false
+                    playAnim('')
+                }
             }
         }
         if (shotsArr.length > 0) {
@@ -726,7 +797,7 @@ window.onload = async function () {
         }
         const detectedWall = detectWall()
         if (detectedWall && !playerState.inCover) {
-            if (playerState.state === 'roll' || playerState.state === 'rollEnd' || detectedWall.forBoss) {
+            if (((playerState.state === 'roll' || playerState.state === 'rollEnd') && !playerState.leaveCover) || detectedWall.forBoss) {
                 playerState.inBossFight = detectedWall.forBoss
                 playerState.inCover = true
                 playerSpeed = 0
@@ -740,7 +811,7 @@ window.onload = async function () {
         gameStart = false
         gameEnd = false
         const menu = new PIXI.Container()
-        app.stage.addChild(menu)
+        stage.addChild(menu)
 
         const main = new PIXI.Container()
         main.name = 'main'
@@ -836,7 +907,7 @@ window.onload = async function () {
             sleep(300).then(() => {
                 clearInterval(menuLeft)
                 startGame()
-                app.stage.removeChild(menu)
+                stage.removeChild(menu)
             })
         });
     }
@@ -1182,9 +1253,8 @@ window.onload = async function () {
     }
 
     function trailTimer() {
-        const interval = setInterval(() => {
+        player.onFrameChange = () => {
             if (gameEnd || !player) {
-                clearInterval(interval)
                 stepSound = 0
                 return
             }
@@ -1209,7 +1279,7 @@ window.onload = async function () {
                     }
                 }
             }
-        }, 100)
+        }
     }
 
     function spawnEntity() {
@@ -1291,7 +1361,7 @@ window.onload = async function () {
                 })
                 addPoints(50 + meleeKillStreak * 10)
                 gameState.scoreStreak += 3 + meleeKillStreak
-                meleeKillStreak += 2
+                meleeKillStreak += 1.5
                 if (gun.melee) {
                     playAnim('melee')
                     sleep(150).then(() => {
@@ -1312,7 +1382,7 @@ window.onload = async function () {
         clearTimeout(meleeKillStreakTimer)
         sleep(10000).then(() => {
             if (meleeKillStreak > 0) {
-                meleeKillStreak -= 1
+                meleeKillStreak -= 1.5
             }
         })
     }
@@ -1587,7 +1657,7 @@ window.onload = async function () {
         }, 10)
         await sleep(duration)
         clearInterval(timer)
-        world.pivot.y = player.y - getPercent(WORLD_HEIGHT, 60)
+        world.pivot.y = ground.getLocalBounds().y - ground.getLocalBounds().height * 1.2
     }
 
     function damagePlayer() {
@@ -1655,7 +1725,7 @@ window.onload = async function () {
             const dtX = 1 - Math.exp(-delta / 5)
             const dtY = 1 - Math.exp(-delta / 20)
             world.pivot.x = ((player.x - 60) - world.pivot.x) * dtX + world.pivot.x;
-            world.pivot.y = ((player.y - getPercent(WORLD_HEIGHT, 60)) - world.pivot.y) * dtY + world.pivot.y;
+            world.pivot.y = ((ground.getLocalBounds().y - ground.getLocalBounds().height * 1.2) - world.pivot.y) * dtY + world.pivot.y;
         }
         player.x += (0.5 * playerSpeed) * gameSpeed;
         zeroLeft = player.x - 100
@@ -1681,6 +1751,7 @@ window.onload = async function () {
         player.scale.x = 2
         player.scale.y = 2
         player.animationSpeed = 0.2
+        player.autoUpdate = true
         player.loop = true
         player.parentGroup = fg
         player.zOrder = 5
@@ -1748,14 +1819,14 @@ window.onload = async function () {
             rectangle.alpha = 0.7
         }
         rectangle.endSize = Math.floor(Math.random() * (10 - 5 + 1) + 5)
-        world.addChild(rectangle);
+        particleContainer.addChild(rectangle);
         trails.push(rectangle)
     }
 
     function updateTrailParticle() {
         trails.forEach((item, idx) => {
             if (item.x < zeroLeft || item.y - item.height < item.initY - item.endSize ) {
-                world.removeChild(item)
+                particleContainer.removeChild(item)
                 trails.splice(idx, 1)
                 return
             }
@@ -1954,23 +2025,6 @@ window.onload = async function () {
                 playerSpeed = 0
                 playAnim('zipLine')
                 player.rotation = skinStore[Number(storage.selectedSkin)].noRotate ? 0 : 4.8
-                sleep(650).then(() => {
-                    playerState.inZipLine = ''
-                    player.rotation = 0
-                    playerSpeed = playerDefaultSpeed
-                    if (b.end) {
-                        player.y = playerPos
-                        playerState.secondFloor = false
-                        playAnim('')
-                    } else {
-                        player.y = secondFloor
-                        playerState.secondFloor = true
-                        const e = {
-                            code: 'Space'
-                        }
-                        events(e)
-                    }
-                })
             }
         })
     }
@@ -2427,7 +2481,7 @@ window.onload = async function () {
         particle.anchor.set(0.5)
         particle.position.set(char.x, char.y)
         particle.body = Matter.Bodies.rectangle(particle.x, particle.y, 1, 1, {isStatic: false, isSensor: true});
-        world.addChild(particle)
+        particleContainer.addChild(particle)
         Matter.World.add(engine.world, particle.body);
         let randomMassX = Math.random() * particle.body.mass
         const randomMassY = Math.random() * particle.body.mass
@@ -2459,7 +2513,7 @@ window.onload = async function () {
                 }
             }
             if (b.position.x < zeroLeft) {
-                world.removeChild(b)
+                particleContainer.removeChild(b)
                 Matter.World.remove(engine.world, b.body);
                 physParticles.splice(idx, 1)
             }
@@ -3187,7 +3241,7 @@ window.onload = async function () {
             const posY = random(65, 75)
             createGarbage(floor.x + floor.width + posX, floor.y + posY)
         }
-        floor.body = Matter.Bodies.rectangle(floor.x, playerPos + 44, floor.width + 20, 40, {isStatic: true});
+        floor.body = Matter.Bodies.rectangle(floor.x, floor.y - floor.height + 44, floor.width + 20, 40, {isStatic: true});
         bgWall.anchor.set(0,1)
         bgWall.position.set((floorPosition + idx) * bgWall.width, floor.y - floor.height)
         part.addChild(floor)
@@ -3226,7 +3280,7 @@ window.onload = async function () {
     }
 
     function createBg(img) {
-        const tiling = new PIXI.TilingSprite(img, WORLD_WIDTH + 100, gameHeight)
+        const tiling = new PIXI.TilingSprite(img, WORLD_WIDTH + 100, gameHeight + 100)
         // tiling.scale.set(0.8)
         tiling.anchor.set(0.5, 1)
         tiling.zIndex = -10
@@ -3619,6 +3673,11 @@ window.onload = async function () {
 
     function playAnim(anim) {
         if (!player) return
+        if (!anim || anim === 'idle') {
+            player.loop = true
+        } else {
+            player.loop = false
+        }
         if (anim === 'reload' && gun.reloadAnim) {
             player.animationSpeed = gun.reloadAnim
         } else {
@@ -3690,7 +3749,7 @@ window.onload = async function () {
                             spawnBounceParticle(player, 'mag')
                         break
                     }
-                    sleep(gun.reloadTime).then(() => {
+                    player.onComplete = () => {
                         HUDbullets()
                         gun.currentAmmo = gun.ammo
                         if (playerState.inCover) {
@@ -3699,7 +3758,7 @@ window.onload = async function () {
                         }
                         playerSpeed = playerDefaultSpeed
                         playAnim()
-                    })
+                    }
                 }
             break
             //ROLL
@@ -3709,42 +3768,25 @@ window.onload = async function () {
                     soundPlayer.slide()
                     playAnim('roll')
                     playerSpeed = playerDefaultSpeed * 1.5
-                    const rollTime = 25
-                    const rollEndTime = 80
-                    let rollCounter = 0
-                    const rollInterval = setInterval(() => {
-                        if (isPause) return
-                        if (!(gameSpeed < 1 && playerState.state === 'rollEnd')) {
-                            rollCounter++
-                        }
-                        if (playerState.inZipLine || (playerState.state !== 'rollEnd' && playerState.state !== 'roll')) {
-                            clearInterval(rollInterval)
-                        }
-                        if (playerState.state === 'shot') {
-                            if (!gun.noStop) return
-                            playerSpeed = playerDefaultSpeed
-                            clearInterval(rollInterval)
-                        }
-                        if (rollCounter === rollTime) {
-                            if (playerState.inCover) {
-                                playerState.inCover = false
-                                // player.y = playerState.secondFloor ? secondFloor : playerPos
-                                player.anchor.y = 0.5
-                            }
-                            playAnim('rollEnd')
-                        }
-                        if (rollCounter >= rollEndTime) {
-                            if (playerState.inCover === true || playerState.inZipLine) {
+                    if (playerState.inCover) {
+                        playerState.inCover = false
+                        player.anchor.y = 0.5
+                        playerState.leaveCover = true
+                    }
+                    player.onComplete = () => {
+                        playerState.leaveCover = false
+                        if (playerState.inZipLine || playerState.state !== 'roll') return
+                        playAnim('rollEnd')
+                        sleep(650).then(() => {
+                            if (playerState.state !== 'rollEnd' || gun.noStop) return
+                            if (playerState.inCover || playerState.inZipLine) {
                                 gameState.scoreStreak += 1
-                                clearInterval(rollInterval)
                             } else {
                                 playerSpeed = playerDefaultSpeed
                                 playAnim()
-                                clearInterval(rollInterval)
                             }
-                        }
-
-                    }, 10)
+                        })
+                    };
                 }
             break
             //SHOT
@@ -3778,7 +3820,7 @@ window.onload = async function () {
                         })
                     }
                     if (!gun.noStop) playerSpeed = 0
-                    sleep(gun.shotDelay).then(() => {
+                    player.onComplete = () => {
                         if (playerState.inCover) {
                             playAnim('idle')
                             return
@@ -3789,7 +3831,7 @@ window.onload = async function () {
                         } else {
                             playAnim('shotEnd')
                         }
-                    })
+                    }
                 }
             break
             //THROW GRENADE
@@ -3959,6 +4001,11 @@ window.onload = async function () {
         hud.addChild(score)
         hud.addChild(scale);
         hud.addChild(points);
+
+        const fps = new PIXI.Text(app.ticker.FPS, textStyles.default40);
+        fps.name = 'fps'
+        fps.position.set(5, 100)
+        hud.addChild(fps);
     }
 
     function HUDupdateSkills() {
@@ -4108,6 +4155,9 @@ window.onload = async function () {
             pauseMenu.visible = true
             leave.visible = true
             pause.visible = false
+            timeouts.forEach(item => {
+                item.pause()
+            })
         })
 
         play.on('pointerdown', () => {
@@ -4129,6 +4179,9 @@ window.onload = async function () {
                     })
                     isPause = false
                     pause.visible = true
+                    timeouts.forEach(item => {
+                        item.resume()
+                    })
                 }
             }, 1000)
         })
@@ -4237,7 +4290,6 @@ window.onload = async function () {
 
     function createSwipes() {
         const canvas = app.renderer.view
-        const ctx = app.renderer.context;
         //Чувствительность — количество пикселей, после которого жест будет считаться свайпом
         const sensitivity = 20;
 
@@ -4340,19 +4392,45 @@ function getPercent(value, percent) {
     return (value / 100) * percent
 }
 
-async function sleep(ms) {
-    let time = 0
-    return await new Promise(resolve => {
-        const interval = setInterval(() => {
-            if (isPause || gameEnd) return
-            time++
-            if (time >= ms / 10) {
-                resolve();
-                clearInterval(interval);
-            };
-        }, 10);
+// async function sleep(time) {
+//     return new Promise((resolve, reject) => {
+//         setTimeout(() => {
+//             resolve(true);
+//         }, time);
+//     });
+// }
+
+async function sleep(time) {
+    const idx = timeouts.length
+    return new Promise((resolve, reject) => {
+        const timer = new Timer(function() {
+            timeouts.splice(idx ,1)
+            resolve(true);
+        }, time);
+        timeouts.push(timer)
     });
 }
+
+const Timer = function(callback, delay) {
+    let timerId, start, remaining = delay;
+
+    this.pause = function() {
+        window.clearTimeout(timerId);
+        timerId = null;
+        remaining -= Date.now() - start;
+    };
+
+    this.resume = function() {
+        if (timerId) {
+            return;
+        }
+
+        start = Date.now();
+        timerId = window.setTimeout(callback, remaining);
+    };
+
+    this.resume();
+};
 
 function random(min, max, noFloor, noMin) {
     const res = Math.random() * (max - min + (noMin ? 0 : 1)) + min
