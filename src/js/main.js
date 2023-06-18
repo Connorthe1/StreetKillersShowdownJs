@@ -69,7 +69,6 @@ let background
 let bgPosition = 0
 let bgSpeed = 0.2;
 
-let stage
 let world
 let particleContainer
 let ground
@@ -229,8 +228,8 @@ let storage = baseStorage
 
 window.onload = async function () {
     const app = new PIXI.Application({
-        resizeTo: window, // Auto fill the screen
-        autoDensity: true, // Handles high DPI screens
+        width: gameWidth,
+        height: gameHeight,
         backgroundColor: 'black',
         resolution: window.devicePixelRatio,
         useContextAlpha: false,
@@ -247,37 +246,8 @@ window.onload = async function () {
     app.stage.addChild(new Layer(hudLayer));
     PIXI.BaseTexture.defaultOptions.scaleMode = 0
 
-    stage = new PIXI.Container();
-    stage.width = 375;
-    stage.height = 667;
-    stage.scale.x = actualWidth() / 375;
-    stage.scale.y = actualHeight() / 667;
-    stage.x = 0;
-    stage.y = 0;
-
-    gameWidth = (app.screen.width - stage.x) / stage.scale.x
-    gameHeight = (app.screen.height - stage.y) / stage.scale.y
-    WORLD_WIDTH = gameWidth
-    WORLD_HEIGHT = gameHeight
-
-    // app.renderer.view.style.marginTop = `${stage.y / 2}px`
-    // app.renderer.view.style.marginBottom = `${stage.y / 2}px`
-
-    function actualWidth() {
-        const { width, height } = app.screen;
-        const isWidthConstrained = width < height * 9 / 16;
-        return isWidthConstrained ? width : height * 9 / 16;
-    }
-
-    function actualHeight() {
-        const { width, height } = app.screen;
-        const isHeightConstrained = width * 16 / 9 > height;
-        return isHeightConstrained ? height : width * 16 / 9;
-    }
-    app.stage.addChild(stage)
-
     const loaderView = new PIXI.Container()
-    stage.addChild(loaderView)
+    app.stage.addChild(loaderView)
     const loaderGif = await PIXI.Assets.load('./assets/loading/loader.json');
     const logo = await PIXI.Assets.load('./assets/loading/logopng.png');
     const logoSprite = new PIXI.Sprite(logo)
@@ -287,7 +257,7 @@ window.onload = async function () {
     const loaderSprite = new PIXI.AnimatedSprite(loaderGif.animations.loader)
     loaderSprite.animationSpeed = 0.5
     loaderSprite.anchor.set(0.5)
-    loaderSprite.position.set(gameWidth / 2, getPercent(gameHeight, 80))
+    loaderSprite.position.set(gameWidth / 2, gameHeight - gameHeight / 4)
     loaderSprite.play()
     loaderView.addChild(loaderSprite)
 
@@ -340,32 +310,22 @@ window.onload = async function () {
     // await character.parse();
 
     const bg = await PIXI.Assets.load('./assets/BG.png')
-    stage.removeChild(loaderView)
+    app.stage.removeChild(loaderView)
     init()
 
     function init() {
         world = new PIXI.Container()
         world.name = 'world'
-        stage.addChild(world)
+        app.stage.addChild(world)
         world.sortableChildren = true;
         // world.y = 100
         // world.scale.set(gameScale)
         fg = new Group(9, true)
         world.addChild(new Layer(fg));
 
-        particleContainer = new PIXI.ParticleContainer(100, {
-            scale: true,
-            position: true,
-            rotation: true,
-            tint: true,
-            uvs: true,
-        });
-        particleContainer.zIndex = 1
-        world.addChild(particleContainer);
-
         hud = new PIXI.Container()
         hud.name = 'hud'
-        stage.addChild(hud)
+        app.stage.addChild(hud)
         hud.sortableChildren = true;
         hud.parentGroup = hudLayer
         hud.zOrder = 99
@@ -441,8 +401,8 @@ window.onload = async function () {
     }
 
     function restartGame() {
-        stage.removeChild(app.stage.getChildByName('endScreen'))
-        stage.removeChild(world)
+        app.stage.removeChild(app.app.stage.getChildByName('endScreen'))
+        app.stage.removeChild(world)
         app.ticker.remove(ticker)
         zeroLeft = 0
         zeroRight = WORLD_WIDTH
@@ -523,7 +483,7 @@ window.onload = async function () {
     }
     async function endGame(toRestart) {
         gameEnd = true
-        stage.removeChild(hud)
+        app.stage.removeChild(hud)
         timeouts.length = 0
         if (toRestart) {
             restartGame()
@@ -536,7 +496,7 @@ window.onload = async function () {
 
         const endScreen = new PIXI.Container()
         let skip = false
-        stage.addChild(endScreen)
+        app.stage.addChild(endScreen)
         let bg = new PIXI.Graphics();
         bg.eventMode = 'static'
         bg.beginFill(0x000);
@@ -811,7 +771,7 @@ window.onload = async function () {
         gameStart = false
         gameEnd = false
         const menu = new PIXI.Container()
-        stage.addChild(menu)
+        app.stage.addChild(menu)
 
         const main = new PIXI.Container()
         main.name = 'main'
@@ -907,7 +867,7 @@ window.onload = async function () {
             sleep(300).then(() => {
                 clearInterval(menuLeft)
                 startGame()
-                stage.removeChild(menu)
+                app.stage.removeChild(menu)
             })
         });
     }
@@ -1819,14 +1779,14 @@ window.onload = async function () {
             rectangle.alpha = 0.7
         }
         rectangle.endSize = Math.floor(Math.random() * (10 - 5 + 1) + 5)
-        particleContainer.addChild(rectangle);
+        world.addChild(rectangle);
         trails.push(rectangle)
     }
 
     function updateTrailParticle() {
         trails.forEach((item, idx) => {
             if (item.x < zeroLeft || item.y - item.height < item.initY - item.endSize ) {
-                particleContainer.removeChild(item)
+                world.removeChild(item)
                 trails.splice(idx, 1)
                 return
             }
@@ -2481,7 +2441,7 @@ window.onload = async function () {
         particle.anchor.set(0.5)
         particle.position.set(char.x, char.y)
         particle.body = Matter.Bodies.rectangle(particle.x, particle.y, 1, 1, {isStatic: false, isSensor: true});
-        particleContainer.addChild(particle)
+        world.addChild(particle)
         Matter.World.add(engine.world, particle.body);
         let randomMassX = Math.random() * particle.body.mass
         const randomMassY = Math.random() * particle.body.mass
@@ -2513,7 +2473,7 @@ window.onload = async function () {
                 }
             }
             if (b.position.x < zeroLeft) {
-                particleContainer.removeChild(b)
+                world.removeChild(b)
                 Matter.World.remove(engine.world, b.body);
                 physParticles.splice(idx, 1)
             }
