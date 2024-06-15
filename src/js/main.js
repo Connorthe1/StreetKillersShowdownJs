@@ -37,7 +37,7 @@ const playerState = {
     currentSkin: 0,
     activePowerUps: [],
     skillCD: false,
-    stimpack: false
+    stimpack: false,
 }
 let initSpeed = 5
 let playerDefaultSpeed = initSpeed
@@ -52,7 +52,8 @@ const gameState = {
     scoreStreak: 0,
     collectedMoney: 0,
 }
-let player
+let music = null
+let player = null
 let playerPos = WORLD_HEIGHT - 230
 let secondFloor = WORLD_HEIGHT - 420
 let meleeKill = null
@@ -263,7 +264,7 @@ window.onload = async function () {
 
     createSwipes()
     //VK load
-    // await getData()
+    await getData()
 
     //LOAD ASSETS
     await PIXI.Assets.load('./assets/fonts/anothercastle3.ttf');
@@ -318,8 +319,7 @@ window.onload = async function () {
         world.name = 'world'
         app.stage.addChild(world)
         world.sortableChildren = true;
-        // world.y = 100
-        // world.scale.set(gameScale)
+        world.scale.set(gameScale)
         fg = new Group(9, true)
         world.addChild(new Layer(fg));
 
@@ -392,6 +392,8 @@ window.onload = async function () {
         HUDpoints()
         HUDpause()
         createPlayer()
+
+        music = soundPlayer.startMusic()
         document.addEventListener('keyup', events)
         app.ticker.maxFPS = 60
         app.ticker.minFPS = 60
@@ -401,7 +403,9 @@ window.onload = async function () {
     }
 
     function restartGame() {
-        app.stage.removeChild(app.app.stage.getChildByName('endScreen'))
+        music.destroy()
+        music = null
+        app.stage.removeChild(app.stage.getChildByName('endScreen'))
         app.stage.removeChild(world)
         app.ticker.remove(ticker)
         zeroLeft = 0
@@ -482,6 +486,7 @@ window.onload = async function () {
         init()
     }
     async function endGame(toRestart) {
+        music.stop()
         gameEnd = true
         app.stage.removeChild(hud)
         timeouts.length = 0
@@ -643,7 +648,8 @@ window.onload = async function () {
             }, 10);
         });
 
-        await bridge.send("VKWebAppStorageSet", {key: 'storage', value: JSON.stringify(storage)})
+        localStorage.setItem('storage', JSON.stringify(storage))
+        // await bridge.send("VKWebAppStorageSet", {key: 'storage', value: JSON.stringify(storage)})
         //EXIT
         const exit = new PIXI.Sprite(menuButtons.textures.exit)
         exit.scale.set(0.7, 0.6)
@@ -1208,14 +1214,16 @@ window.onload = async function () {
         exit.on('pointerdown', () => {
             menu.removeChildren(0, menu.children.length)
             createMenu()
-            bridge.send("VKWebAppStorageSet", {key: 'storage', value: JSON.stringify(storage)})
+            localStorage.setItem('storage', JSON.stringify(storage))
+            // bridge.send("VKWebAppStorageSet", {key: 'storage', value: JSON.stringify(storage)})
         });
     }
 
     function trailTimer() {
-        player.onFrameChange = () => {
+        const interval = setInterval(() => {
             if (gameEnd || !player) {
                 stepSound = 0
+                clearInterval(interval)
                 return
             }
             if (playerState.stimpack) {
@@ -1239,7 +1247,7 @@ window.onload = async function () {
                     }
                 }
             }
-        }
+        }, 100)
     }
 
     function spawnEntity() {
@@ -1344,6 +1352,10 @@ window.onload = async function () {
             if (meleeKillStreak > 0) {
                 meleeKillStreak -= 1.5
             }
+        })
+        sleep((skip && !noDamage ? 0 : 300)).then(() => {
+            playerSpeed = playerState.inCover ? 0 : playerDefaultSpeed
+            playAnim(playerState.inCover ? 'idle' : '')
         })
     }
 
@@ -1617,7 +1629,7 @@ window.onload = async function () {
         }, 10)
         await sleep(duration)
         clearInterval(timer)
-        world.pivot.y = ground.getLocalBounds().y - ground.getLocalBounds().height * 1.2
+        world.pivot.y = (-world.pivot.y)
     }
 
     function damagePlayer() {
@@ -1685,7 +1697,7 @@ window.onload = async function () {
             const dtX = 1 - Math.exp(-delta / 5)
             const dtY = 1 - Math.exp(-delta / 20)
             world.pivot.x = ((player.x - 60) - world.pivot.x) * dtX + world.pivot.x;
-            world.pivot.y = ((ground.getLocalBounds().y - ground.getLocalBounds().height * 1.2) - world.pivot.y) * dtY + world.pivot.y;
+            world.pivot.y = (-world.pivot.y) * dtY + world.pivot.y;
         }
         player.x += (0.5 * playerSpeed) * gameSpeed;
         zeroLeft = player.x - 100
@@ -3171,7 +3183,7 @@ window.onload = async function () {
         const part = new PIXI.Container()
         const floor = new PIXI.Sprite(textures.textures.ground)
         floor.anchor.set(0,1)
-        floor.position.set((floorPosition + idx) * floor.width, WORLD_HEIGHT + 30)
+        floor.position.set((floorPosition + idx) * floor.width, WORLD_HEIGHT)
         floor.tint = groundColor[selectGroundColor]
         let bgWall
         const randomWall = Math.floor(Math.random() * (10 - 1 + 1) + 1)
@@ -3632,57 +3644,48 @@ window.onload = async function () {
     }
 
     function playAnim(anim) {
-        if (!player) return
-        if (!anim || anim === 'idle') {
-            player.loop = true
-        } else {
-            player.loop = false
-        }
-        if (anim === 'reload' && gun.reloadAnim) {
-            player.animationSpeed = gun.reloadAnim
-        } else {
-            player.animationSpeed = 0.2
-        }
-        if (gun.noStop) {
-            if (anim === 'shotEnd') return playerState.state = ""
-            if (anim === 'shot' && !playerState.inCover) {
-                if (playerState.state) {
-                    playerState.state = anim
-                    player.textures = playerState.currentSkin.animations.run
-                    player.tint = player.color
-                    player.play()
-                    return
-                }
-                return playerState.state = anim
-            }
-        }
-        if (!anim) {
-            playerState.state = ""
-            player.textures = playerState.currentSkin.animations.run
-            player.tint = player.color
-            player.play()
-        } else {
-            if (anim === 'roll' || anim === 'rollEnd') {
-                player.tint = player.shadow
+        console.log(anim);
+        if (!player) return;
+
+        player.loop = !anim || anim === 'idle';
+        player.animationSpeed = (anim === 'reload' && gun.reloadAnim) ? gun.reloadAnim : 0.2;
+
+        if (gun.noStop && anim === 'shot' && !playerState.inCover) {
+            if (playerState.state) {
+                updatePlayerState(anim, playerState.currentSkin.animations.run, player.color);
             } else {
-                if (playerState.inCover && anim !== 'shot') {
-                    player.tint = player.shadow
-                } else {
-                    player.tint = player.color
-                }
+                playerState.state = anim;
             }
+            return;
+        }
+
+        if (!anim || (anim === 'shotEnd' && gun.noStop)) {
+            resetPlayerState();
+        } else {
+            player.tint = (anim === 'roll' || anim === 'rollEnd' || (playerState.inCover && anim !== 'shot')) ? player.shadow : player.color;
             if (anim === 'idle' || anim === 'zipLine') {
-                if (anim === 'idle') {
-                    player.anchor.y = 0.7
-                }
-                playerState.state = ''
+                if (anim === 'idle') player.anchor.y = 0.7;
+                updatePlayerState('', playerState.currentSkin.animations[anim], player.tint);
             } else {
-                playerState.state = anim
+                updatePlayerState(anim, playerState.currentSkin.animations[anim], player.tint);
             }
-            player.textures = playerState.currentSkin.animations[anim]
-            player.play()
         }
     }
+
+    function updatePlayerState(state, textures, tint) {
+        playerState.state = state;
+        player.textures = textures;
+        player.tint = tint;
+        player.play();
+    }
+
+    function resetPlayerState() {
+        playerState.state = '';
+        player.textures = playerState.currentSkin.animations.run;
+        player.tint = player.color;
+        player.play();
+    }
+
 
     function events(e) {
         if (playerState.health === 0 || gameEnd || isPause || isMenu || !gameStart) return
@@ -3742,6 +3745,7 @@ window.onload = async function () {
                             if (playerState.inCover || playerState.inZipLine) {
                                 gameState.scoreStreak += 1
                             } else {
+                                if (meleeKill) return
                                 playerSpeed = playerDefaultSpeed
                                 playAnim()
                             }
@@ -4110,6 +4114,7 @@ window.onload = async function () {
             allAnimated.forEach(item => {
                 item.stop()
             })
+            music.set('paused', true)
             isPause = true
             hud.getChildByName('magazine').visible = false
             pauseMenu.visible = true
@@ -4137,6 +4142,7 @@ window.onload = async function () {
                     allAnimated.forEach(item => {
                         item.play()
                     })
+                    music.set('paused', false)
                     isPause = false
                     pause.visible = true
                     timeouts.forEach(item => {
@@ -4229,22 +4235,29 @@ window.onload = async function () {
         }
     }
 
+    // async function getData() {
+    //     return
+    //     try {
+    //         await bridge.send('VKWebAppInit')
+    //         const checkAcc = await bridge.send('VKWebAppStorageGetKeys', {count: 1})
+    //         console.log(checkAcc)
+    //         if (checkAcc.keys.length === 0) {
+    //             await bridge.send("VKWebAppStorageSet", {key: 'storage', value: JSON.stringify(baseStorage)})
+    //         }
+    //         const getStorageFromVk = await bridge.send("VKWebAppStorageGet",{keys: ['storage']})
+    //         console.log(getStorageFromVk)
+    //         const parse = JSON.parse(getStorageFromVk.keys[0].value)
+    //         storage = parse
+    //         console.log(parse)
+    //     } catch (e) {
+    //         console.log(e)
+    //     }
+    // }
+
     async function getData() {
-        return
-        try {
-            await bridge.send('VKWebAppInit')
-            const checkAcc = await bridge.send('VKWebAppStorageGetKeys', {count: 1})
-            console.log(checkAcc)
-            if (checkAcc.keys.length === 0) {
-                await bridge.send("VKWebAppStorageSet", {key: 'storage', value: JSON.stringify(baseStorage)})
-            }
-            const getStorageFromVk = await bridge.send("VKWebAppStorageGet",{keys: ['storage']})
-            console.log(getStorageFromVk)
-            const parse = JSON.parse(getStorageFromVk.keys[0].value)
+        const parse = JSON.parse(localStorage.getItem('storage'))
+        if (parse) {
             storage = parse
-            console.log(parse)
-        } catch (e) {
-            console.log(e)
         }
     }
 

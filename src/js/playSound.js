@@ -123,6 +123,9 @@ class SoundPlayer {
     useSkill() {
         sound.play('useSkill', {volume: 2})
     }
+    startMusic() {
+        return sound.play('music1', {volume: 1})
+    }
 }
 
 const soundPlayer = new SoundPlayer()
