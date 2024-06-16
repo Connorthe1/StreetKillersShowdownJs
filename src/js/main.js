@@ -9,6 +9,9 @@ import skinStore from './skinStore.json'
 import storeUpgrades from './upgrades.json'
 import bridge from '@vkontakte/vk-bridge';
 
+window.Telegram.WebApp.ready()
+window.Telegram.WebApp.expand()
+
 const timeouts = []
 let gameWidth
 let gameHeight
