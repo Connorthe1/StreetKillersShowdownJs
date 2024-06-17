@@ -27,6 +27,8 @@ let WORLD_WIDTH = Math.floor(gameWidth / gameScale);
 let WORLD_HEIGHT = Math.floor(gameHeight / gameScale);
 let zeroLeft = 0
 let zeroRight = WORLD_WIDTH
+let defaultGameSpeed = 1
+let slowGameSpeed = 0.1
 let gameSpeed = 1
 
 const playerState = {
@@ -41,6 +43,7 @@ const playerState = {
     activePowerUps: [],
     skillCD: false,
     stimpack: false,
+    rollId: null,
 }
 let initSpeed = 5
 let playerDefaultSpeed = initSpeed
@@ -213,7 +216,7 @@ const baseStorage = {
     muteSound: false,
     muteMusic: false,
     lastUpdate: 0,
-    selectedSkin: 0,
+    selectedSkin: 2,
     ownedSkins: [0],
     activeItems: {
         stimpack: 0,
@@ -267,7 +270,7 @@ window.onload = async function () {
 
     createSwipes()
     //VK load
-    await getData()
+    // await getData()
 
     //LOAD ASSETS
     await PIXI.Assets.load('./assets/fonts/anothercastle3.ttf');
@@ -401,6 +404,11 @@ window.onload = async function () {
         app.ticker.maxFPS = 60
         app.ticker.minFPS = 60
         app.ticker.add(ticker)
+        if (Math.floor(app.ticker.FPS) <= 35) {
+            defaultGameSpeed = 2
+            slowGameSpeed = 0.2
+        }
+        gameSpeed = defaultGameSpeed
         scoreTimer()
         trailTimer()
     }
@@ -413,7 +421,7 @@ window.onload = async function () {
         app.ticker.remove(ticker)
         zeroLeft = 0
         zeroRight = WORLD_WIDTH
-        gameSpeed = 1
+        gameSpeed = defaultGameSpeed
 
         playerState.state = ''
         playerState.afterRoll = true
@@ -671,6 +679,11 @@ window.onload = async function () {
         if (player.x > 100) {
             gameStart = true
         }
+        if (playerState.rollId !== null && playerState.state !== 'rollEnd') {
+            console.log('stopRoll')
+            playerState.rollId.stop()
+            playerState.rollId = null
+        }
         hud.getChildByName('fps').text = Math.floor(app.ticker.FPS)
         Matter.Engine.update(engine);
         if (meleeKill) {
@@ -678,9 +691,9 @@ window.onload = async function () {
             const UiBounds = meleeKill.getLocalBounds()
             const selector = meleeKill.getChildAt(2)
             if (meleeKillSelectorSide) {
-                selector.x += (meleeKillSelectorSpeed + meleeKillStreak)
+                selector.x += ((meleeKillSelectorSpeed + meleeKillStreak) * defaultGameSpeed)
             } else {
-                selector.x -= (meleeKillSelectorSpeed + meleeKillStreak)
+                selector.x -= ((meleeKillSelectorSpeed + meleeKillStreak) * defaultGameSpeed)
             }
             if (selector.x + selector.width >= UiBounds.x + UiBounds.width) {
                 meleeKillSelectorSide = false
@@ -690,8 +703,11 @@ window.onload = async function () {
             }
         }
         if (gameState.pointsToAdd > 0) {
-            gameState.pointsToAdd--
-            gameState.points++
+            if (gameState.pointsToAdd < 0) {
+                gameState.pointsToAdd = 0;
+            }
+            gameState.pointsToAdd -= Math.max(1, Math.floor(gameState.pointsToAdd / 50))
+            gameState.points += Math.max(1, Math.floor(gameState.pointsToAdd / 50))
             hud.getChildByName('points').text = gameState.points;
         }
         hud.getChildByName('scale').text = `x${gameState.multiplier.toFixed(1)}`;
@@ -735,7 +751,7 @@ window.onload = async function () {
         if (playerState.inZipLine) {
             spawnTrailParticle(player)
             if (playerState.inZipLine === 'top') {
-                player.y -= 5
+                player.y -= (5 * defaultGameSpeed)
                 if (player.y < secondFloor) {
                     playerState.inZipLine = ''
                     player.rotation = 0
@@ -748,7 +764,7 @@ window.onload = async function () {
                     events(e)
                 }
             } else {
-                player.y += 5
+                player.y += (5 * defaultGameSpeed)
                 if (player.y > playerPos) {
                     playerState.inZipLine = ''
                     player.rotation = 0
@@ -766,10 +782,11 @@ window.onload = async function () {
         }
         const detectedWall = detectWall()
         if (detectedWall && !playerState.inCover) {
-            if (((playerState.state === 'roll' || playerState.state === 'rollEnd') && !playerState.leaveCover) || detectedWall.forBoss) {
+            if (((playerState.state === 'roll' || playerState.state === 'rollEnd') && !playerState.leaveCover) || (detectedWall.forBoss && !currentBoss.params.dead)) {
                 playerState.inBossFight = detectedWall.forBoss
                 playerState.inCover = true
                 playerSpeed = 0
+                player.x = detectedWall.coverX
                 playAnim('idle')
             }
         }
@@ -945,7 +962,6 @@ window.onload = async function () {
         exit.anchor.set(1, 1)
         exit.position.set(gameWidth - 20, gameHeight - 20)
         store.addChild(exit)
-
         const scrollUpgrades = new Scrollbox({
             boxWidth: gameWidth,
             boxHeight: gameHeight - 290,
@@ -1302,12 +1318,12 @@ window.onload = async function () {
         if (!isBuilding && !currentBoss && (afterBuilding < zeroRight - WORLD_WIDTH / 2)) {
             if (Math.random() < Math.min(gameState.points / 40000, 0.1) && gameState.points > 2000) {
                 console.log('boss')
-                createBoss()
+                createBoss(random(1,3))
                 return
             }
             if (Math.random() < 0.3) {
                 console.log('bochka')
-                createBochka()
+                createBarrel()
                 return
             }
             if (Math.random() < 0.5) {
@@ -1347,7 +1363,7 @@ window.onload = async function () {
         } else {
             if (!noDamage) damagePlayer()
         }
-        gameSpeed = 1
+        gameSpeed = defaultGameSpeed
         hud.removeChild(meleeKill)
         meleeKill = null
         clearTimeout(meleeKillStreakTimer)
@@ -1356,14 +1372,13 @@ window.onload = async function () {
                 meleeKillStreak -= 1.5
             }
         })
-        sleep((skip && !noDamage ? 0 : 300)).then(() => {
-            playerSpeed = playerState.inCover ? 0 : playerDefaultSpeed
-            playAnim(playerState.inCover ? 'idle' : '')
-        })
+        if (!skip) playerState.rollId?.resume(200, 700)
     }
 
     function HUDmeleeKill(enemy) {
-        gameSpeed = 0.1
+        console.log('startMelee')
+        playerState.rollId?.pause()
+        gameSpeed = slowGameSpeed
         meleeKill = new PIXI.Container()
         const redBar = PIXI.Sprite.from(PIXI.Texture.WHITE);
         redBar.height = 50
@@ -1474,7 +1489,7 @@ window.onload = async function () {
                 if (playerState.state === 'roll' || playerState.state === 'rollEnd') {
                     addPoints(20)
                     gameState.scoreStreak += 1
-                    playerSpeed = playerDefaultSpeed * 2
+                    playerSpeed = playerDefaultSpeed * 1.5
                     soundPlayer.waterStep()
                     for (let i = 0; i <= 20; i++) {
                         createParticles({x: puddle.x, y: puddle.y - 10}, 'drop')
@@ -2096,9 +2111,11 @@ window.onload = async function () {
         if (isRoof) {
             const randomWall = Math.floor(Math.random() * (1 + 1))
             wall = new PIXI.Sprite(inFloorTexture.textures[`Floor-${randomWall}`])
+            wall.coverX = pos - 34
         } else {
             const randomWall = Math.floor(Math.random() * (2 + 1))
             wall = new PIXI.Sprite(inBuildTexture.textures[`inhouse-${randomWall}`])
+            wall.coverX = pos - 20
         }
         wall.bound = 0
         wall.anchor.set(0.5, 1)
@@ -2221,14 +2238,17 @@ window.onload = async function () {
         switch (true) {
             case type === 0:
                 wall.bound = 50
+                wall.coverX = pos - 42
                 wall.position.set(pos, ground.getLocalBounds().y + 31)
             break
             case type === 1:
                 wall.bound = 80
+                wall.coverX = pos - 26
                 wall.position.set(pos, ground.getLocalBounds().y + 25)
             break
             case type === 2:
                 wall.bound = 80
+                wall.coverX = pos - 30
                 wall.position.set(pos, ground.getLocalBounds().y + 33)
             break
         }
@@ -2773,7 +2793,7 @@ window.onload = async function () {
     function updateGrenades() {
         grenades.forEach((b, idx) => {
             if (b.dead) return
-            if ((player.x + 40 > b.x && b.x + b.width > player.x) && playerState.state === 'shot') {
+            if ((player.x + 40 > b.x && b.x + b.width > player.x) && playerState.state === 'shot' && b.body.speed > 2) {
                 activateGrenade(b, idx, true)
                 return
             }
@@ -2799,8 +2819,8 @@ window.onload = async function () {
         world.addChild(grenade)
 
         Matter.World.add(engine.world, grenade.body);
-        let randomMassX = Math.random() * (0.4 - 0.2) + 0.2
-        Matter.Body.applyForce(grenade.body, grenade.body.position, {x: -randomMassX / 100, y: -0.001});
+        let randomMassX = Math.random() * (0.2 - 0.1) + 0.1
+        Matter.Body.applyForce(grenade.body, grenade.body.position, {x: -randomMassX / 100, y: -0.0005});
         grenades.push(grenade)
     }
 
@@ -3104,7 +3124,7 @@ window.onload = async function () {
                 }
                 //check player bullets
                 playerBullets.forEach((bullet, idx) => {
-                    if (enemy.x + 10 < bullet.x + bullet.width && enemy.x + enemy.width > bullet.x && enemy.y - enemy.height / 2 < bullet.y && enemy.y + enemy.height / 2 > bullet.y) {
+                    if (enemy.x - enemy.width / 2 < bullet.x + bullet.width && enemy.x + enemy.width / 2 > bullet.x && enemy.y - enemy.height / 2 < bullet.y && enemy.y + enemy.height / 2 > bullet.y) {
                         if (enemy.params.inCover) return
                         world.removeChild(bullet)
                         playerBullets.splice(idx, 1)
@@ -3335,18 +3355,20 @@ window.onload = async function () {
         world.addChild(powerUp)
     }
 
-    function createBochka() {
+    function createBarrel() {
         const randomPos = Math.floor(zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50))
         if (afterBuilding > randomPos - 100) {
             return
         }
+        let findErr
         traps.forEach(trap => {
             const t = trap.getLocalBounds()
             if (randomPos > t.x - 100 &&
                 randomPos < t.x + t.width + 100) {
-                return
+                findErr = true
             }
         })
+        if (findErr) return
         const bochkaContainer = new PIXI.Container()
         const bochkaTop = new PIXI.AnimatedSprite(bochka.animations.bochkaTop)
         const bochkaDown = new PIXI.AnimatedSprite(bochka.animations.bochkaDown)
@@ -3396,7 +3418,7 @@ window.onload = async function () {
         const b = barrel.getBounds()
         if (currentDogEnemy) {
             const e = currentDogEnemy.getBounds()
-            if (e.x + e.width > b.x - 100 && e.x < b.x + 200) {
+            if (e.x + e.width > b.x - 100 && e.x < b.x + b.width + 100) {
                 if (currentDogEnemy.params.dead) return
                 damageEnemy(currentDogEnemy, 4)
             }
@@ -3410,7 +3432,7 @@ window.onload = async function () {
         })
         if (!playerState.inCover) {
             const p = player.getBounds()
-            if (p.x + p.width > b.x && p.x + 40 < b.x + 100) {
+            if (p.x + p.width > b.x - 20 && p.x + 40 < b.x + b.width + 20) {
                 damagePlayer()
             }
         }
@@ -3539,10 +3561,12 @@ window.onload = async function () {
             wall = new PIXI.Sprite(textures.textures.coverTrash)
             wall.position.set(randomPos, ground.getLocalBounds().y + 36)
             wall.bound = -20
+            wall.coverX = randomPos - 28
         } else {
             wall = new PIXI.Sprite(textures.textures.wall)
             wall.position.set(randomPos, ground.getLocalBounds().y + 36)
             wall.bound = 0
+            wall.coverX = randomPos - 20
         }
         if (forBoss) {
             wall.forBoss = true
@@ -3585,12 +3609,12 @@ window.onload = async function () {
                 })
             }
             for (let i = 0; i < (eventGun === 'shotgun' ? 3 : 1); i++) {
-                playerBullets.push(spawnBullet(shot.x, shot.y))
+                playerBullets.push(spawnBullet(shot.x - 10, shot.y))
             }
         } else {
             shot.position.set(((char.x + 4) - char.width / 2) + offsetX, (char.y - 10) + offsetY)
             for (let i = 0; i < (eventGun === 'shotgun' ? 3 : 1); i++) {
-                enemyBullets.push(spawnBullet(shot.x, shot.y, char))
+                enemyBullets.push(spawnBullet(shot.x + 10, shot.y, char))
             }
         }
         if (eventGun !== 'shotgun' && eventGun !== 'revolver') spawnBounceParticle(char, 'shell')
@@ -3647,7 +3671,6 @@ window.onload = async function () {
     }
 
     function playAnim(anim) {
-        console.log(anim);
         if (!player) return;
 
         player.loop = !anim || anim === 'idle';
@@ -3743,8 +3766,8 @@ window.onload = async function () {
                         playerState.leaveCover = false
                         if (playerState.inZipLine || playerState.state !== 'roll') return
                         playAnim('rollEnd')
-                        sleep(650).then(() => {
-                            if (playerState.state !== 'rollEnd' || gun.noStop) return
+                        sleep(550, true).then(() => {
+                            console.log('resolve')
                             if (playerState.inCover || playerState.inZipLine) {
                                 gameState.scoreStreak += 1
                             } else {
@@ -3752,7 +3775,9 @@ window.onload = async function () {
                                 playerSpeed = playerDefaultSpeed
                                 playAnim()
                             }
+                            playerState.rollId = null
                         })
+                        if (meleeKill) playerState.rollId.pause()
                     };
                 }
             break
@@ -3786,18 +3811,25 @@ window.onload = async function () {
                             shot(player, gun.offsetX, gun.offsetY, gun.type, true)
                         })
                     }
-                    if (!gun.noStop) playerSpeed = 0
-                    player.onComplete = () => {
-                        if (playerState.inCover) {
-                            playAnim('idle')
-                            return
-                        }
-                        if (!gun.noStop) {
+                    if (!gun.noStop) {
+                        playerSpeed = 0
+                        player.onComplete = () => {
+                            if (playerState.inCover) {
+                                playAnim('idle')
+                                return
+                            }
                             playerSpeed = playerDefaultSpeed
                             playAnim()
-                        } else {
-                            playAnim('shotEnd')
                         }
+                    } else {
+                        if (playerState.inCover) {
+                            player.onComplete = () => {
+                                playAnim('idle')
+                            }
+                            return
+                        }
+                        playerSpeed = playerDefaultSpeed
+                        playAnim()
                     }
                 }
             break
@@ -4376,14 +4408,19 @@ function getPercent(value, percent) {
 //     });
 // }
 
-async function sleep(time) {
+async function sleep(time, isRoll) {
     const idx = timeouts.length
     return new Promise((resolve, reject) => {
-        const timer = new Timer(function() {
+        const timer = new Timer(function(e) {
             timeouts.splice(idx ,1)
             resolve(true);
         }, time);
-        timeouts.push(timer)
+        if (isRoll) {
+            console.log('rollId Created')
+            playerState.rollId = timer
+        } else {
+            timeouts.push(timer)
+        }
     });
 }
 
@@ -4396,13 +4433,21 @@ const Timer = function(callback, delay) {
         remaining -= Date.now() - start;
     };
 
-    this.resume = function() {
+    this.resume = function(time = 0, maxTime) {
         if (timerId) {
             return;
         }
-
+        const maxRemaining = maxTime ? Math.min(maxTime, remaining + time) : remaining + time
         start = Date.now();
-        timerId = window.setTimeout(callback, remaining);
+        timerId = window.setTimeout(callback, maxRemaining);
+    };
+
+    this.stop = function() {
+        if (timerId) {
+            window.clearTimeout(timerId);
+            timerId = null;
+        }
+        return false
     };
 
     this.resume();
