@@ -8,6 +8,9 @@ import { Scrollbox } from 'pixi-scrollbox';
 import skinStore from './skinStore.json'
 import storeUpgrades from './upgrades.json'
 import bridge from '@vkontakte/vk-bridge';
+import { Player, playerState, playerDefaultSpeed, playerSpeed, initSpeed, playerPos, secondFloor, player, playerBullets, gun, shotsArr, meleeKill, meleeKillSelectorSide, meleeKillSelectorSpeed, meleeKillStreak, meleeKillStreakTimer, triggerDelay, updateGunFromSkin } from './Player.js'
+
+let playerInstance;
 
 window.Telegram.WebApp.ready()
 window.Telegram.WebApp.expand()
@@ -31,23 +34,6 @@ let defaultGameSpeed = 1
 let slowGameSpeed = 0.1
 let gameSpeed = 1
 
-const playerState = {
-    state: '',
-    afterRoll: true,
-    inCover: false,
-    invincible: false,
-    inZipLine: false,
-    inBossFight: false,
-    health: 3,
-    currentSkin: 0,
-    activePowerUps: [],
-    skillCD: false,
-    stimpack: false,
-    rollId: null,
-}
-let initSpeed = 5
-let playerDefaultSpeed = initSpeed
-let playerSpeed = playerDefaultSpeed
 let distance = 0
 const gameState = {
     points: 0,
@@ -59,16 +45,9 @@ const gameState = {
     collectedMoney: 0,
 }
 let music = null
-let player = null
 let playerPos = WORLD_HEIGHT - 230
 let secondFloor = WORLD_HEIGHT - 420
-let meleeKill = null
-let meleeKillSelectorSide = true
-let meleeKillSelectorSpeed = 6
-let meleeKillStreak = 0
-let meleeKillStreakTimer = null
 
-const playerBullets = []
 const enemyBullets = []
 const bulletSpeed = 30
 
@@ -92,20 +71,6 @@ let isClub = false
 const buildingChance = 2
 let buildingType = 0
 
-let triggerDelay = false
-const gun = {
-    ammo: 5,
-    currentAmmo: 5,
-    angle: 0.4,
-    type: 'pistol',
-    noStop: false,
-    damage: 1,
-    reloadTime: 1100,
-    shotDelay: 150,
-    shotTrigger: 300,
-    offsetX: 30,
-    offsetY: 12
-}
 const shotsArr = []
 
 const groundColor = ['#eaaaaa','#7f8bff','#a2e0ae']
@@ -334,7 +299,7 @@ window.onload = async function () {
         app.stage.addChild(hud)
         hud.sortableChildren = true;
         hud.parentGroup = hudLayer
-        hud.zOrder = 99
+        hud.zOrder = 9
 
         background = createBg(bg)
         woodsBG = new PIXI.Container()
@@ -352,52 +317,24 @@ window.onload = async function () {
         }
         playerPos = ground.getLocalBounds().y + 70
         secondFloor = ground.getLocalBounds().y - 120
+        
+        // Initialize player instance
+        playerInstance = new Player()
     }
 
     function startGame() {
-        if (skinStore[Number(storage.selectedSkin)].gunAmmo) {
-            gun.ammo = skinStore[Number(storage.selectedSkin)].gunAmmo
-            gun.currentAmmo = skinStore[Number(storage.selectedSkin)].gunAmmo
-        }
-        if (skinStore[Number(storage.selectedSkin)].gunAngle) {
-            gun.angle = skinStore[Number(storage.selectedSkin)].gunAngle
-        }
-        if (skinStore[Number(storage.selectedSkin)].speedAmp) {
-            playerDefaultSpeed += skinStore[Number(storage.selectedSkin)].speedAmp
-            playerSpeed = playerDefaultSpeed
-            initSpeed = playerDefaultSpeed
-        }
-        if (skinStore[Number(storage.selectedSkin)].noStop) {
-            gun.noStop = true
-        }
-        if (skinStore[Number(storage.selectedSkin)].offsetX) {
-            gun.offsetX = skinStore[Number(storage.selectedSkin)].offsetX
-        }
-        if (skinStore[Number(storage.selectedSkin)].offsetY) {
-            gun.offsetY = skinStore[Number(storage.selectedSkin)].offsetY
-        }
-        if (skinStore[Number(storage.selectedSkin)].reloadTime) {
-            gun.reloadTime = skinStore[Number(storage.selectedSkin)].reloadTime
-            gun.reloadAnim = skinStore[Number(storage.selectedSkin)].reloadAnim
-        }
-        if (skinStore[Number(storage.selectedSkin)].gunDamage) {
-            gun.damage = skinStore[Number(storage.selectedSkin)].gunDamage
-        }
-        if (skinStore[Number(storage.selectedSkin)].gunShotDelay) {
-            gun.shotDelay = skinStore[Number(storage.selectedSkin)].gunShotDelay
-        }
-        if (skinStore[Number(storage.selectedSkin)].melee) {
-            gun.melee = skinStore[Number(storage.selectedSkin)].melee
-        }
-        gun.type = skinStore[Number(storage.selectedSkin)].gun
-        playerState.currentSkin = skinStore[Number(storage.selectedSkin)].param
-        gun.angle = getPercent(gun.angle, 100 - 10 * storage.upgrades.accuracy)
-        gun.shotTrigger = getPercent(gun.shotTrigger, 100 - 10 * storage.upgrades.gunTrigger)
+        updateGunFromSkin(storage.selectedSkin, storage, getPercent);
 
         HUDbullets()
         HUDpoints()
         HUDpause()
-        createPlayer()
+        if (playerInstance) {
+            const playerSkin = playerState.currentSkin || skinStore[Number(storage.selectedSkin)].param
+            player = playerInstance.createPlayer(playerSkin, -100, playerPos)
+            world.addChild(player)
+        } else {
+            createPlayer()
+        }
 
         music = soundPlayer.startMusic()
         document.addEventListener('keyup', events)
@@ -484,12 +421,6 @@ window.onload = async function () {
         bgCar = null
         currentDogEnemy = null
         currentCan = null
-
-        meleeKill = null
-        meleeKillSelectorSide = true
-        meleeKillSelectorSpeed = 6
-        meleeKillStreak = 0
-        meleeKillStreakTimer = null
 
         isPause = false
         gameStart = false
@@ -676,7 +607,7 @@ window.onload = async function () {
 
     function ticker(delta) {
         if (gameEnd || isPause) return
-        if (player.x > 100) {
+        if (player && player.x > 10) {
             gameStart = true
         }
         if (playerState.rollId !== null && playerState.state !== 'rollEnd') {
@@ -713,7 +644,10 @@ window.onload = async function () {
         hud.getChildByName('scale').text = `x${gameState.multiplier.toFixed(1)}`;
         updateScore()
         updateGarbage()
-        updatePlayer(delta)
+        // Use the Player module's updatePlayer method
+        if (playerInstance) {
+            playerInstance.updatePlayer(delta, gameEnd, gameStart, gameSpeed, enemyBullets, world, soundPlayer, damagePlayer)
+        }
         updateBg()
         updateFloor()
         updateBullets()
@@ -771,7 +705,7 @@ window.onload = async function () {
                     playerSpeed = playerDefaultSpeed
                     player.y = playerPos
                     playerState.secondFloor = false
-                    playAnim('')
+                    if (playerInstance) playerInstance.playAnim('')
                 }
             }
         }
@@ -787,7 +721,7 @@ window.onload = async function () {
                 playerState.inCover = true
                 playerSpeed = 0
                 player.x = detectedWall.coverX
-                playAnim('idle')
+                if (playerInstance) playerInstance.playAnim('idle')
             }
         }
     }
@@ -1734,20 +1668,10 @@ window.onload = async function () {
     }
 
     function createPlayer() {
-        player = new PIXI.AnimatedSprite(playerState.currentSkin.animations.run)
-        player.color = player.tint
-        player.shadow = 11776947
-        player.anchor.set(0.5)
-        player.scale.x = 2
-        player.scale.y = 2
-        player.animationSpeed = 0.2
-        player.autoUpdate = true
-        player.loop = true
-        player.parentGroup = fg
-        player.zOrder = 5
-        player.position.set(-100, playerPos)
-        world.addChild(player)
-        player.play()
+        if (playerInstance) {
+            player = playerInstance.createPlayer(playerState.currentSkin)
+            world.addChild(player)
+        }
     }
 
     function spawnTrailParticle(pos, tint) {
