@@ -9,6 +9,7 @@ import skinStore from './skinStore.json'
 import storeUpgrades from './upgrades.json'
 import bridge from '@vkontakte/vk-bridge';
 import { Player, playerState, playerDefaultSpeed, playerSpeed, initSpeed, playerPos, secondFloor, player, playerBullets, gun, shotsArr, meleeKill, meleeKillSelectorSide, meleeKillSelectorSpeed, meleeKillStreak, meleeKillStreakTimer, triggerDelay, updateGunFromSkin } from './Player.js'
+import { getPercent, random, randomRGB } from './utils/GameUtils.js'
 
 let playerInstance;
 
@@ -2066,13 +2067,7 @@ window.onload = async function () {
         })
     }
 
-    function randomRGB() {
-        const randomBetween = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
-        const r = randomBetween(0, 255);
-        const g = randomBetween(0, 255);
-        const b = randomBetween(0, 255);
-        return (r << 16) + (g << 8) + (b);
-    }
+    // randomRGB перенесена в utils/GameUtils.js
 
     function createClub() {
         let position = zeroRight + 300
@@ -4320,9 +4315,7 @@ window.onload = async function () {
     }
 }
 
-function getPercent(value, percent) {
-    return (value / 100) * percent
-}
+// getPercent перенесена в utils/GameUtils.js
 
 // async function sleep(time) {
 //     return new Promise((resolve, reject) => {
@@ -4377,12 +4370,5 @@ const Timer = function(callback, delay) {
     this.resume();
 };
 
-function random(min, max, noFloor, noMin) {
-    const res = Math.random() * (max - min + (noMin ? 0 : 1)) + min
-    if (noFloor) {
-        return res
-    } else {
-        return Math.floor(res)
-    }
-}
+// random перенесена в utils/GameUtils.js
 
