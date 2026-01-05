@@ -14,6 +14,9 @@ import { GAME_SCALE, DEFAULT_GAME_SPEED, SLOW_GAME_SPEED, BULLET_SPEED, FENCE_CH
 import { GameState } from './core/GameState.js'
 import { StorageManager, BASE_STORAGE } from './storage/StorageManager.js'
 import { ResourceLoader } from './resources/ResourceLoader.js'
+import { PhysicsManager } from './physics/PhysicsManager.js'
+import { ParticleManager } from './entities/Particle.js'
+import { BulletManager } from './entities/Bullet.js'
 
 let playerInstance;
 
@@ -49,8 +52,10 @@ let music = null
 let playerPos = WORLD_HEIGHT - 230
 let secondFloor = WORLD_HEIGHT - 420
 
-const enemyBullets = []
+// Массивы пуль теперь управляются через BulletManager
+let enemyBullets = []
 const bulletSpeed = BULLET_SPEED
+let bulletManager // Инициализируется после создания world
 
 let background
 let bgPosition = 0
@@ -72,7 +77,8 @@ let isClub = false
 const buildingChance = BUILDING_CHANCE
 let buildingType = 0
 
-const shotsArr = []
+// shotsArr импортируется из Player.js, но также управляется через BulletManager
+let shotsArr = []
 
 const groundColor = GROUND_COLORS
 let selectGroundColor = 0
@@ -81,15 +87,17 @@ let selectGroundColor = 0
 const walls = []
 const traps = []
 const enemies = []
-const physParticles = []
-const bounceParticles = []
+// Массивы частиц теперь управляются через ParticleManager
+let physParticles = []
+let bounceParticles = []
+let trails = []
 const moneyDrop = []
 const buildings = []
-const trails = []
 const zipLines = []
 const grenades = []
 const puddles = []
 const garbages = []
+let particleManager // Инициализируется после создания world
 let currentBoss = null
 let bgCar = null
 let currentDogEnemy = null
@@ -97,7 +105,9 @@ let currentCan = null
 let activePowerUp = null
 let activeGrenade = null
 
-let engine
+// Инициализация менеджера физики
+const physicsManager = new PhysicsManager()
+let engine // Для обратной совместимости
 let fg
 let hudLayer
 
@@ -121,8 +131,8 @@ window.onload = async function () {
     globalThis.__PIXI_APP__ = app;
     app.stage = new Stage();
     document.body.appendChild(app.view)
-    engine = Matter.Engine.create();
-    engine.timing.timeScale = 1;
+    // Инициализация физического движка
+    engine = physicsManager.init(1);
     app.stage.sortableChildren = true;
 
     hudLayer = new Group(99, true)
@@ -155,6 +165,11 @@ window.onload = async function () {
     // Удаление загрузочного экрана
     resourceLoader.removeLoaderScreen(app)
     init()
+    
+    // Установка текстур в менеджер частиц после инициализации
+    if (particleManager && physParticlesTexture && bounceParticlesTexture) {
+        particleManager.setTextures({ physParticlesTexture, bounceParticlesTexture })
+    }
 
     function init() {
         world = new PIXI.Container()
@@ -180,6 +195,24 @@ window.onload = async function () {
         ground = new PIXI.Container()
         ground.name = 'ground'
         world.addChild(ground)
+        
+        // Инициализация менеджера частиц
+        // Текстуры будут установлены после загрузки ресурсов
+        particleManager = new ParticleManager(world, engine, physicsManager, ground)
+        // Обновление ссылок на массивы для обратной совместимости
+        const particleArrays = particleManager.getParticleArrays()
+        physParticles = particleArrays.physParticles
+        bounceParticles = particleArrays.bounceParticles
+        trails = particleArrays.trails
+        
+        // Инициализация менеджера пуль
+        bulletManager = new BulletManager(world, gameState, particleManager)
+        // Обновление ссылок на массивы для обратной совместимости
+        const bulletArrays = bulletManager.getBulletArrays()
+        // playerBullets и shotsArr импортируются из Player.js, но обновим ссылки
+        enemyBullets = bulletArrays.enemyBullets
+        // shotsArr будет обновляться в BulletManager, но ссылка остается для Player.js
+        
         createMenu()
 
         selectGroundColor = random(0,groundColor.length - 1)
@@ -243,8 +276,14 @@ window.onload = async function () {
         playerState.skillCD = false
         gameState.reset()
         player = null
-        playerBullets.length = 0
-        enemyBullets.length = 0
+        if (bulletManager) {
+            bulletManager.clear()
+        }
+        // Обновление ссылок на массивы
+        if (bulletManager) {
+            const bulletArrays = bulletManager.getBulletArrays()
+            enemyBullets = bulletArrays.enemyBullets
+        }
 
         initSpeed = 5
         playerDefaultSpeed = initSpeed
@@ -274,10 +313,10 @@ window.onload = async function () {
         walls.length = 0
         traps.length = 0
         enemies.length = 0
-        physParticles.length = 0
-        bounceParticles.length = 0
+        if (particleManager) {
+            particleManager.clear()
+        }
         buildings.length = 0
-        trails.length = 0
         zipLines.length = 0
         grenades.length = 0
         puddles.length = 0
@@ -478,7 +517,7 @@ window.onload = async function () {
             playerState.rollId = null
         }
         hud.getChildByName('fps').text = Math.floor(app.ticker.FPS)
-        Matter.Engine.update(engine);
+        physicsManager.update();
         if (meleeKill) {
             if (meleeKill.enemy.params.dead) return setMeleeSelector(true, true)
             const UiBounds = meleeKill.getLocalBounds()
@@ -508,15 +547,19 @@ window.onload = async function () {
         }
         updateBg()
         updateFloor()
-        updateBullets()
+        if (bulletManager) {
+            bulletManager.updateBullets(zeroLeft, zeroRight, WORLD_WIDTH, gameSpeed)
+        }
         updateWall()
         updateEnemies()
         updateTraps()
-        updateParticles()
-        updateBounceParticles()
+        if (particleManager) {
+            particleManager.updateParticles(zeroLeft)
+            particleManager.updateBounceParticles()
+            particleManager.updateTrailParticles(zeroLeft)
+        }
         updateDropMoney()
         updateBuildings()
-        updateTrailParticle()
         updateZiplines()
         updatePuddles()
         if (activeGrenade) {
@@ -541,7 +584,9 @@ window.onload = async function () {
             updateBoss()
         }
         if (playerState.inZipLine) {
-            spawnTrailParticle(player)
+            if (particleManager) {
+                particleManager.spawnTrailParticle(player, null, true)
+            }
             if (playerState.inZipLine === 'top') {
                 player.y -= (5 * defaultGameSpeed)
                 if (player.y < secondFloor) {
@@ -567,10 +612,21 @@ window.onload = async function () {
                 }
             }
         }
-        if (shotsArr.length > 0) {
-            shotsArr.forEach(item => {
+        // Обновление анимаций выстрелов
+        if (bulletManager && bulletManager.shotsArr.length > 0) {
+            bulletManager.shotsArr.forEach(item => {
                 item.x += (playerSpeed / 2)
             })
+            // Синхронизация с shotsArr из Player.js для обратной совместимости
+            shotsArr = bulletManager.shotsArr
+        }
+        
+        // Синхронизация playerBullets с BulletManager для обратной совместимости
+        if (bulletManager) {
+            const bulletArrays = bulletManager.getBulletArrays()
+            // playerBullets импортируется из Player.js, но обновляем ссылку для синхронизации
+            // Это нужно для того, чтобы код, использующий playerBullets, работал корректно
+            // Примечание: playerBullets может использоваться в Player.js, поэтому нужно быть осторожным
         }
         const detectedWall = detectWall()
         if (detectedWall && !playerState.inCover) {
@@ -1532,80 +1588,15 @@ window.onload = async function () {
     }
 
     function spawnTrailParticle(pos, tint) {
-        const rectangle = PIXI.Sprite.from(PIXI.Texture.WHITE);
-        const randomParams = Math.floor(Math.random() * (3 + 1))
-        switch (true) {
-            case randomParams === 0:
-                rectangle.tint = 16777215;
-                rectangle.width = 1;
-                rectangle.height = 1;
-                if (playerState.inZipLine) {
-                    rectangle.position.set(pos.x + 5, pos.y - pos.height / 2 + 18)
-                } else {
-                    rectangle.position.set(pos.x - 15, pos.y + 18)
-                }
-                rectangle.scaleSize = 0.1
-                rectangle.initY = rectangle.y
-            break
-            case randomParams === 1:
-                rectangle.tint = 14869218;
-                rectangle.width = 2;
-                rectangle.height = 2;
-                if (playerState.inZipLine) {
-                    rectangle.position.set(pos.x + 5, pos.y - pos.height / 2 + 20)
-                } else {
-                    rectangle.position.set(pos.x - 10, pos.y + 20)
-                }
-                rectangle.scaleSize = 0.09
-                rectangle.initY = rectangle.y
-            break
-            case randomParams === 2:
-                rectangle.tint = 13027014;
-                rectangle.width = 3;
-                rectangle.height = 3;
-                if (playerState.inZipLine) {
-                    rectangle.position.set(pos.x + 5, pos.y - pos.height / 2 + 22)
-                } else {
-                    rectangle.position.set(pos.x - 20, pos.y + 22)
-                }
-                rectangle.scaleSize = 0.07
-                rectangle.initY = rectangle.y
-            break
-            case randomParams === 3:
-                rectangle.tint = 11250603;
-                rectangle.width = 4;
-                rectangle.height = 4;
-                if (playerState.inZipLine) {
-                    rectangle.position.set(pos.x + 5, pos.y - pos.height / 2 + 16)
-                } else {
-                    rectangle.position.set(pos.x - 12, pos.y + 16)
-                }
-                rectangle.scaleSize = 0.08
-                rectangle.initY = rectangle.y
-            break
+        if (particleManager) {
+            const inZipLine = playerState.inZipLine || false
+            particleManager.spawnTrailParticle(pos, tint, inZipLine)
         }
-        if (tint) {
-            rectangle.tint = tint
-        } else {
-            rectangle.alpha = 0.7
-        }
-        rectangle.endSize = Math.floor(Math.random() * (10 - 5 + 1) + 5)
-        world.addChild(rectangle);
-        trails.push(rectangle)
     }
 
     function updateTrailParticle() {
-        trails.forEach((item, idx) => {
-            if (item.x < zeroLeft || item.y - item.height < item.initY - item.endSize ) {
-                world.removeChild(item)
-                trails.splice(idx, 1)
-                return
-            }
-            item.width += item.scaleSize / 2
-            item.height += item.scaleSize / 2
-            item.y -= item.scaleSize
-            item.x -= item.scaleSize
-        })
+        // Обновление частиц следа теперь в ParticleManager.updateTrailParticles()
+        // Функция оставлена для обратной совместимости
     }
 
     function deleteWallsAroundBuilding(pos) {
@@ -2081,43 +2072,14 @@ window.onload = async function () {
     }
 
     function spawnBounceParticle(char, particleType, tint) {
-        const particle = new PIXI.Sprite(bounceParticlesTexture.textures[particleType])
-        particle.scale.set(2)
-        particle.anchor.set(0.5)
-        particle.position.set(char.x, char.y)
-        particle.lifeTime = 500
-        if (tint) {
-            particle.tint = tint
+        if (particleManager) {
+            particleManager.spawnBounceParticle(char, particleType, tint)
         }
-
-        particle.body = Matter.Bodies.rectangle(particle.x, particle.y, 2, 10, {isStatic: false, restitution: 0.5});
-        particle.rotation = Math.floor(Math.random() * (6 + 1))
-        world.addChild(particle)
-
-        Matter.World.add(engine.world, particle.body);
-        let randomMassX = Math.random() * particle.body.mass
-        const randomMassY = Math.random() * particle.body.mass
-        randomMassX *= Math.round(Math.random()) ? 1 : -1;
-        Matter.Body.applyForce(particle.body, particle.body.position, {x: randomMassX / 50, y: -randomMassY / 35});
-
-        bounceParticles.push(particle)
     }
 
     function updateBounceParticles() {
-        bounceParticles.forEach((b, idx) => {
-            b.lifeTime--
-            if (b.lifeTime <= 0) {
-                world.removeChild(b)
-                Matter.World.remove(engine.world, b.body)
-                bounceParticles.splice(idx, 1)
-            }
-            b.position = b.body.position
-            if (b.body.speed > 0.2) {
-                b.rotation += 0.1
-            } else {
-                b.rotation = b.body.angle
-            }
-        })
+        // Обновление отскакивающих частиц теперь в ParticleManager.updateBounceParticles()
+        // Функция оставлена для обратной совместимости
     }
 
     function grenadeBounce() {
@@ -2188,106 +2150,14 @@ window.onload = async function () {
     }
 
     function createParticles(char, particleType, floor, size) {
-        let particle
-        switch (true) {
-            case particleType === 'blood': {
-                const randomBlood = random(0, 4)
-                particle = new PIXI.Sprite(physParticlesTexture.textures[`blood-${randomBlood}`])
-                particle.scale.set(size || 2)
-                break
-            }
-            case particleType === 'spark': {
-                particle = new PIXI.Sprite(physParticlesTexture.textures['spark'])
-                const particleTint = random(0, 2)
-                switch (true) {
-                    case particleTint === 0:
-                        particle.tint = 16777011
-                        break
-                    case particleTint === 1:
-                        particle.tint = 16777164
-                        break
-                    case particleTint === 2:
-                        particle.tint = 16771891
-                        break
-                }
-                const randomSize = random(size || 3,(size + 1) ||4)
-                particle.scale.set(randomSize)
-                break
-            }
-            case particleType === 'drop': {
-                particle = PIXI.Sprite.from(PIXI.Texture.WHITE);
-                const particleTint = random(0, 2)
-                switch (true) {
-                    case particleTint === 0:
-                        particle.tint = 9424895
-                        break
-                    case particleTint === 1:
-                        particle.tint = 15138815
-                        break
-                    case particleTint === 2:
-                        particle.tint = 16777215
-                        break
-                }
-                const randomSize = random(2, 4)
-                particle.width = randomSize
-                particle.height = randomSize
-                break
-            }
-            case particleType === 'bottle': {
-                particle = PIXI.Sprite.from(PIXI.Texture.WHITE);
-                particle.tint = 32768
-                const randomSize = random(2, 3)
-                particle.width = randomSize
-                particle.height = randomSize
-                break
-            }
+        if (particleManager) {
+            particleManager.createParticle(char, particleType, floor, size)
         }
-        particle.type = particleType
-        if (floor) {
-            particle.edge = random(ground.getLocalBounds().y - 115,ground.getLocalBounds().y - 85)
-        } else {
-            particle.edge = random(ground.getLocalBounds().y + 75,ground.getLocalBounds().y + 110)
-        }
-        particle.anchor.set(0.5)
-        particle.position.set(char.x, char.y)
-        particle.body = Matter.Bodies.rectangle(particle.x, particle.y, 1, 1, {isStatic: false, isSensor: true});
-        world.addChild(particle)
-        Matter.World.add(engine.world, particle.body);
-        let randomMassX = Math.random() * particle.body.mass
-        const randomMassY = Math.random() * particle.body.mass
-        randomMassX *= Math.round(Math.random()) ? 1 : -1;
-        Matter.Body.applyForce(particle.body, particle.body.position, {x: randomMassX / 50, y: -randomMassY / 50});
-        physParticles.push(particle)
     }
 
     function updateParticles() {
-        physParticles.forEach((b, idx) => {
-            if (!b.stop) {
-                b.position = b.body.position;
-                if (b.type !== 'blood') {
-                    b.rotation = b.body.angle;
-                }
-                if (b.position.y > b.edge) {
-                    b.stop = true
-                    switch (true) {
-                        // case b.type === 'spark': {
-                        //     b.scale.y = 3
-                        //     b.scale.x = 3
-                        //     break
-                        // }
-                        case b.type === 'blood': {
-                            b.scale.y = 1
-                            break
-                        }
-                    }
-                }
-            }
-            if (b.position.x < zeroLeft) {
-                world.removeChild(b)
-                Matter.World.remove(engine.world, b.body);
-                physParticles.splice(idx, 1)
-            }
-        })
+        // Обновление частиц теперь в ParticleManager.updateParticles()
+        // Функция оставлена для обратной совместимости
     }
 
     async function enemyShooting(char) {
@@ -3365,84 +3235,56 @@ window.onload = async function () {
     }
 
     function shot(char, offsetX, offsetY, eventGun, friendly) {
-        const shot = new PIXI.AnimatedSprite(particles.animations.gunShot)
-        shot.anchor.set(0.5)
-        shot.scale.x = 1.2
-        shot.scale.y = 1.2
-        shot.animationSpeed = 0.2
-        shot.zIndex = 11
-        soundPlayer.gunShot(eventGun, eventGun === 'smg' || eventGun === 'rifle')
-        if (friendly) {
-            if (playerState.activePowerUp?.type === 'boostGun') {
-                shot.tint = 16757683
-            }
-            shot.position.set(char.x + offsetX, char.y - offsetY)
-            if (gun.noStop) {
-                shotsArr.push(shot)
-                sleep(150).then(() => {
-                    shotsArr.splice(0, 1)
-                })
-            }
-            for (let i = 0; i < (eventGun === 'shotgun' ? 3 : 1); i++) {
-                playerBullets.push(spawnBullet(shot.x - 10, shot.y))
-            }
-        } else {
-            shot.position.set(((char.x + 4) - char.width / 2) + offsetX, (char.y - 10) + offsetY)
-            for (let i = 0; i < (eventGun === 'shotgun' ? 3 : 1); i++) {
-                enemyBullets.push(spawnBullet(shot.x + 10, shot.y, char))
+        if (bulletManager) {
+            const textures = { particles }
+            bulletManager.shot(
+                char,
+                offsetX,
+                offsetY,
+                eventGun,
+                friendly,
+                textures,
+                friendly ? gun : null,
+                friendly ? playerState : null,
+                soundPlayer,
+                spawnBounceParticle,
+                sleep
+            )
+            // Обновление ссылок на массивы для обратной совместимости
+            if (friendly) {
+                const bulletArrays = bulletManager.getBulletArrays()
+                // Обновляем shotsArr для синхронизации
+                shotsArr = bulletArrays.shotsArr
+                // playerBullets импортируется из Player.js и управляется там
+                // Но пули добавляются через BulletManager, поэтому нужно синхронизировать
+                // Примечание: playerBullets может использоваться в Player.js, поэтому синхронизация происходит через импорт
             }
         }
-        if (eventGun !== 'shotgun' && eventGun !== 'revolver') spawnBounceParticle(char, 'shell')
-        world.addChild(shot)
-        shot.play()
-        sleep(150).then(() => {
-            world.removeChild(shot)
-        })
     }
 
     function spawnBullet(x, y, char) {
-        const bullet = new PIXI.Sprite(particles.textures.bullet)
-        bullet.anchor.set(0.5)
-        bullet.zIndex = 11
-        bullet.scale.x = 1.5
-        bullet.scale.y = 2
-        bullet.position.set(char ? x - 14 : x + 14, y)
-        if (playerState.activePowerUps.some(item => item.type === 'boostGun') && !char) {
-            bullet.tint = 16731469
+        if (bulletManager) {
+            const textures = { particles }
+            const isPlayer = !char
+            return bulletManager.spawnBullet(
+                x,
+                y,
+                char,
+                isPlayer ? gun : null,
+                isPlayer,
+                textures,
+                isPlayer ? playerState.activePowerUps : []
+            )
         }
-        let rotate = Math.random() * (char ? char.params.angle : gun.angle)
-        rotate *= Math.round(Math.random()) ? 1 : -1;
-        bullet.rotation = rotate
-        world.addChild(bullet)
-        return bullet
+        return null
     }
 
     function updateBullets() {
-        enemyBullets.forEach((b, idx) => {
-            b.position.x -= (Math.cos(b.rotation) * bulletSpeed) * gameSpeed;
-            b.position.y -= (Math.sin(b.rotation) * bulletSpeed) * gameSpeed;
-
-            if (b.position.x < zeroLeft + 50 || b.position.x > zeroRight + 100) {
-                for (let i = 0; i <= 3; i++) {
-                    createParticles(b, 'spark', undefined, 1)
-                }
-                world.removeChild(b)
-                enemyBullets.splice(idx, 1)
-            }
-        })
-        playerBullets.forEach((b, idx) => {
-            b.position.x += (Math.cos(b.rotation) * bulletSpeed) * gameSpeed;
-            b.position.y += (Math.sin(b.rotation) * bulletSpeed) * gameSpeed;
-
-            if (b.position.x < zeroLeft || b.x - b.width * 2 > zeroLeft + getPercent(WORLD_WIDTH, 90)) {
-                world.removeChild(b)
-                gameState.scoreStreak -= 0.5
-                for (let i = 0; i <= 3; i++) {
-                    createParticles(b, 'spark', undefined, 1)
-                }
-                playerBullets.splice(idx, 1)
-            }
-        })
+        // Обновление пуль теперь в BulletManager.updateBullets()
+        // Функция оставлена для обратной совместимости
+        if (bulletManager) {
+            bulletManager.updateBullets(zeroLeft, zeroRight, WORLD_WIDTH, gameSpeed)
+        }
     }
 
     function playAnim(anim) {

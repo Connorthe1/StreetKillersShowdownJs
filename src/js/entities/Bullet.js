@@ -13,3 +13,251 @@
  * - Обработка столкновений и удаления пуль
  */
 
+import * as PIXI from 'pixi.js'
+import { getPercent } from '../utils/GameUtils.js'
+import { BULLET_SPEED } from '../core/GameConfig.js'
+
+/**
+ * Менеджер для управления пулями
+ */
+export class BulletManager {
+    constructor(world, gameState, particleManager) {
+        this.world = world
+        this.gameState = gameState
+        this.particleManager = particleManager
+        
+        // Массивы пуль
+        this.playerBullets = []
+        this.enemyBullets = []
+        this.shotsArr = [] // Анимации выстрелов
+        
+        this.bulletSpeed = BULLET_SPEED
+    }
+    
+    /**
+     * Создает пулю
+     * @param {number} x - позиция X
+     * @param {number} y - позиция Y
+     * @param {Object} char - объект стреляющего (для врагов)
+     * @param {Object} gun - параметры оружия (для игрока)
+     * @param {boolean} isPlayer - пуля игрока или врага
+     * @param {Object} textures - текстуры (particles)
+     * @param {Array} activePowerUps - активные пауэр-апы игрока
+     * @returns {PIXI.Sprite} созданная пуля
+     */
+    spawnBullet(x, y, char = null, gun = null, isPlayer = true, textures = null, activePowerUps = []) {
+        if (!textures || !textures.particles) {
+            console.warn('Textures not available for bullets')
+            return null
+        }
+        
+        const bullet = new PIXI.Sprite(textures.particles.textures.bullet)
+        bullet.anchor.set(0.5)
+        bullet.zIndex = 11
+        bullet.scale.x = 1.5
+        bullet.scale.y = 2
+        bullet.position.set(char ? x - 14 : x + 14, y)
+        
+        // Применение эффекта пауэр-апа
+        if (isPlayer && activePowerUps.some(item => item.type === 'boostGun')) {
+            bullet.tint = 16731469
+        }
+        
+        // Угол полета пули
+        let rotate = Math.random() * (char ? char.params.angle : (gun ? gun.angle : 0.4))
+        rotate *= Math.round(Math.random()) ? 1 : -1
+        bullet.rotation = rotate
+        
+        this.world.addChild(bullet)
+        
+        if (isPlayer) {
+            this.playerBullets.push(bullet)
+        } else {
+            this.enemyBullets.push(bullet)
+        }
+        
+        return bullet
+    }
+    
+    /**
+     * Создает выстрел с анимацией
+     * @param {Object} char - объект стреляющего
+     * @param {number} offsetX - смещение X
+     * @param {number} offsetY - смещение Y
+     * @param {string} eventGun - тип оружия
+     * @param {boolean} friendly - дружественная пуля (игрок)
+     * @param {Object} textures - текстуры
+     * @param {Object} gun - параметры оружия (для игрока)
+     * @param {Object} playerState - состояние игрока
+     * @param {Object} soundPlayer - проигрыватель звуков
+     * @param {Function} spawnBounceParticle - функция создания отскакивающих частиц
+     * @param {Function} sleep - функция задержки
+     * @returns {Array} массив созданных пуль
+     */
+    shot(char, offsetX, offsetY, eventGun, friendly, textures, gun = null, playerState = null, soundPlayer = null, spawnBounceParticle = null, sleep = null) {
+        if (!textures || !textures.particles) {
+            console.warn('Textures not available for shot')
+            return []
+        }
+        
+        const shot = new PIXI.AnimatedSprite(textures.particles.animations.gunShot)
+        shot.anchor.set(0.5)
+        shot.scale.x = 1.2
+        shot.scale.y = 1.2
+        shot.animationSpeed = 0.2
+        shot.zIndex = 11
+        
+        if (soundPlayer) {
+            soundPlayer.gunShot(eventGun, eventGun === 'smg' || eventGun === 'rifle')
+        }
+        
+        const createdBullets = []
+        
+        if (friendly) {
+            // Пули игрока
+            if (playerState && playerState.activePowerUps && playerState.activePowerUps.some(item => item.type === 'boostGun')) {
+                shot.tint = 16757683
+            }
+            shot.position.set(char.x + offsetX, char.y - offsetY)
+            
+            if (gun && gun.noStop) {
+                this.shotsArr.push(shot)
+                if (sleep) {
+                    sleep(150).then(() => {
+                        this.shotsArr.splice(0, 1)
+                    })
+                }
+            }
+            
+            // Создание пуль (для дробовика - 3 пули)
+            const bulletCount = eventGun === 'shotgun' ? 3 : 1
+            for (let i = 0; i < bulletCount; i++) {
+                const bullet = this.spawnBullet(
+                    shot.x - 10,
+                    shot.y,
+                    null,
+                    gun,
+                    true,
+                    textures,
+                    playerState ? playerState.activePowerUps : []
+                )
+                if (bullet) createdBullets.push(bullet)
+            }
+        } else {
+            // Пули врага
+            shot.position.set(((char.x + 4) - char.width / 2) + offsetX, (char.y - 10) + offsetY)
+            
+            const bulletCount = eventGun === 'shotgun' ? 3 : 1
+            for (let i = 0; i < bulletCount; i++) {
+                const bullet = this.spawnBullet(
+                    shot.x + 10,
+                    shot.y,
+                    char,
+                    null,
+                    false,
+                    textures
+                )
+                if (bullet) createdBullets.push(bullet)
+            }
+        }
+        
+        // Создание отскакивающей частицы (гильза)
+        if (eventGun !== 'shotgun' && eventGun !== 'revolver' && spawnBounceParticle) {
+            spawnBounceParticle(char, 'shell')
+        }
+        
+        this.world.addChild(shot)
+        shot.play()
+        
+        if (sleep) {
+            sleep(150).then(() => {
+                this.world.removeChild(shot)
+            })
+        }
+        
+        return createdBullets
+    }
+    
+    /**
+     * Обновляет все пули
+     * @param {number} zeroLeft - левая граница видимой области
+     * @param {number} zeroRight - правая граница видимой области
+     * @param {number} WORLD_WIDTH - ширина мира
+     * @param {number} gameSpeed - скорость игры
+     */
+    updateBullets(zeroLeft, zeroRight, WORLD_WIDTH, gameSpeed) {
+        // Обновление пуль врагов
+        this.enemyBullets.forEach((b, idx) => {
+            b.position.x -= (Math.cos(b.rotation) * this.bulletSpeed) * gameSpeed
+            b.position.y -= (Math.sin(b.rotation) * this.bulletSpeed) * gameSpeed
+            
+            if (b.position.x < zeroLeft + 50 || b.position.x > zeroRight + 100) {
+                // Создание частиц при исчезновении
+                if (this.particleManager && this.particleManager.createParticle) {
+                    for (let i = 0; i <= 3; i++) {
+                        this.particleManager.createParticle(b, 'spark', undefined, 1)
+                    }
+                }
+                this.world.removeChild(b)
+                this.enemyBullets.splice(idx, 1)
+            }
+        })
+        
+        // Обновление пуль игрока
+        this.playerBullets.forEach((b, idx) => {
+            b.position.x += (Math.cos(b.rotation) * this.bulletSpeed) * gameSpeed
+            b.position.y += (Math.sin(b.rotation) * this.bulletSpeed) * gameSpeed
+            
+            if (b.position.x < zeroLeft || b.x - b.width * 2 > zeroLeft + getPercent(WORLD_WIDTH, 90)) {
+                this.world.removeChild(b)
+                this.gameState.decreaseStreakBy(0.5)
+                // Создание частиц при исчезновении
+                if (this.particleManager && this.particleManager.createParticle) {
+                    for (let i = 0; i <= 3; i++) {
+                        this.particleManager.createParticle(b, 'spark', undefined, 1)
+                    }
+                }
+                this.playerBullets.splice(idx, 1)
+            }
+        })
+        
+        // Обновление анимаций выстрелов
+        if (this.shotsArr.length > 0) {
+            this.shotsArr.forEach(item => {
+                // Анимации выстрелов двигаются вместе с игроком
+                // (обновляется в ticker через playerSpeed)
+            })
+        }
+    }
+    
+    /**
+     * Очищает все пули
+     */
+    clear() {
+        this.playerBullets.forEach(bullet => {
+            this.world.removeChild(bullet)
+        })
+        this.playerBullets = []
+        
+        this.enemyBullets.forEach(bullet => {
+            this.world.removeChild(bullet)
+        })
+        this.enemyBullets = []
+        
+        this.shotsArr.forEach(shot => {
+            this.world.removeChild(shot)
+        })
+        this.shotsArr = []
+    }
+    
+    /**
+     * Получает массивы пуль (для обратной совместимости)
+     */
+    getBulletArrays() {
+        return {
+            playerBullets: this.playerBullets,
+            enemyBullets: this.enemyBullets,
+            shotsArr: this.shotsArr
+        }
+    }
+}
