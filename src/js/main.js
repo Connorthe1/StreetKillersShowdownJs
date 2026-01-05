@@ -23,6 +23,8 @@ import { EventManager } from './core/EventManager.js'
 import { HUDManager } from './ui/HUDManager.js'
 import { CameraManager } from './core/CameraManager.js'
 import { GameManager } from './core/GameManager.js'
+import { ScoreManager } from './core/ScoreManager.js'
+import { CollisionDetector } from './physics/CollisionDetector.js'
 
 let playerInstance;
 
@@ -113,6 +115,8 @@ let eventManager // Инициализируется после создания
 let hudManager // Инициализируется после создания hud
 let cameraManager // Инициализируется после создания world
 let gameManager // Главный координатор всех систем
+let scoreManager // Менеджер очков и рейтинга
+let collisionDetector // Детектор коллизий
 let currentBoss = null
 let bgCar = null
 let currentDogEnemy = null
@@ -261,6 +265,15 @@ window.onload = async function () {
         // Инициализация менеджера камеры
         cameraManager = new CameraManager(world, gameState, WORLD_WIDTH)
         
+        // Инициализация менеджера очков
+        scoreManager = new ScoreManager(gameState, hudManager, initSpeed)
+        scoreManager.setUpdatePlayerSpeedCallback((newSpeed) => {
+            playerDefaultSpeed = newSpeed
+        })
+        
+        // Инициализация детектора коллизий
+        collisionDetector = new CollisionDetector()
+        
         // Инициализация главного менеджера игры
         gameManager = new GameManager()
         gameManager.setManagers({
@@ -274,7 +287,8 @@ window.onload = async function () {
             hudManager,
             cameraManager,
             storageManager,
-            resourceLoader: null // Будет установлен позже
+            resourceLoader: null, // Будет установлен позже
+            scoreManager
         })
         gameManager.setGameObjects({
             world,
@@ -333,7 +347,11 @@ window.onload = async function () {
             slowGameSpeed = 0.2
         }
         gameSpeed = defaultGameSpeed
-        scoreTimer()
+        if (scoreManager) {
+            scoreManager.startScoreTimer()
+        } else {
+            scoreTimer()
+        }
         trailTimer()
     }
 
@@ -3737,20 +3755,30 @@ window.onload = async function () {
     }
 
     function addPoints(points) {
-        gameState.addPoints(points)
+        if (scoreManager) {
+            scoreManager.addPoints(points)
+        } else {
+            gameState.addPoints(points)
+        }
     }
 
     function scoreTimer() {
-        const interval = setInterval(() => {
-            if (gameState.isPause) return
-            if (gameState.gameEnd || gameState.isMenu) {
-                clearInterval(interval)
-                return;
-            }
-            if (gameState.scoreStreak <= 0) return
-            gameState.decreaseStreak()
-            playerDefaultSpeed = initSpeed + gameState.points / 10000
-        }, 500)
+        // Теперь управляется через ScoreManager
+        if (scoreManager) {
+            scoreManager.startScoreTimer()
+        } else {
+            // Fallback на старую логику
+            const interval = setInterval(() => {
+                if (gameState.isPause) return
+                if (gameState.gameEnd || gameState.isMenu) {
+                    clearInterval(interval)
+                    return;
+                }
+                if (gameState.scoreStreak <= 0) return
+                gameState.decreaseStreak()
+                playerDefaultSpeed = initSpeed + gameState.points / 10000
+            }, 500)
+        }
     }
 
     function HUDpause() {
@@ -3903,25 +3931,30 @@ window.onload = async function () {
     }
 
     function updateScore() {
-        const score = gameState.updateScore(playerState.stimpack)
-        const scoreElement = hud.getChildByName('score')
-        scoreElement.text = score
-        
-        // Обновление цвета в зависимости от рейтинга
-        const scoreColors = {
-            'F': ["#ffffff","#ff0000"],
-            'E': ["#ffffff","#ff5858"],
-            'D': ["#ffffff","#ffa4d5"],
-            'C': ["#ffffff","#83b9ff"],
-            'B': ["#ffffff","#b0ff89"],
-            'A': ["#ffffff","#9eff11"],
-            'A+': ["#ffffff","#ffec6e"],
-            'S': ["#ffffff","#ffcd00"],
-            'S+': ["#ffffff","#ffa33c"],
-            'S++': ["#ffffff","#ff6200"]
-        }
-        if (scoreColors[score]) {
-            scoreElement.style._fill = scoreColors[score]
+        if (scoreManager) {
+            scoreManager.updateScore(playerState.stimpack)
+        } else {
+            // Fallback на старую логику
+            const score = gameState.updateScore(playerState.stimpack)
+            const scoreElement = hud.getChildByName('score')
+            if (scoreElement) {
+                scoreElement.text = score
+                const scoreColors = {
+                    'F': ["#ffffff","#ff0000"],
+                    'E': ["#ffffff","#ff5858"],
+                    'D': ["#ffffff","#ffa4d5"],
+                    'C': ["#ffffff","#83b9ff"],
+                    'B': ["#ffffff","#b0ff89"],
+                    'A': ["#ffffff","#9eff11"],
+                    'A+': ["#ffffff","#ffec6e"],
+                    'S': ["#ffffff","#ffcd00"],
+                    'S+': ["#ffffff","#ffa33c"],
+                    'S++': ["#ffffff","#ff6200"]
+                }
+                if (scoreColors[score]) {
+                    scoreElement.style._fill = scoreColors[score]
+                }
+            }
         }
     }
 
