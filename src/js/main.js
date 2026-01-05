@@ -10,6 +10,8 @@ import storeUpgrades from './upgrades.json'
 import bridge from '@vkontakte/vk-bridge';
 import { Player, playerState, playerDefaultSpeed, playerSpeed, initSpeed, playerPos, secondFloor, player, playerBullets, gun, shotsArr, meleeKill, meleeKillSelectorSide, meleeKillSelectorSpeed, meleeKillStreak, meleeKillStreakTimer, triggerDelay, updateGunFromSkin } from './Player.js'
 import { getPercent, random, randomRGB } from './utils/GameUtils.js'
+import { GAME_SCALE, DEFAULT_GAME_SPEED, SLOW_GAME_SPEED, BULLET_SPEED, FENCE_CHANCE, BUILDING_CHANCE, GROUND_COLORS, BG_SPEED, initGameConfig } from './core/GameConfig.js'
+import { GameState } from './core/GameState.js'
 
 let playerInstance;
 
@@ -17,6 +19,7 @@ window.Telegram.WebApp.ready()
 window.Telegram.WebApp.expand()
 
 const timeouts = []
+// Инициализация размеров экрана
 let gameWidth
 let gameHeight
 if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent)) {
@@ -26,35 +29,30 @@ if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phon
     gameWidth = document.documentElement.clientWidth;
     gameHeight = document.documentElement.clientHeight;
 }
-const gameScale = 1.2
-let WORLD_WIDTH = Math.floor(gameWidth / gameScale);
-let WORLD_HEIGHT = Math.floor(gameHeight / gameScale);
+
+// Инициализация конфигурации игры
+const gameConfig = initGameConfig(gameWidth, gameHeight)
+const { WORLD_WIDTH, WORLD_HEIGHT, textStyles } = gameConfig
+const gameScale = GAME_SCALE
+let defaultGameSpeed = DEFAULT_GAME_SPEED
+let slowGameSpeed = SLOW_GAME_SPEED
+let gameSpeed = DEFAULT_GAME_SPEED
 let zeroLeft = 0
 let zeroRight = WORLD_WIDTH
-let defaultGameSpeed = 1
-let slowGameSpeed = 0.1
-let gameSpeed = 1
 
 let distance = 0
-const gameState = {
-    points: 0,
-    pointsToAdd: 0,
-    kills: 0,
-    score: 'F',
-    multiplier: 1,
-    scoreStreak: 0,
-    collectedMoney: 0,
-}
+// Инициализация состояния игры
+const gameState = new GameState()
 let music = null
 let playerPos = WORLD_HEIGHT - 230
 let secondFloor = WORLD_HEIGHT - 420
 
 const enemyBullets = []
-const bulletSpeed = 30
+const bulletSpeed = BULLET_SPEED
 
 let background
 let bgPosition = 0
-let bgSpeed = 0.2;
+let bgSpeed = BG_SPEED;
 
 let world
 let particleContainer
@@ -64,86 +62,19 @@ const woodsBGarr = []
 let hud
 let stepSound = 0
 let floorPosition = 0
-const fenceChance = 4
+const fenceChance = FENCE_CHANCE
 let isFence = false
 let isBuilding = false
 let afterBuilding = 0
 let isClub = false
-const buildingChance = 2
+const buildingChance = BUILDING_CHANCE
 let buildingType = 0
 
 const shotsArr = []
 
-const groundColor = ['#eaaaaa','#7f8bff','#a2e0ae']
+const groundColor = GROUND_COLORS
 let selectGroundColor = 0
-const textStyles = {
-    default180:  new PIXI.TextStyle({
-        fontFamily: 'ACastle3',
-        fontSize: 180,
-        fill: '#ffffff',
-        wordWrap: true,
-        wordWrapWidth: gameWidth - 100,
-        align: 'center',
-    }),
-    default60:  new PIXI.TextStyle({
-        fontFamily: 'ACastle3',
-        fontSize: 60,
-        fill: '#ffffff',
-        wordWrap: true,
-        wordWrapWidth: gameWidth - 100,
-        align: 'center',
-    }),
-    default80:  new PIXI.TextStyle({
-        fontFamily: 'ACastle3',
-        fontSize: 80,
-        fill: '#ffffff',
-        wordWrap: true,
-        wordWrapWidth: gameWidth - 100,
-        align: 'center',
-    }),
-    default100:  new PIXI.TextStyle({
-        fontFamily: 'ACastle3',
-        fontSize: 100,
-        fill: '#ffffff',
-        wordWrap: true,
-        wordWrapWidth: gameWidth - 100,
-        align: 'center',
-    }),
-    default40:  new PIXI.TextStyle({
-        fontFamily: 'ACastle3',
-        fontSize: 40,
-        fill: '#ffffff',
-        wordWrap: true,
-        wordWrapWidth: gameWidth - 100,
-        align: 'center',
-    }),
-    default30:  new PIXI.TextStyle({
-        fontFamily: 'ACastle3',
-        fontSize: 30,
-        fill: '#ffffff',
-        wordWrap: true,
-        wordWrapWidth: gameWidth - 100,
-        align: 'left',
-        lineHeight: 20
-    }),
-    default56:  new PIXI.TextStyle({
-        fontFamily: 'ACastle3',
-        fontSize: 56,
-        lineHeight: 40,
-        fill: '#ffffff',
-        wordWrap: true,
-        wordWrapWidth: gameWidth - 100,
-        align: 'center',
-    }),
-    green60:  new PIXI.TextStyle({
-        fontFamily: 'ACastle3',
-        fontSize: 60,
-        fill: '#81ff6e',
-        wordWrap: true,
-        wordWrapWidth: gameWidth - 100,
-        align: 'center',
-    }),
-}
+// textStyles теперь в gameConfig
 
 const walls = []
 const traps = []
@@ -168,10 +99,7 @@ let engine
 let fg
 let hudLayer
 
-let isPause = false
-let isMenu = true
-let gameStart = false
-let gameEnd = false
+// Флаги состояния теперь в gameState (isPause, isMenu, gameStart, gameEnd)
 
 //STORAGE
 const baseStorage = {
@@ -371,13 +299,7 @@ window.onload = async function () {
         playerState.activePowerUps.length = 0
         playerState.stimpack = false
         playerState.skillCD = false
-        gameState.points = 0
-        gameState.pointsToAdd = 0
-        gameState.kills = 0
-        gameState.score = 'F'
-        gameState.multiplier = 1
-        gameState.scoreStreak = 0
-        gameState.collectedMoney = 0
+        gameState.reset()
         player = null
         playerBullets.length = 0
         enemyBullets.length = 0
@@ -389,7 +311,7 @@ window.onload = async function () {
 
         background = null
         bgPosition = 0
-        bgSpeed = 0.2;
+        bgSpeed = BG_SPEED;
 
         world = null
         ground = null
@@ -423,14 +345,14 @@ window.onload = async function () {
         currentDogEnemy = null
         currentCan = null
 
-        isPause = false
-        gameStart = false
-        gameEnd = false
+        gameState.isPause = false
+        gameState.gameStart = false
+        gameState.gameEnd = false
         init()
     }
     async function endGame(toRestart) {
         music.stop()
-        gameEnd = true
+        gameState.gameEnd = true
         app.stage.removeChild(hud)
         timeouts.length = 0
         if (toRestart) {
@@ -607,9 +529,9 @@ window.onload = async function () {
     }
 
     function ticker(delta) {
-        if (gameEnd || isPause) return
+        if (gameState.gameEnd || gameState.isPause) return
         if (player && player.x > 10) {
-            gameStart = true
+            gameState.gameStart = true
         }
         if (playerState.rollId !== null && playerState.state !== 'rollEnd') {
             console.log('stopRoll')
@@ -634,12 +556,8 @@ window.onload = async function () {
                 meleeKillSelectorSide = true
             }
         }
-        if (gameState.pointsToAdd > 0) {
-            if (gameState.pointsToAdd < 0) {
-                gameState.pointsToAdd = 0;
-            }
-            gameState.pointsToAdd -= Math.max(1, Math.floor(gameState.pointsToAdd / 50))
-            gameState.points += Math.max(1, Math.floor(gameState.pointsToAdd / 50))
+        const currentPoints = gameState.updatePoints()
+        if (currentPoints !== gameState.points || gameState.pointsToAdd > 0) {
             hud.getChildByName('points').text = gameState.points;
         }
         hud.getChildByName('scale').text = `x${gameState.multiplier.toFixed(1)}`;
@@ -647,7 +565,7 @@ window.onload = async function () {
         updateGarbage()
         // Use the Player module's updatePlayer method
         if (playerInstance) {
-            playerInstance.updatePlayer(delta, gameEnd, gameStart, gameSpeed, enemyBullets, world, soundPlayer, damagePlayer)
+            playerInstance.updatePlayer(delta, gameState.gameEnd, gameState.gameStart, gameSpeed, enemyBullets, world, soundPlayer, damagePlayer)
         }
         updateBg()
         updateFloor()
@@ -728,9 +646,9 @@ window.onload = async function () {
     }
 
     function createMenu() {
-        isMenu = true
-        gameStart = false
-        gameEnd = false
+        gameState.isMenu = true
+        gameState.gameStart = false
+        gameState.gameEnd = false
         const menu = new PIXI.Container()
         app.stage.addChild(menu)
 
@@ -820,8 +738,8 @@ window.onload = async function () {
 
 
         bg.on('pointerdown', (event) => {
-            if (!isMenu) return
-            isMenu = false
+            if (!gameState.isMenu) return
+            gameState.isMenu = false
             const menuLeft = setInterval(() => {
                 menu.x -= 20
             }, 10)
@@ -1187,7 +1105,7 @@ window.onload = async function () {
                 spawnTrailParticle({x:player.x,y:player.y - 30}, '#ffdd00')
                 spawnTrailParticle({x:player.x,y:player.y - 40}, '#ffdd00')
             }
-            if (playerSpeed > 0 && !isPause) {
+            if (playerSpeed > 0 && !gameState.isPause) {
                 spawnTrailParticle(player)
                 if (playerState.state === 'roll' || playerState.state === 'rollEnd') {
                     spawnTrailParticle(player)
@@ -1543,7 +1461,7 @@ window.onload = async function () {
         const defaultIntensity = intensity || 3
         const intensityStep = defaultIntensity / 4
         const timer = setInterval(() => {
-            if (isPause || gameEnd) return
+            if (gameState.isPause || gameState.gameEnd) return
             time++
             switch (true) {
                 case time > part * 7 : {
@@ -1628,7 +1546,7 @@ window.onload = async function () {
     }
 
     function updatePlayer(delta) {
-        if (gameEnd) return
+        if (gameState.gameEnd) return
         if (playerState.activePowerUps.length > 0) {
             playerState.activePowerUps.forEach((powerUp, idx) => {
                 if (Date.now() > powerUp.expired) {
@@ -2667,7 +2585,7 @@ window.onload = async function () {
                     currentBoss.textures = currentBoss.params.animset.walk
                     currentBoss.play()
                     walking = setInterval(() => {
-                        if (isPause) return
+                        if (gameState.isPause) return
                         if (!currentBoss || currentBoss.params.dead) return
                         currentBoss.x -= 1
                     }, 10)
@@ -3633,7 +3551,7 @@ window.onload = async function () {
 
 
     function events(e) {
-        if (playerState.health === 0 || gameEnd || isPause || isMenu || !gameStart) return
+        if (playerState.health === 0 || gameState.gameEnd || gameState.isPause || gameState.isMenu || !gameState.gameStart) return
         if (playerState.inZipLine) return
         switch (true) {
             //RELOAD
@@ -3956,18 +3874,18 @@ window.onload = async function () {
     }
 
     function addPoints(points) {
-        gameState.pointsToAdd += points * gameState.multiplier
+        gameState.addPoints(points)
     }
 
     function scoreTimer() {
         const interval = setInterval(() => {
-            if (isPause) return
-            if (gameEnd || isMenu) {
+            if (gameState.isPause) return
+            if (gameState.gameEnd || gameState.isMenu) {
                 clearInterval(interval)
                 return;
             }
             if (gameState.scoreStreak <= 0) return
-            gameState.scoreStreak--
+            gameState.decreaseStreak()
             playerDefaultSpeed = initSpeed + gameState.points / 10000
         }, 500)
     }
@@ -4069,7 +3987,7 @@ window.onload = async function () {
                 item.stop()
             })
             music.set('paused', true)
-            isPause = true
+            gameState.isPause = true
             hud.getChildByName('magazine').visible = false
             pauseMenu.visible = true
             leave.visible = true
@@ -4097,7 +4015,7 @@ window.onload = async function () {
                         item.play()
                     })
                     music.set('paused', false)
-                    isPause = false
+                    gameState.isPause = false
                     pause.visible = true
                     timeouts.forEach(item => {
                         item.resume()
@@ -4122,70 +4040,25 @@ window.onload = async function () {
     }
 
     function updateScore() {
-        switch (true) {
-            case gameState.scoreStreak < 10: {
-                hud.getChildByName('score').text = 'F';
-                hud.getChildByName('score').style._fill = ["#ffffff","#ff0000"];
-                gameState.multiplier = 1
-                break
-            }
-            case gameState.scoreStreak < 20: {
-                hud.getChildByName('score').text = 'E';
-                hud.getChildByName('score').style._fill = ["#ffffff","#ff5858"];
-                gameState.multiplier = 1.1
-                break
-            }
-            case gameState.scoreStreak < 30: {
-                hud.getChildByName('score').text = 'D';
-                hud.getChildByName('score').style._fill = ["#ffffff","#ffa4d5"];
-                gameState.multiplier = 1.2
-                break
-            }
-            case gameState.scoreStreak < 40: {
-                hud.getChildByName('score').text = 'C';
-                hud.getChildByName('score').style._fill = ["#ffffff","#83b9ff"];
-                gameState.multiplier = 1.3
-                break
-            }
-            case gameState.scoreStreak < 50: {
-                hud.getChildByName('score').text = 'B';
-                hud.getChildByName('score').style._fill = ["#ffffff","#b0ff89"];
-                gameState.multiplier = 1.4
-                break
-            }
-            case gameState.scoreStreak < 60: {
-                hud.getChildByName('score').text = 'A';
-                hud.getChildByName('score').style._fill = ["#ffffff","#9eff11"];
-                gameState.multiplier = 1.5
-                break
-            }
-            case gameState.scoreStreak < 70: {
-                hud.getChildByName('score').text = 'A+';
-                hud.getChildByName('score').style._fill = ["#ffffff","#ffec6e"];
-                gameState.multiplier = 1.6
-                break
-            }
-            case gameState.scoreStreak < 80: {
-                hud.getChildByName('score').text = 'S';
-                hud.getChildByName('score').style._fill = ["#ffffff","#ffcd00"];
-                gameState.multiplier = 1.7
-                break
-            }
-            case gameState.scoreStreak < 90: {
-                hud.getChildByName('score').text = 'S+';
-                hud.getChildByName('score').style._fill = ["#ffffff","#ffa33c"];
-                gameState.multiplier = 1.8
-                break
-            }
-            case gameState.scoreStreak >= 90: {
-                hud.getChildByName('score').text = 'S++';
-                hud.getChildByName('score').style._fill = ["#ffffff","#ff6200"];
-                gameState.multiplier = 2
-                break
-            }
+        const score = gameState.updateScore(playerState.stimpack)
+        const scoreElement = hud.getChildByName('score')
+        scoreElement.text = score
+        
+        // Обновление цвета в зависимости от рейтинга
+        const scoreColors = {
+            'F': ["#ffffff","#ff0000"],
+            'E': ["#ffffff","#ff5858"],
+            'D': ["#ffffff","#ffa4d5"],
+            'C': ["#ffffff","#83b9ff"],
+            'B': ["#ffffff","#b0ff89"],
+            'A': ["#ffffff","#9eff11"],
+            'A+': ["#ffffff","#ffec6e"],
+            'S': ["#ffffff","#ffcd00"],
+            'S+': ["#ffffff","#ffa33c"],
+            'S++': ["#ffffff","#ff6200"]
         }
-        if (playerState.stimpack) {
-            gameState.multiplier = gameState.multiplier * 2
+        if (scoreColors[score]) {
+            scoreElement.style._fill = scoreColors[score]
         }
     }
 
