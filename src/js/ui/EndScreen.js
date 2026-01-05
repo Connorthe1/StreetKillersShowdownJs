@@ -32,6 +32,8 @@ export class EndScreenManager {
         // Callbacks
         this.restartGameCallback = null
         this.music = null
+        this.removeHudCallback = null
+        this.clearTimeoutsCallback = null
     }
     
     /**
@@ -40,6 +42,8 @@ export class EndScreenManager {
     setCallbacks(callbacks) {
         if (callbacks.restartGame) this.restartGameCallback = callbacks.restartGame
         if (callbacks.music) this.music = callbacks.music
+        if (callbacks.removeHud) this.removeHudCallback = callbacks.removeHud
+        if (callbacks.clearTimeouts) this.clearTimeoutsCallback = callbacks.clearTimeouts
     }
     
     /**
@@ -57,13 +61,17 @@ export class EndScreenManager {
             this.music.stop()
         }
         
+        // Очистка таймаутов
+        if (this.clearTimeoutsCallback) {
+            this.clearTimeoutsCallback()
+        }
+        
         // Установка состояния окончания игры
         this.gameState.gameEnd = true
         
-        // Удаление HUD
-        const hud = this.app.stage.getChildByName('hud')
-        if (hud) {
-            this.app.stage.removeChild(hud)
+        // Удаление HUD (передается через колбэк)
+        if (this.removeHudCallback) {
+            this.removeHudCallback()
         }
         
         // Если нужно перезапустить
@@ -220,7 +228,6 @@ export class EndScreenManager {
         // Добавление денег в хранилище
         if (this.storageManager) {
             this.storageManager.addMoney(pointsToMoney + collectedToMoney)
-            this.storageManager.addMoney(collectedToMoney)
         }
         
         // Рейтинг

@@ -55,7 +55,7 @@ export class CameraManager {
     }
     
     /**
-     * Тряска камеры
+     * Тряска камеры (основной метод)
      */
     async shake(intensity, duration, sleepCallback) {
         if (this.shakeTimer) {
@@ -122,6 +122,20 @@ export class CameraManager {
         
         // Сброс позиции камеры
         this.world.pivot.y = -this.world.pivot.y
+    }
+    
+    /**
+     * Тряска камеры (алиас для обратной совместимости)
+     */
+    async cameraShake(intensity, duration) {
+        return this.shake(intensity, duration, this.sleepCallback)
+    }
+    
+    /**
+     * Устанавливает колбэк для sleep
+     */
+    setSleepCallback(sleepCallback) {
+        this.sleepCallback = sleepCallback
     }
     
     /**

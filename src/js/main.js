@@ -31,6 +31,7 @@ import { EventManager } from './core/EventManager.js'
 import { HUDManager } from './ui/HUDManager.js'
 import { CameraManager } from './core/CameraManager.js'
 import { GameManager } from './core/GameManager.js'
+import { PlayerDamageManager } from './core/PlayerDamageManager.js'
 import { ScoreManager } from './core/ScoreManager.js'
 import { CollisionDetector } from './physics/CollisionDetector.js'
 import { EnemyManager } from './entities/Enemy.js'
@@ -40,6 +41,12 @@ import { TrapManager } from './entities/Trap.js'
 import { MoneyManager } from './entities/Money.js'
 import { PowerUpManager } from './entities/PowerUp.js'
 import { DogEnemyManager } from './entities/DogEnemy.js'
+import { InputHandler } from './core/InputHandler.js'
+import { ExplosionManager } from './entities/ExplosionManager.js'
+import { MeleeKillManager } from './ui/MeleeKillManager.js'
+import { MenuManager } from './ui/Menu.js'
+import { StoreManager } from './ui/Store.js'
+import { EndScreenManager } from './ui/EndScreen.js'
 
 // Переменные игрока импортируются из Player.js
 let playerInstance = null
@@ -140,6 +147,7 @@ let spawnManager // Инициализируется после создания
 let eventManager // Инициализируется после создания canvas
 let hudManager // Инициализируется после создания hud
 let cameraManager // Инициализируется после создания world
+let playerDamageManager // Менеджер урона игроку
 let gameManager // Главный координатор всех систем
 let scoreManager // Менеджер очков и рейтинга
 let collisionDetector // Детектор коллизий
@@ -149,6 +157,11 @@ let trapManager // Менеджер ловушек
 let moneyManager // Менеджер денег
 let powerUpManager // Менеджер пауэр-апов
 let dogEnemyManager // Менеджер собаки-врага
+let explosionManager // Менеджер взрывов
+let meleeKillManager // Менеджер ближнего боя
+let menuManager // Менеджер меню
+let storeManager // Менеджер магазина
+let endScreenManager // Менеджер экрана окончания
 let currentBoss = null
 let bgCar = null
 let currentDogEnemy = null
@@ -196,7 +209,7 @@ window.onload = async function () {
     // Загрузка загрузочного экрана
     await resourceLoader.loadLoaderScreen(app, gameWidth, gameHeight)
 
-    createSwipes()
+    // Свайпы теперь обрабатываются через InputHandler в startGame()
     //VK load
     // await getData()
 
@@ -272,6 +285,34 @@ window.onload = async function () {
     // Установка текстур и параметров в менеджер собаки-врага после загрузки ресурсов
     if (dogEnemyManager && dogEnemy && enemyParams) {
         dogEnemyManager.setTextures(dogEnemy, enemyParams)
+    }
+    
+    // Установка текстур и параметров в менеджер взрывов после загрузки ресурсов
+    if (explosionManager && bigExplode && bochka) {
+        explosionManager.setTextures({
+            bigExplode: bigExplode,
+            bochka: bochka
+        })
+    }
+    
+    // Установка текстур и параметров в менеджер меню после загрузки ресурсов
+    if (menuManager && menuButtons && menuIcons && menuUI) {
+        menuManager.menuButtons = menuButtons
+        menuManager.menuIcons = menuIcons
+        menuManager.menuUI = menuUI
+    }
+    
+    // Установка текстур и параметров в менеджер магазина после загрузки ресурсов
+    if (storeManager && menuButtons && menuIcons && menuUI && activeItems) {
+        storeManager.menuButtons = menuButtons
+        storeManager.menuIcons = menuIcons
+        storeManager.menuUI = menuUI
+        storeManager.activeItems = activeItems
+    }
+    
+    // Установка текстур и параметров в менеджер экрана окончания после загрузки ресурсов
+    if (endScreenManager && menuButtons) {
+        endScreenManager.menuButtons = menuButtons
     }
 
     function init() {
@@ -407,7 +448,11 @@ window.onload = async function () {
         // Установка колбэков для TrapManager
         trapManager.setCallbacks({
             addPoints: addPoints,
-            damagePlayer: damagePlayer,
+            damagePlayer: () => {
+                if (playerDamageManager) {
+                    playerDamageManager.damagePlayer()
+                }
+            },
             damageEnemy: damageEnemy,
             soundPlayer: soundPlayer,
             createParticles: (char, particleType) => {
@@ -415,7 +460,7 @@ window.onload = async function () {
                     particleManager.createParticle(char, particleType, null, null)
                 }
             },
-            createExplode: createExplode,
+            createExplode: null, // Будет установлен после инициализации explosionManager
             sleep: sleep,
             gun: gun
         })
@@ -481,6 +526,10 @@ window.onload = async function () {
         
         // Инициализация менеджера камеры
         cameraManager = new CameraManager(world, gameState, WORLD_WIDTH)
+        cameraManager.setSleepCallback(sleep)
+        
+        // Инициализация менеджера урона игроку
+        playerDamageManager = new PlayerDamageManager(playerState, gameState)
         
         // Инициализация менеджера очков
         scoreManager = new ScoreManager(gameState, hudManager, initSpeed)
@@ -545,10 +594,10 @@ window.onload = async function () {
             null  // particles - будет установлен позже
         )
         
-        // Установка колбэков для GrenadeManager
+        // Установка колбэков для GrenadeManager (explosionManager будет установлен позже)
         grenadeManager.setCallbacks({
             damagePlayer: damagePlayer,
-            createExplode: createExplode,
+            createExplode: null, // Будет установлен после инициализации explosionManager
             damageEnemy: damageEnemy,
             barrelDead: barrelDead,
             soundPlayer: soundPlayer,
@@ -627,6 +676,114 @@ window.onload = async function () {
         // Обновление ссылок на переменные для обратной совместимости
         activePowerUp = powerUpManager.getActivePowerUp()
         
+        // Инициализация менеджера взрывов (текстуры будут установлены после загрузки ресурсов)
+        explosionManager = new ExplosionManager(world)
+        
+        // Установка колбэков для ExplosionManager
+        explosionManager.setCallbacks({
+            cameraShake: (intensity, duration) => {
+                if (cameraManager) {
+                    cameraManager.cameraShake(intensity, duration)
+                }
+            },
+            soundPlayer: soundPlayer
+        })
+        
+        // Обновление колбэков для GrenadeManager и TrapManager с ExplosionManager
+        if (grenadeManager) {
+            grenadeManager.setCallbacks({
+                damagePlayer: damagePlayer,
+                createExplode: (target, offsetX, offsetY, isBig, silence) => {
+                    if (explosionManager) {
+                        explosionManager.createExplode(target, offsetX, offsetY, isBig, silence)
+                    }
+                },
+                damageEnemy: damageEnemy,
+                barrelDead: barrelDead,
+                soundPlayer: soundPlayer,
+                sleep: sleep
+            })
+        }
+        
+        if (trapManager) {
+            trapManager.setCallbacks({
+                addPoints: addPoints,
+                damagePlayer: damagePlayer,
+                damageEnemy: damageEnemy,
+                soundPlayer: soundPlayer,
+                createParticles: (char, particleType) => {
+                    if (particleManager) {
+                        particleManager.createParticle(char, particleType, null, null)
+                    }
+                },
+                createExplode: (target, offsetX, offsetY, isBig, silence) => {
+                    if (explosionManager) {
+                        explosionManager.createExplode(target, offsetX, offsetY, isBig, silence)
+                    }
+                },
+                sleep: sleep,
+                gun: gun
+            })
+        }
+        
+        // Инициализация менеджера экрана окончания (текстуры будут установлены после загрузки ресурсов)
+        endScreenManager = new EndScreenManager(
+            app,
+            gameState,
+            storage,
+            gameWidth,
+            gameHeight,
+            textStyles,
+            null, // menuButtons - будет установлен позже
+            storageManager
+        )
+        
+        // Установка колбэков для EndScreenManager
+        endScreenManager.setCallbacks({
+            restartGame: restartGame,
+            music: music,
+            removeHud: () => {
+                if (hud && app.stage) {
+                    app.stage.removeChild(hud)
+                }
+            },
+            clearTimeouts: () => {
+                timeouts.length = 0
+            }
+        })
+        
+        // Установка колбэков для PlayerDamageManager
+        if (playerDamageManager) {
+            playerDamageManager.setCallbacks({
+                cameraShake: (intensity, duration) => {
+                    if (cameraManager) {
+                        cameraManager.cameraShake(intensity, duration)
+                    }
+                },
+                soundPlayer: soundPlayer,
+                player: null, // Будет установлен в startGame
+                hud: hud,
+                world: world,
+                createParticles: (char, particleType, floor) => {
+                    if (particleManager) {
+                        particleManager.createParticle(char, particleType, floor, null)
+                    }
+                },
+                sleep: sleep,
+                endGame: () => {
+                    if (endScreenManager) {
+                        endScreenManager.createEndScreen()
+                    }
+                },
+                HUDupdatePowerUp: HUDupdatePowerUp,
+                HUDremoveShield: HUDremoveShield,
+                getSecondFloor: () => secondFloor,
+                setPlayerSpeed: (speed) => {
+                    playerSpeed = speed
+                }
+            })
+        }
+        
         // Инициализация главного менеджера игры
         gameManager = new GameManager()
         gameManager.setManagers({
@@ -650,7 +807,20 @@ window.onload = async function () {
             cameraManager,
             storageManager,
             resourceLoader: null, // Будет установлен позже
-            scoreManager
+            scoreManager,
+            collisionDetector,
+            enemyManager,
+            grenadeManager,
+            trapManager,
+            moneyManager,
+            powerUpManager,
+            dogEnemyManager,
+            explosionManager,
+            meleeKillManager,
+            menuManager,
+            storeManager,
+            endScreenManager,
+            playerDamageManager
         })
         gameManager.setGameObjects({
             world,
@@ -659,7 +829,9 @@ window.onload = async function () {
             player: null // Будет установлен позже
         })
         
-        createMenu()
+        if (menuManager) {
+            menuManager.createMenu()
+        }
 
         selectGroundColor = random(0,groundColor.length - 1)
         groundManager.setSelectGroundColor(selectGroundColor)
@@ -683,8 +855,13 @@ window.onload = async function () {
             const playerSkin = playerState.currentSkin || skinStore[Number(storage.selectedSkin)].param
             player = playerInstance.createPlayer(playerSkin, -100, playerPos)
             world.addChild(player)
-        } else {
-            createPlayer()
+        }
+        
+        // Обновление ссылки на игрока в PlayerDamageManager
+        if (playerDamageManager) {
+            playerDamageManager.setCallbacks({
+                player: player
+            })
         }
 
         music = soundPlayer.startMusic()
@@ -699,6 +876,29 @@ window.onload = async function () {
             }
         })
         eventManager.init(app.renderer.view)
+        
+        // Инициализация обработчика ввода (для свайпов)
+        const inputHandler = new InputHandler(
+            app.renderer.view,
+            gameState,
+            playerState,
+            storage
+        )
+        
+        // Установка колбэков для InputHandler (все действия вызывают events)
+        inputHandler.setCallbacks({
+            onReload: () => events({ code: 'KeyR' }),
+            onRoll: () => events({ code: 'Space' }),
+            onShot: () => events({ code: 'KeyF' }),
+            onGrenade: () => events({ code: 'KeyE' }),
+            onStimpack: () => events({ code: 'KeyW' }),
+            onToggleSpeed: () => events({ code: 'KeyQ' }),
+            onMeleeKill: () => {
+                if (meleeKillManager && meleeKillManager.hasMeleeKill()) {
+                    meleeKillManager.handleMeleeKill(false, false)
+                }
+            }
+        })
         
         // Старый обработчик оставлен для обратной совместимости
         document.addEventListener('keyup', events)
@@ -715,7 +915,17 @@ window.onload = async function () {
         } else {
             scoreTimer()
         }
-        trailTimer()
+        // Запуск таймера частиц следа через ParticleManager
+        if (particleManager) {
+            particleManager.setCallbacks({
+                player: player,
+                playerState: playerState,
+                playerSpeed: playerSpeed,
+                gameState: gameState,
+                soundPlayer: soundPlayer
+            })
+            particleManager.startTrailTimer()
+        }
     }
 
     function restartGame() {
@@ -782,6 +992,7 @@ window.onload = async function () {
         traps = trapManager ? trapManager.getTraps() : []
         enemies.length = 0
         if (particleManager) {
+            particleManager.stopTrailTimer()
             particleManager.clear()
         }
         buildings.length = 0
@@ -811,180 +1022,6 @@ window.onload = async function () {
         gameState.gameEnd = false
         init()
     }
-    async function endGame(toRestart) {
-        music.stop()
-        gameState.gameEnd = true
-        app.stage.removeChild(hud)
-        timeouts.length = 0
-        if (toRestart) {
-            restartGame()
-            return
-        }
-        storageManager.updateRecord(gameState.points)
-
-
-        const endScreen = new PIXI.Container()
-        let skip = false
-        app.stage.addChild(endScreen)
-        let bg = new PIXI.Graphics();
-        bg.eventMode = 'static'
-        bg.beginFill(0x000);
-        bg.alpha = 0.3
-        bg.drawRect(0, 0, gameWidth, gameHeight);
-        endScreen.addChild(bg)
-        endScreen.name = 'endScreen'
-
-        bg.on('pointerdown', (event) => {
-            if (skip) return
-            skip = true
-        });
-
-        const center = gameWidth / 2
-
-        //RESULTS
-        const results = new PIXI.Text('results', textStyles.default100);
-        results.anchor.set(0.5);
-        results.position.set(center, 100)
-        endScreen.addChild(results)
-
-        await new Promise(resolve => {
-            let delay = 0
-            const interval = setInterval(() => {
-                delay++
-                if (skip) {
-                    clearInterval(interval)
-                }
-                if (delay > 10) {
-                    resolve()
-                    clearInterval(interval)
-                }
-            }, 10);
-        });
-
-        //SCORE
-        const finalScore = new PIXI.Text('final score:', textStyles.default40);
-        finalScore.anchor.set(0.5);
-        finalScore.position.set(center, results.y + 70)
-        endScreen.addChild(finalScore)
-
-        const finalScoreValue = new PIXI.Text('0', textStyles.default60);
-        finalScoreValue.anchor.set(0.5);
-        finalScoreValue.position.set(center, finalScore.y + 40)
-        endScreen.addChild(finalScoreValue)
-
-        let initScore = 0
-        const scoreUpdate = Math.floor(gameState.points / 100)
-        await new Promise(resolve => {
-            const interval = setInterval(() => {
-                if (skip) {
-                    initScore = gameState.points
-                    clearInterval(interval)
-                }
-                initScore += Math.max(1, scoreUpdate)
-                if (initScore >= gameState.points) {
-                    resolve('foo');
-                    initScore = gameState.points
-                    clearInterval(interval)
-                }
-                finalScoreValue.text = initScore
-            }, 10);
-        });
-
-        //DISTANCE MONEY
-        const distanceMoney = new PIXI.Text('distance money:', textStyles.default40);
-        distanceMoney.anchor.set(0.5);
-        distanceMoney.position.set(center, finalScoreValue.y + 70)
-        endScreen.addChild(distanceMoney)
-
-        const distanceMoneyValue = new PIXI.Text('0$', textStyles.green60);
-        distanceMoneyValue.anchor.set(0.5);
-        distanceMoneyValue.position.set(center, distanceMoney.y + 40)
-        endScreen.addChild(distanceMoneyValue)
-
-        let initDMoney = 0
-        const pointsToMoney = Math.floor(gameState.points / 50)
-        const dMoneyUpdate = Math.floor(pointsToMoney / 200)
-        await new Promise(resolve => {
-            const interval = setInterval(() => {
-                if (skip) {
-                    initDMoney = pointsToMoney
-                    clearInterval(interval)
-                }
-                initDMoney += Math.max(1, dMoneyUpdate)
-                if (initDMoney >= pointsToMoney) {
-                    resolve('foo');
-                    initDMoney = pointsToMoney
-                    clearInterval(interval)
-                }
-                distanceMoneyValue.text = `${initDMoney}$`
-            }, 10);
-        });
-
-        //COLLECTED MONEY
-        const collectedMoney = new PIXI.Text('collected money:', textStyles.default40);
-        collectedMoney.anchor.set(0.5);
-        collectedMoney.position.set(center, distanceMoneyValue.y + 70)
-        endScreen.addChild(collectedMoney)
-
-        const collectedMoneyValue = new PIXI.Text('0$', textStyles.green60);
-        collectedMoneyValue.anchor.set(0.5);
-        collectedMoneyValue.position.set(center, collectedMoney.y + 40)
-        endScreen.addChild(collectedMoneyValue)
-
-        let initCMoney = 0
-        const collectedToMoney = gameState.collectedMoney
-        const cMoneyUpdate = Math.floor(collectedToMoney / 200)
-        await new Promise(resolve => {
-            const interval = setInterval(() => {
-                if (skip) {
-                    initCMoney = collectedToMoney
-                    clearInterval(interval)
-                }
-                initCMoney += Math.max(1, cMoneyUpdate)
-                if (initCMoney >= collectedToMoney) {
-                    resolve('foo');
-                    initCMoney = collectedToMoney
-                    clearInterval(interval)
-                }
-                collectedMoneyValue.text = `${initCMoney}$`
-            }, 10);
-        });
-        storageManager.addMoney(pointsToMoney + collectedToMoney)
-        storageManager.addMoney(collectedToMoney)
-
-        //AVERAGE SCORE
-        const score = new PIXI.Text('F', textStyles.default180);
-        score.scale.set(5)
-        score.rotation = -0.2
-        score.anchor.set(0.5);
-        score.position.set(center, collectedMoneyValue.y + 100)
-        endScreen.addChild(score)
-
-        let scale = 5
-        await new Promise(resolve => {
-            const interval = setInterval(() => {
-                scale-= 0.1
-                score.scale.set(scale)
-                if (scale <= 1) {
-                    resolve('foo');
-                    clearInterval(interval)
-                }
-            }, 10);
-        });
-
-        await storageManager.save()
-        //EXIT
-        const exit = new PIXI.Sprite(menuButtons.textures.exit)
-        exit.scale.set(0.7, 0.6)
-        exit.eventMode = 'static';
-        exit.anchor.set(0.5, 0)
-        exit.position.set(center, score.y + 80)
-        endScreen.addChild(exit)
-
-        exit.on('pointerdown', () => {
-            restartGame()
-        });
-    }
 
     function ticker(delta) {
         if (gameState.gameEnd || gameState.isPause) return
@@ -998,21 +1035,15 @@ window.onload = async function () {
         }
         hud.getChildByName('fps').text = Math.floor(app.ticker.FPS)
         physicsManager.update();
-        if (meleeKill) {
-            if (meleeKill.enemy.params.dead) return setMeleeSelector(true, true)
-            const UiBounds = meleeKill.getLocalBounds()
-            const selector = meleeKill.getChildAt(2)
-            if (meleeKillSelectorSide) {
-                selector.x += ((meleeKillSelectorSpeed + meleeKillStreak) * defaultGameSpeed)
-            } else {
-                selector.x -= ((meleeKillSelectorSpeed + meleeKillStreak) * defaultGameSpeed)
-            }
-            if (selector.x + selector.width >= UiBounds.x + UiBounds.width) {
-                meleeKillSelectorSide = false
-            }
-            if (selector.x <= UiBounds.x) {
-                meleeKillSelectorSide = true
-            }
+        // Обновление ближнего боя через MeleeKillManager
+        if (meleeKillManager) {
+            meleeKillManager.updateState({
+                defaultGameSpeed: defaultGameSpeed,
+                gameSpeed: gameSpeed
+            })
+            meleeKillManager.updateMeleeKill()
+            // Синхронизация meleeKill для обратной совместимости
+            meleeKill = meleeKillManager.getMeleeKill()
         }
         const currentPoints = gameState.updatePoints()
         if (currentPoints !== gameState.points || gameState.pointsToAdd > 0) {
@@ -1026,7 +1057,11 @@ window.onload = async function () {
         }
         // Use the Player module's updatePlayer method
         if (playerInstance) {
-            playerInstance.updatePlayer(delta, gameState.gameEnd, gameState.gameStart, gameSpeed, enemyBullets, world, soundPlayer, damagePlayer)
+            playerInstance.updatePlayer(delta, gameState.gameEnd, gameState.gameStart, gameSpeed, enemyBullets, world, soundPlayer, () => {
+                if (playerDamageManager) {
+                    playerDamageManager.damagePlayer()
+                }
+            })
         }
         // Обновление фона и пола через менеджеры
         if (backgroundManager) {
@@ -1065,6 +1100,12 @@ window.onload = async function () {
             particleManager.updateParticles(zeroLeft)
             particleManager.updateBounceParticles()
             particleManager.updateTrailParticles(zeroLeft)
+            // Обновление состояния для trailTimer
+            particleManager.updateTrailState({
+                playerSpeed: playerSpeed,
+                player: player,
+                playerState: playerState
+            })
         }
         // Обновление денег через MoneyManager
         if (moneyManager) {
@@ -1217,481 +1258,7 @@ window.onload = async function () {
         }
     }
 
-    function createMenu() {
-        gameState.isMenu = true
-        gameState.gameStart = false
-        gameState.gameEnd = false
-        const menu = new PIXI.Container()
-        app.stage.addChild(menu)
 
-        const main = new PIXI.Container()
-        main.name = 'main'
-        menu.addChild(main)
-
-        let bg = new PIXI.Graphics();
-        bg.eventMode = 'static'
-        bg.beginFill(0x000);
-        bg.alpha = 0.3
-        bg.drawRect(0, 0, gameWidth, gameHeight);
-        main.addChild(bg)
-
-        const startText = new PIXI.Text('Tap to start', textStyles.default56);
-        startText.anchor.set(0.5);
-        startText.zIndex = 1
-        startText.x = gameWidth / 2
-        startText.y = gameHeight - 220;
-        main.addChild(startText)
-
-        //TOPMENU
-        const topMenu = new PIXI.Container()
-        main.addChild(topMenu)
-        const topMenuBg = new PIXI.Sprite(menuButtons.textures.button)
-        topMenuBg.tint = 5197647
-        topMenuBg.width = gameWidth
-        topMenuBg.height = 50
-        topMenu.addChild(topMenuBg)
-
-        const cup = new PIXI.Sprite(menuIcons.textures.cup)
-        cup.position.set(16, 16)
-        topMenu.addChild(cup)
-        const topDistance = new PIXI.Text(storage.record.toString(), textStyles.default30);
-        topDistance.position.set(52, 20)
-        topMenu.addChild(topDistance)
-
-        const money = new PIXI.Text(storage.money, textStyles.default30);
-        money.position.set(gameWidth - 16, 20)
-        money.anchor.set(1,0)
-        topMenu.addChild(money)
-        const moneyIcon = new PIXI.Sprite(menuIcons.textures.money)
-        moneyIcon.scale.set(0.45)
-        moneyIcon.anchor.set(1,0)
-        moneyIcon.position.set(money.x - money.width - 10, 14)
-        topMenu.addChild(moneyIcon)
-
-        const gold = new PIXI.Text(storage.gold, textStyles.default30);
-        gold.position.set(moneyIcon.x - moneyIcon.width - 20, 20)
-        gold.anchor.set(1,0)
-        topMenu.addChild(gold)
-        const goldIcon = new PIXI.Sprite(menuIcons.textures.goldbar)
-        goldIcon.scale.set(0.3)
-        goldIcon.anchor.set(1,0)
-        goldIcon.position.set(gold.x - gold.width - 10, 16)
-        topMenu.addChild(goldIcon)
-
-
-        //STORE
-        const store = new PIXI.Sprite(menuButtons.textures.shop)
-        store.eventMode = 'static';
-        store.anchor.set(1, 0)
-        store.position.set(gameWidth - 20, 60)
-        main.addChild(store)
-
-        //MISSIONS
-        const missions = new PIXI.Sprite(menuButtons.textures.missions)
-        missions.scale.set(0.8)
-        missions.eventMode = 'static';
-        missions.anchor.set(0, 0)
-        missions.position.set(20, 60)
-        main.addChild(missions)
-
-
-        //SETTINGS
-        const settings = new PIXI.Sprite(menuUI.textures.settingsicon)
-        settings.scale.set(0.6)
-        settings.eventMode = 'static';
-        settings.anchor.set(1, 1)
-        settings.position.set(gameWidth - 20, gameHeight - 20)
-        main.addChild(settings)
-
-        store.on('pointerdown', () => {
-            main.visible = false
-            createStore(menu)
-        });
-
-
-        bg.on('pointerdown', (event) => {
-            if (!gameState.isMenu) return
-            gameState.isMenu = false
-            const menuLeft = setInterval(() => {
-                menu.x -= 20
-            }, 10)
-            sleep(300).then(() => {
-                clearInterval(menuLeft)
-                startGame()
-                app.stage.removeChild(menu)
-            })
-        });
-    }
-
-    function createStore(menu) {
-        const store = new PIXI.Container()
-        store.name = 'store'
-        menu.addChild(store)
-
-        let bg = new PIXI.Graphics();
-        bg.eventMode = 'static'
-        bg.beginFill(0x000);
-        bg.alpha = 0.9
-        bg.drawRect(0, 0, gameWidth, gameHeight);
-        store.addChild(bg)
-
-        updateMoney()
-        //PLAYER MONEY
-        function updateMoney() {
-            const moneyContainer = new PIXI.Container()
-            moneyContainer.name = 'moneyContainer'
-            moneyContainer.position.set(20, gameHeight - 70)
-
-            const moneyIcon = new PIXI.Sprite(menuIcons.textures.money)
-            moneyIcon.scale.set(0.6)
-            moneyIcon.anchor.set(0,1)
-            moneyIcon.position.set(0,0)
-            moneyContainer.addChild(moneyIcon)
-            const money = new PIXI.Text(storage.money, textStyles.default40);
-            money.anchor.set(0,0.5)
-            money.position.set(moneyIcon.x + 45, moneyIcon.y - 18)
-            moneyContainer.addChild(money)
-
-            const goldIcon = new PIXI.Sprite(menuIcons.textures.goldbar)
-            goldIcon.scale.set(0.4)
-            goldIcon.anchor.set(0,1)
-            goldIcon.position.set(0, moneyIcon.y + 40)
-            moneyContainer.addChild(goldIcon)
-            const gold = new PIXI.Text(storage.gold, textStyles.default40);
-            gold.anchor.set(0,0.5)
-            gold.position.set(goldIcon.x + 45, goldIcon.y - 18)
-            moneyContainer.addChild(gold)
-
-            store.addChild(moneyContainer)
-        }
-
-        const skinButton = new PIXI.Sprite(menuUI.textures.skin)
-        skinButton.width = (gameWidth / 2) - 30
-        skinButton.height = 120
-        skinButton.eventMode = 'static';
-        skinButton.anchor.set(1, 0)
-        skinButton.position.set(gameWidth - 20, 20)
-        store.addChild(skinButton)
-
-        const upgrades = new PIXI.Sprite(menuUI.textures.upgrade)
-        upgrades.width = (gameWidth / 2) - 30
-        upgrades.height = 120
-        upgrades.eventMode = 'static';
-        upgrades.anchor.set(0, 0)
-        upgrades.position.set(20, 20)
-        store.addChild(upgrades)
-
-        const exit = new PIXI.Sprite(menuUI.textures.back)
-        exit.scale.set(1)
-        exit.eventMode = 'static';
-        exit.anchor.set(1, 1)
-        exit.position.set(gameWidth - 20, gameHeight - 20)
-        store.addChild(exit)
-        const scrollUpgrades = new Scrollbox({
-            boxWidth: gameWidth,
-            boxHeight: gameHeight - 290,
-            fade: true,
-            scrollbarSize: 2
-        })
-        scrollUpgrades.position.set(0, 160)
-
-        const storeUsed = [
-            {
-                name: 'STIMPACK',
-                initPrice: 1200,
-                scale: 1.5,
-                icon: activeItems.textures.stimpack,
-                idName: "stimpack"
-            },
-            {
-                name: 'HAND GRENADE',
-                initPrice: 1000,
-                scale: 1.1,
-                icon: activeItems.textures.handGrenadeIcon,
-                idName: "grenades"
-            }
-        ]
-
-        reloadStoreUpgrades()
-
-        function reloadStoreUpgrades() {
-            const topMenu = new PIXI.Container()
-            scrollUpgrades.content.addChild(topMenu)
-            const topMenuBg = new PIXI.Sprite(menuButtons.textures.button)
-            topMenuBg.tint = 5197647
-            topMenuBg.width = gameWidth
-            topMenuBg.height = 50
-            topMenu.addChild(topMenuBg)
-            const upgradeText = new PIXI.Text('UPGRADES', textStyles.default40);
-            upgradeText.position.set(gameWidth / 2,20)
-            upgradeText.anchor.set(0.5,0)
-            topMenu.addChild(upgradeText)
-
-            storeUpgrades.forEach((item, idx) => {
-                const upgrade = new PIXI.Container()
-                const upgradeSprite = new PIXI.Sprite(eval(item.icon))
-                const upgradeUpgrade = new PIXI.Sprite(menuUI.textures.buy)
-                const upgradeLevel = new PIXI.Text(item.maxLvl === storage.upgrades[item.idName] ? 'MAX' : `LV.${Math.min(storage.upgrades[item.idName] + 1)}`, textStyles.default30);
-                const upgradeName = new PIXI.Text(item.name, textStyles.default30);
-                upgrade.height = 100
-                upgrade.position.set(0, 60 + 100 * idx)
-                upgrade.addChild(upgradeSprite)
-                upgrade.addChild(upgradeName)
-                upgrade.addChild(upgradeUpgrade)
-                upgrade.addChild(upgradeLevel)
-
-                if (item.scale) upgradeSprite.scale.set(item.scale)
-                upgradeSprite.position.set(10,5)
-                upgradeName.position.set(85,10)
-
-                upgradeUpgrade.anchor.set(1,0)
-                upgradeUpgrade.scale.set(1.1)
-                upgradeUpgrade.position.set(gameWidth - 10,0)
-                upgradeLevel.anchor.set(0.5)
-                upgradeLevel.position.set(upgradeUpgrade.x - upgradeUpgrade.width / 2,upgradeUpgrade.y + upgradeUpgrade.height / 2)
-
-                for (let i = 0; i < item.maxLvl; i++) {
-                    const upgradeLevelIcon = new PIXI.Sprite(PIXI.Texture.WHITE)
-                    upgradeLevelIcon.width = upgradeLevelIcon.height = 10
-                    if (i < storage.upgrades[item.idName]) {
-                        upgradeLevelIcon.tint = '#5cef13'
-                    } else {
-                        upgradeLevelIcon.tint = '#d30c0c'
-                    }
-                    upgradeLevelIcon.position.set(15 * i, 76)
-                    upgrade.addChild(upgradeLevelIcon)
-                }
-
-                scrollUpgrades.content.addChild(upgrade)
-
-                if (item.maxLvl > storage.upgrades[item.idName]) {
-                    upgradeUpgrade.eventMode = 'static'
-                    upgradeLevel.eventMode = 'passive'
-                    const upgradePrice = new PIXI.Text(item.initPrice + item.initPrice * storage.upgrades[item.idName], textStyles.default40);
-                    const upgradePriceIcon = new PIXI.Sprite(menuIcons.textures.money)
-                    upgrade.addChild(upgradePrice)
-                    upgrade.addChild(upgradePriceIcon)
-                    upgradePrice.position.set(85,55)
-                    upgradePriceIcon.scale.set(0.5)
-                    upgradePriceIcon.position.set(upgradePrice.x + upgradePrice.width + 10,50)
-
-                    upgradeUpgrade.on('pointerdown', () => {
-                        if (storage.money > item.initPrice + item.initPrice * storage.upgrades[item.idName]) {
-                            storage.money -= item.initPrice + item.initPrice * storage.upgrades[item.idName]
-                            storage.upgrades[item.idName]++
-
-                            scrollUpgrades.content.removeChildren(0, scrollUpgrades.content.children.length)
-                            store.removeChild(store.getChildByName('moneyContainer'))
-                            updateMoney()
-                            reloadStoreUpgrades()
-                        }
-                    })
-                }
-            })
-
-            const topMenuUsed = new PIXI.Container()
-            scrollUpgrades.content.addChild(topMenuUsed)
-            topMenuUsed.position.set(0, storeUpgrades.length * 110)
-            const topMenuBgUsed = new PIXI.Sprite(menuButtons.textures.button)
-            topMenuBgUsed.tint = 5197647
-            topMenuBgUsed.width = gameWidth
-            topMenuBgUsed.height = 50
-            topMenuUsed.addChild(topMenuBgUsed)
-            const upgradeTextUsed = new PIXI.Text('SINGLE USE', textStyles.default40);
-            upgradeTextUsed.position.set(gameWidth / 2,20)
-            upgradeTextUsed.anchor.set(0.5,0)
-            topMenuUsed.addChild(upgradeTextUsed)
-
-            storeUsed.forEach((item, idx) => {
-                const upgrade = new PIXI.Container()
-                const upgradeSprite = new PIXI.Sprite(item.icon)
-                const upgradeUpgrade = new PIXI.Sprite(menuUI.textures.stayclear)
-                const upgradeCount = new PIXI.Text(storage.activeItems[item.idName], textStyles.default30);
-                const upgradeName = new PIXI.Text(item.name, textStyles.default30);
-                const upgradePrice = new PIXI.Text(item.initPrice, textStyles.default40);
-                const upgradePriceIcon = new PIXI.Sprite(menuIcons.textures.money)
-                upgrade.height = 100
-                upgrade.position.set(0, (storeUpgrades.length * 110 + 60) + 90 * idx)
-                upgrade.addChild(upgradeSprite)
-                upgrade.addChild(upgradeName)
-                upgrade.addChild(upgradePrice)
-                upgrade.addChild(upgradePriceIcon)
-                upgrade.addChild(upgradeUpgrade)
-                upgrade.addChild(upgradeCount)
-
-                if (item.scale) upgradeSprite.scale.set(item.scale)
-                upgradeSprite.position.set(10,5)
-                upgradeName.position.set(85,10)
-                upgradePrice.position.set(85,45)
-                upgradePriceIcon.scale.set(0.5)
-                upgradePriceIcon.position.set(upgradePrice.x + upgradePrice.width + 10,40)
-
-                upgradeUpgrade.anchor.set(1,0)
-                upgradeUpgrade.width = upgradeUpgrade.height = 75
-                upgradeUpgrade.position.set(gameWidth - 10,0)
-                upgradeCount.anchor.set(0.5)
-                upgradeCount.position.set(upgradeUpgrade.x - upgradeUpgrade.width / 2,upgradeUpgrade.y + upgradeUpgrade.height / 2)
-
-                scrollUpgrades.content.addChild(upgrade)
-
-                upgradeUpgrade.eventMode = 'static'
-                upgradeCount.eventMode = 'passive'
-                upgradeUpgrade.on('pointerdown', () => {
-                    if (storage.money > item.initPrice) {
-                        storage.money -= item.initPrice
-                        storage.activeItems[item.idName]++
-                        scrollUpgrades.content.removeChildren(0, scrollUpgrades.content.children.length)
-                        store.removeChild(store.getChildByName('moneyContainer'))
-                        updateMoney()
-                        reloadStoreUpgrades()
-                    }
-                })
-            })
-            scrollUpgrades.update()
-        }
-
-        store.addChild(scrollUpgrades)
-
-        //SKINSTORE
-        const scrollSkins = new Scrollbox({
-            boxWidth: gameWidth,
-            boxHeight: gameHeight - 290,
-            scrollbarSize: 2
-        })
-        scrollSkins.visible = false
-        scrollSkins.position.set(0, 160)
-
-        function reloadSkinStore() {
-            skinStore.forEach((item, idx) => {
-                const ownedSkin = storage.ownedSkins.some(item => item === idx)
-
-                const skin = new PIXI.Container()
-                const skinSprite = new PIXI.Sprite(item.param.textures[item.icon])
-                let skinBuyButton
-                switch (true) {
-                    case Number(storage.selectedSkin) === idx :
-                        skinBuyButton = menuUI.textures.activebuy
-                        break
-                    case ownedSkin :
-                        skinBuyButton = menuUI.textures.alreadybuy
-                        break
-                    case storage.money < item.price :
-                        skinBuyButton = menuUI.textures.closebuy
-                        break
-                    default:
-                        skinBuyButton = menuUI.textures.openbuy
-                        break
-                }
-                const skinBuy = new PIXI.Sprite(skinBuyButton)
-                skinBuy.eventMode = 'static';
-                const skinName = new PIXI.Text(item.name, textStyles.default40);
-                const skinPrice = new PIXI.Text(`COST: ${ownedSkin ? 'owned' : item.price}`, textStyles.default40);
-                const skinDescription = new PIXI.Text(item.desc, textStyles.default30);
-                const skinBg = new PIXI.Sprite(PIXI.Texture.WHITE)
-                skinBg.tint = 0
-                skinBg.width = gameWidth
-                skinBg.height = 10
-                skin.position.set(gameWidth * idx, 0)
-                skin.position.set(gameWidth * idx, 0)
-                skin.addChild(skinName)
-                skin.addChild(skinSprite)
-                skin.addChild(skinPrice)
-                skin.addChild(skinBuy)
-                skin.addChild(skinDescription)
-                skin.addChild(skinBg)
-
-                skinSprite.scale.set(Math.floor((gameHeight / skinSprite.height) / 2))
-                skinName.anchor.set(0.5,0)
-                skinName.position.set(gameWidth / 2,20)
-                skinSprite.anchor.set(0.5,0)
-                skinSprite.position.set((gameWidth / 2),10)
-                skinPrice.position.set(20,skinSprite.y + skinSprite.height)
-                skinBuy.anchor.set(1, 0)
-                skinBuy.scale.set(0.7)
-                skinBuy.position.set(gameWidth - 20,skinPrice.y - skinBuy.height / 2)
-                skinDescription.position.set(20,skinPrice.y + 50)
-
-                if (!ownedSkin) {
-                    const skinPriceIcon = new PIXI.Sprite(menuIcons.textures.money)
-                    skin.addChild(skinPriceIcon)
-                    skinPriceIcon.scale.set(0.5)
-                    skinPriceIcon.position.set(skinPrice.x + skinPrice.width + 10,skinPrice.y - 6)
-                }
-
-                scrollSkins.content.addChild(skin)
-
-                skinBuy.on('pointerdown', () => {
-                    switch (true) {
-                        case ownedSkin:
-                            storage.selectedSkin = idx
-                            break
-                        case storage.money >= item.price :
-                            storage.money -= item.price
-                            storage.ownedSkins.push(idx)
-                            break
-                    }
-                    scrollSkins.content.removeChildren(0, scrollSkins.content.children.length)
-                    store.removeChild(store.getChildByName('moneyContainer'))
-                    updateMoney()
-                    reloadSkinStore()
-                });
-            })
-            scrollSkins.update()
-        }
-
-        store.addChild(scrollSkins)
-
-        skinButton.on('pointerdown', () => {
-            scrollUpgrades.content.removeChildren(0, scrollUpgrades.content.children.length)
-            scrollUpgrades.visible = false
-            scrollSkins.visible = true
-            reloadSkinStore()
-        });
-
-        upgrades.on('pointerdown', () => {
-            scrollSkins.content.removeChildren(0, scrollSkins.content.children.length)
-            scrollUpgrades.visible = true
-            scrollSkins.visible = false
-            reloadStoreUpgrades()
-        });
-
-        exit.on('pointerdown', () => {
-            menu.removeChildren(0, menu.children.length)
-            createMenu()
-            storageManager.save() // Сохранение без await, так как обработчик не async
-        });
-    }
-
-    function trailTimer() {
-        const interval = setInterval(() => {
-            if (gameEnd || !player) {
-                stepSound = 0
-                clearInterval(interval)
-                return
-            }
-            if (playerState.stimpack) {
-                spawnTrailParticle({x:player.x,y:player.y}, '#ffdd00')
-                spawnTrailParticle({x:player.x,y:player.y - 10}, '#ffdd00')
-                spawnTrailParticle({x:player.x,y:player.y - 20}, '#ffdd00')
-                spawnTrailParticle({x:player.x,y:player.y - 30}, '#ffdd00')
-                spawnTrailParticle({x:player.x,y:player.y - 40}, '#ffdd00')
-            }
-            if (playerSpeed > 0 && !gameState.isPause) {
-                spawnTrailParticle(player)
-                if (playerState.state === 'roll' || playerState.state === 'rollEnd') {
-                    spawnTrailParticle(player)
-                    spawnTrailParticle(player)
-                    spawnTrailParticle(player)
-                } else {
-                    stepSound++
-                    if (stepSound > 3) {
-                        soundPlayer.footStep()
-                        stepSound = 0
-                    }
-                }
-            }
-        }, 100)
-    }
 
     function spawnEntity() {
         if (Math.random() < 0.05 && powerUpManager && !powerUpManager.hasActivePowerUp()) {
@@ -1771,82 +1338,8 @@ window.onload = async function () {
         }
     }
 
-    function setMeleeSelector(skip, noDamage) {
-        if (!skip) {
-            const greenBarPosition = meleeKill.getChildAt(1).getBounds()
-            const selectorPosition = meleeKill.getChildAt(2).getBounds()
-            if (selectorPosition.x + selectorPosition.width / 2 > greenBarPosition.x && selectorPosition.x + selectorPosition.width / 2 < greenBarPosition.x + greenBarPosition.width) {
-                damageEnemy(meleeKill.enemy, 100)
-                traps.forEach(trap => {
-                    const t = trap.getLocalBounds()
-                    if (player.x > t.x && player.x < t.x + t.width) {
-                        trap.dead = true
-                    }
-                })
-                addPoints(50 + meleeKillStreak * 10)
-                gameState.scoreStreak += 3 + meleeKillStreak
-                meleeKillStreak += 1.5
-                if (gun.melee) {
-                    playAnim('melee')
-                    sleep(150).then(() => {
-                        if (playerState.inCover) return playAnim('idle')
-                        playerState.state = ''
-                        events({code:'Space'})
-                    })
-                }
-            } else {
-                damagePlayer()
-            }
-        } else {
-            if (!noDamage) damagePlayer()
-        }
-        gameSpeed = defaultGameSpeed
-        hud.removeChild(meleeKill)
-        meleeKill = null
-        clearTimeout(meleeKillStreakTimer)
-        sleep(10000).then(() => {
-            if (meleeKillStreak > 0) {
-                meleeKillStreak -= 1.5
-            }
-        })
-        if (!skip) playerState.rollId?.resume(200, 700)
-    }
-
-    function HUDmeleeKill(enemy) {
-        console.log('startMelee')
-        playerState.rollId?.pause()
-        gameSpeed = slowGameSpeed
-        meleeKill = new PIXI.Container()
-        const redBar = PIXI.Sprite.from(PIXI.Texture.WHITE);
-        redBar.height = 50
-        redBar.width = gameWidth / 1.5
-        redBar.anchor.set(0.5)
-        redBar.position.set(gameWidth / 2, gameHeight / 2)
-        redBar.tint = 16731469
-        const greenBar = PIXI.Sprite.from(PIXI.Texture.WHITE);
-        greenBar.height = 50
-        greenBar.width = gameWidth / 5
-        greenBar.anchor.set(0, 0.5)
-        const greenBarPosition = Math.floor(Math.random() * ((redBar.x + redBar.width / 2 - greenBar.width) - (redBar.x - redBar.width / 2)) + (redBar.x - redBar.width / 2))
-        greenBar.position.set(greenBarPosition, gameHeight / 2)
-        greenBar.tint = 6088284
-        const selector = PIXI.Sprite.from(PIXI.Texture.WHITE);
-        selector.height = 90
-        selector.width = 10
-        selector.anchor.set(0, 0.5)
-        const selectorPosition = Math.floor(Math.random() * ((redBar.x + redBar.width / 2 - greenBar.width) - (redBar.x - redBar.width / 2)) + (redBar.x - redBar.width / 2))
-        selector.position.set(selectorPosition, gameHeight / 2)
-        meleeKill.enemy = enemy
-        meleeKill.addChild(redBar)
-        meleeKill.addChild(greenBar)
-        meleeKill.addChild(selector)
-        hud.addChild(meleeKill)
-        meleeKillStreakTimer = setTimeout(() => {
-            if (meleeKill) {
-                setMeleeSelector(true)
-            }
-        }, 2500)
-    }
+    // Функции setMeleeSelector и HUDmeleeKill теперь в MeleeKillManager
+    // Оставлены для обратной совместимости, но больше не используются
 
     function createGarbage(posX, posY, type) {
         if (isClub) return
@@ -1873,7 +1366,9 @@ window.onload = async function () {
                     if (g.x > b.x && b.x + b.width > g.x && g.y > b.y && b.y + b.height > g.y) {
                         soundPlayer.glassBreak()
                         for (let i = 0; i <= 8; i++) {
-                            createParticles(garbage, 'bottle')
+                            if (particleManager) {
+                                particleManager.createParticle(garbage, 'bottle', null, null)
+                            }
                         }
                         world.removeChild(garbage)
                         garbages.splice(idx, 1)
@@ -1886,7 +1381,9 @@ window.onload = async function () {
                     if (g.x > b.x && b.x + b.width > g.x && g.y > b.y && b.y + b.height > g.y) {
                         soundPlayer.glassBreak()
                         for (let i = 0; i <= 8; i++) {
-                            createParticles(garbage, 'bottle')
+                            if (particleManager) {
+                                particleManager.createParticle(garbage, 'bottle', null, null)
+                            }
                         }
                         world.removeChild(garbage)
                         garbages.splice(idx, 1)
@@ -1929,17 +1426,23 @@ window.onload = async function () {
                     playerSpeed = playerDefaultSpeed * 1.5
                     soundPlayer.waterStep()
                     for (let i = 0; i <= 20; i++) {
-                        createParticles({x: puddle.x, y: puddle.y - 10}, 'drop')
+                        if (particleManager) {
+                            particleManager.createParticle({x: puddle.x, y: puddle.y - 10}, 'drop', null, null)
+                        }
                     }
                 } else {
                     soundPlayer.waterStep()
                     for (let i = 0; i <= 14; i++) {
-                        createParticles({x: puddle.x - 20, y: puddle.y - 10}, 'drop')
+                        if (particleManager) {
+                            particleManager.createParticle({x: puddle.x - 20, y: puddle.y - 10}, 'drop', null, null)
+                        }
                     }
                     sleep(250).then(() => {
                         soundPlayer.waterStep()
                         for (let i = 0; i <= 14; i++) {
-                            createParticles({x: puddle.x + 20, y: puddle.y - 10}, 'drop')
+                            if (particleManager) {
+                                particleManager.createParticle({x: puddle.x + 20, y: puddle.y - 10}, 'drop', null, null)
+                            }
                         }
                     })
                 }
@@ -2039,95 +1542,6 @@ window.onload = async function () {
         }
     }
 
-    async function cameraShake(intensity, duration) {
-        let time = 0
-        const part = Math.floor((duration / 10) / 8)
-        const defaultIntensity = intensity || 3
-        const intensityStep = defaultIntensity / 4
-        const timer = setInterval(() => {
-            if (gameState.isPause || gameState.gameEnd) return
-            time++
-            switch (true) {
-                case time > part * 7 : {
-                    world.pivot.y -= defaultIntensity - intensityStep * 3
-                    break
-                }
-                case time > part * 6 : {
-                    world.pivot.y += defaultIntensity - intensityStep * 3
-                    break
-                }
-                case time > part * 5 : {
-                    world.pivot.y -= defaultIntensity - intensityStep * 2
-                    break
-                }
-                case time > part * 4 : {
-                    world.pivot.y += defaultIntensity - intensityStep * 2
-                    break
-                }
-                case time > part * 3 : {
-                    world.pivot.y += defaultIntensity - intensityStep
-                    break
-                }
-                case time > part * 2 : {
-                    world.pivot.y -= defaultIntensity - intensityStep
-                    break
-                }
-                case time > part : {
-                    world.pivot.y -= defaultIntensity
-                    break
-                }
-                default: {
-                    world.pivot.y += defaultIntensity
-                    break
-                }
-            }
-        }, 10)
-        await sleep(duration)
-        clearInterval(timer)
-        world.pivot.y = (-world.pivot.y)
-    }
-
-    function damagePlayer() {
-        cameraShake(4, 600)
-        playerState.invincible = true
-        if (playerState.activePowerUps.some(item => item.type === 'boostShield')) {
-            soundPlayer.damageMetal()
-            player.tint = 16777021
-            playerState.activePowerUps.splice(playerState.activePowerUps.findIndex(item => item.type === 'boostShield'), 1)
-            HUDupdatePowerUp()
-        } else {
-            if (playerState.stimpack) {
-                soundPlayer.damageMetal()
-                player.tint = 16777021
-                playerState.stimpack = false
-                HUDremoveShield()
-            } else {
-                gameState.scoreStreak -= 30
-                player.tint = 16737894
-                playerState.health--
-                hud.getChildByName('hearts').removeChildAt(0)
-            }
-        }
-        if (playerState.health <= 0) {
-            for (let i = 0; i <= 20; i++) {
-                createParticles(player, 'blood', secondFloor === player.y)
-            }
-            world.removeChild(player)
-            playerSpeed = false
-            sleep(1000).then(() => {
-                endGame()
-            })
-        } else {
-            sleep(200).then(() => {
-                playerState.invincible = false
-                if (playerState.inCover) {
-                    player.tint = player.shadow
-                } else {
-                    player.tint = player.color
-                }
-            })
-        }
-    }
 
     function updatePlayer(delta) {
         if (gameState.gameEnd) return
@@ -2165,29 +1579,15 @@ window.onload = async function () {
                 if (playerState.invincible) {
                     return
                 }
-                damagePlayer()
+                if (playerDamageManager) {
+                    playerDamageManager.damagePlayer()
+                }
             }
         })
     }
 
-    function createPlayer() {
-        if (playerInstance) {
-            player = playerInstance.createPlayer(playerState.currentSkin)
-            world.addChild(player)
-        }
-    }
 
-    function spawnTrailParticle(pos, tint) {
-        if (particleManager) {
-            const inZipLine = playerState.inZipLine || false
-            particleManager.spawnTrailParticle(pos, tint, inZipLine)
-        }
-    }
 
-    function updateTrailParticle() {
-        // Обновление частиц следа теперь в ParticleManager.updateTrailParticles()
-        // Функция оставлена для обратной совместимости
-    }
 
     function deleteWallsAroundBuilding(pos) {
         walls.forEach((wall, idx) => {
@@ -2622,30 +2022,12 @@ window.onload = async function () {
     // Функции updateDropMoney и spawnDropMoney теперь в MoneyManager
     // Оставлены для обратной совместимости, но больше не используются
 
-    function spawnBounceParticle(char, particleType, tint) {
-        if (particleManager) {
-            particleManager.spawnBounceParticle(char, particleType, tint)
-        }
-    }
 
-    function updateBounceParticles() {
-        // Обновление отскакивающих частиц теперь в ParticleManager.updateBounceParticles()
-        // Функция оставлена для обратной совместимости
-    }
 
     // Функции grenadeBounce, grenadeExplode, updateGrenade теперь в GrenadeManager
     // Оставлены для обратной совместимости, но больше не используются
 
-    function createParticles(char, particleType, floor, size) {
-        if (particleManager) {
-            particleManager.createParticle(char, particleType, floor, size)
-        }
-    }
 
-    function updateParticles() {
-        // Обновление частиц теперь в ParticleManager.updateParticles()
-        // Функция оставлена для обратной совместимости
-    }
 
     async function enemyShooting(char) {
         const warning = new PIXI.Sprite(particles.textures.detection)
@@ -2947,7 +2329,9 @@ window.onload = async function () {
             if (player.x + 20 > currentBoss.x) {
                 currentBoss.skip = true
                 playerState.inBossFight = false
-                damagePlayer()
+                if (playerDamageManager) {
+                    playerDamageManager.damagePlayer()
+                }
             }
         }
         playerBullets.forEach((bullet, idx) => {
@@ -3066,7 +2450,9 @@ window.onload = async function () {
             soundPlayer.damageFlesh()
         }
         for (let i = 0; i < random(8,20); i++) {
-            createParticles(enemy, isBoss || (enemy.params.shield && !enemy.params.knocked) ? 'spark' : 'blood', enemy.secondFloor)
+            if (particleManager) {
+                particleManager.createParticle(enemy, isBoss || (enemy.params.shield && !enemy.params.knocked) ? 'spark' : 'blood', enemy.secondFloor, null)
+            }
         }
         //dead
         if (enemy.params.health <= 0) {
@@ -3079,14 +2465,20 @@ window.onload = async function () {
             if (enemy.params.deathType) {
                 switch (true) {
                     case enemy.params.deathType === 'smallExplode':
-                        createExplode(enemy, 0, 0, false)
+                        if (explosionManager) {
+                            explosionManager.createExplode(enemy, 0, 0, false)
+                        }
                     break
                     case enemy.params.deathType === 'bigExplode':
-                        createExplode(enemy, -28, -24, true)
+                        if (explosionManager) {
+                            explosionManager.createExplode(enemy, -28, -24, true)
+                        }
                     break
                 }
             }
-            cameraShake(1, 400)
+            if (cameraManager) {
+                cameraManager.cameraShake(1, 400)
+            }
             enemy.params.dead = true
             gameState.scoreStreak += enemy.params.points / 10
             addPoints(enemy.params.points)
@@ -3095,7 +2487,9 @@ window.onload = async function () {
                 addPoints(10)
                 enemy.textures = enemy.params.animset.deathCrit || enemy.params.animset.death
                 for (let i = 0; i < random(8,20); i++) {
-                    createParticles(enemy, 'blood', enemy.secondFloor)
+                    if (particleManager) {
+                        particleManager.createParticle(enemy, 'blood', enemy.secondFloor, null)
+                    }
                 }
             } else {
                 enemy.textures = enemy.params.animset.death
@@ -3162,11 +2556,13 @@ window.onload = async function () {
                 })
                 //check player collision
                 if (!enemy.skip && (player.x > enemy.x - 30 && player.x + 40 < enemy.x + enemy.width)) {
-                    if (!meleeKill && (playerState.state === 'roll' || playerState.state === 'rollEnd')) {
+                    if ((!meleeKillManager || !meleeKillManager.hasMeleeKill()) && (playerState.state === 'roll' || playerState.state === 'rollEnd')) {
                         if (playerState.invincible) {
                             damageEnemy(enemy, 10)
                         } else {
-                            HUDmeleeKill(enemy)
+                            if (meleeKillManager) {
+                                meleeKillManager.createMeleeKillUI(enemy)
+                            }
                         }
                     } else {
                         if (enemy.params.inCover) return
@@ -3254,12 +2650,16 @@ window.onload = async function () {
         if (Math.random() > 0.75 && isBuilding) {
             const posX = random(10, 100)
             const posY = random(94, 104)
-            createGarbage(floor.x + floor.width + posX, floor.y + posY)
+            if (garbageManager) {
+                garbageManager.createGarbage(floor.x + floor.width + posX, floor.y + posY)
+            }
         }
         if (Math.random() > 0.75 && isBuilding) {
             const posX = random(10, 100)
             const posY = random(65, 75)
-            createGarbage(floor.x + floor.width + posX, floor.y + posY)
+            if (garbageManager) {
+                garbageManager.createGarbage(floor.x + floor.width + posX, floor.y + posY)
+            }
         }
         floor.body = Matter.Bodies.rectangle(floor.x, floor.y - floor.height + 44, floor.width + 20, 40, {isStatic: true});
         bgWall.anchor.set(0,1)
@@ -3321,26 +2721,6 @@ window.onload = async function () {
     // Функции updatePowerUp и createPowerUp теперь в PowerUpManager
     // Оставлены для обратной совместимости, но больше не используются
 
-    // Функция createBarrel теперь в TrapManager
-    // Оставлена для обратной совместимости, но больше не используется
-
-    function createExplode(target, offsetX, offsetY, isBig, silence) {
-        cameraShake(2, 500)
-        if (!silence) soundPlayer.explosion()
-        const explode = new PIXI.AnimatedSprite(isBig ? bigExplode.animations.explode : bochka.animations.smallExplode)
-        explode.zIndex = target.zIndex
-        explode.loop = false
-        explode.anchor.set(0.5)
-        explode.height = explode.height * 3
-        explode.width = explode.width * 3
-        explode.animationSpeed = isBig ? 0.25 : 0.4
-        explode.position.set(target.x + offsetX, target.y + offsetY)
-        world.addChild(explode)
-        explode.play()
-        explode.onComplete = () => {
-            world.removeChild(explode)
-        }
-    }
 
     // Функции barrelDead, updateTraps, createWindow, createDoor теперь в TrapManager
     // Оставлены для обратной совместимости, но больше не используются
@@ -3393,7 +2773,9 @@ window.onload = async function () {
         world.addChild(wall)
         if (Math.random() < 0.5 && randomWall < 4) {
             const pos = random(10, wall.width / 2)
-            createGarbage(wall.x - wall.width / 2 + pos, wall.y, 4)
+            if (garbageManager) {
+                garbageManager.createGarbage(wall.x - wall.width / 2 + pos, wall.y, 4)
+            }
         }
         walls.push(wall)
     }
@@ -3509,23 +2891,29 @@ window.onload = async function () {
         switch (true) {
             //RELOAD
             case e.code === 'KeyR':
-                if ((!playerState.state || playerState.state === 'rollEnd') && gun.currentAmmo < gun.ammo && !meleeKill) {
+                if ((!playerState.state || playerState.state === 'rollEnd') && gun.currentAmmo < gun.ammo && (!meleeKillManager || !meleeKillManager.hasMeleeKill())) {
                     soundPlayer.gunReload(gun.type)
                     playAnim('reload')
                     playerSpeed = 0
                     switch (true) {
                         case gun.type === 'shotgun':
                             for (let i = 0; i < gun.ammo - gun.currentAmmo; i++) {
-                                spawnBounceParticle(player, 'shell', 16711680)
+                                if (particleManager) {
+                                    particleManager.spawnBounceParticle(player, 'shell', 16711680)
+                                }
                             }
                         break
                         case gun.type === 'revolver':
                             for (let i = 0; i < gun.ammo - gun.currentAmmo; i++) {
-                                spawnBounceParticle(player, 'shell')
+                                if (particleManager) {
+                                    particleManager.spawnBounceParticle(player, 'shell')
+                                }
                             }
                         break
                         default:
-                            spawnBounceParticle(player, 'mag')
+                            if (particleManager) {
+                                particleManager.spawnBounceParticle(player, 'mag')
+                            }
                         break
                     }
                     player.onComplete = () => {
@@ -3542,7 +2930,7 @@ window.onload = async function () {
             break
             //ROLL
             case e.code === 'Space':
-                if (!playerState.state && !playerState.inBossFight && !meleeKill) {
+                if (!playerState.state && !playerState.inBossFight && (!meleeKillManager || !meleeKillManager.hasMeleeKill())) {
                     gameState.scoreStreak += 1
                     soundPlayer.slide()
                     playAnim('roll')
@@ -3561,20 +2949,20 @@ window.onload = async function () {
                             if (playerState.inCover || playerState.inZipLine) {
                                 gameState.scoreStreak += 1
                             } else {
-                                if (meleeKill) return
+                                if (meleeKillManager && meleeKillManager.hasMeleeKill()) return
                                 playerSpeed = playerDefaultSpeed
                                 playAnim()
                             }
                             playerState.rollId = null
                         })
-                        if (meleeKill) playerState.rollId.pause()
+                        if (meleeKillManager && meleeKillManager.hasMeleeKill()) playerState.rollId.pause()
                     };
                 }
             break
             //SHOT
             case e.code === 'KeyF':
-                if (meleeKill) {
-                    setMeleeSelector()
+                if (meleeKillManager && meleeKillManager.hasMeleeKill()) {
+                    meleeKillManager.handleMeleeKill(false, false)
                     return
                 }
                 if ((!playerState.state || playerState.state === 'rollEnd') && !triggerDelay) {
@@ -3946,7 +3334,7 @@ window.onload = async function () {
         timerMenu.addChild(timerText)
 
         pause.on('pointerdown', () => {
-            if (meleeKill) return
+            if (meleeKillManager && meleeKillManager.hasMeleeKill()) return
             const allAnimated = world.children.filter(item => item.animationSpeed)
             allAnimated.forEach(item => {
                 item.stop()
@@ -3995,7 +3383,10 @@ window.onload = async function () {
         })
 
         cancelButton.on('pointerdown', () => {
-            endGame(true)
+            if (endScreenManager) {
+                timeouts.length = 0
+                endScreenManager.createEndScreen(true)
+            }
         })
 
         stayButton.on('pointerdown', () => {
@@ -4057,104 +3448,8 @@ window.onload = async function () {
         storage = storageManager.getStorage()
     }
 
-    function createSwipes() {
-        const canvas = app.renderer.view
-        //Чувствительность — количество пикселей, после которого жест будет считаться свайпом
-        const sensitivity = 20;
-
-//Получение поля, в котором будут выводиться сообщения
-
-        var touchStart = null; //Точка начала касания
-        var touchPosition = null; //Текущая позиция
-
-//Перехватываем события
-        canvas.addEventListener("touchstart", function (e) { TouchStart(e); }); //Начало касания
-        canvas.addEventListener("touchmove", function (e) { TouchMove(e); }); //Движение пальцем по экрану
-//Пользователь отпустил экран
-        canvas.addEventListener("touchend", function (e) { TouchEnd(e); });
-//Отмена касания
-        canvas.addEventListener("touchcancel", function (e) { TouchEnd(e); });
-
-        function TouchStart(e)
-        {
-            //Получаем текущую позицию касания
-            touchStart = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
-            touchPosition = { x: touchStart.x, y: touchStart.y };
-        }
-
-        function TouchMove(e)
-        {
-            //Получаем новую позицию
-            touchPosition = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
-        }
-
-        function TouchEnd(e)
-        {
-            CheckAction(); //Определяем, какой жест совершил пользователь
-
-            //Очищаем позиции
-            touchStart = null;
-            touchPosition = null;
-        }
-
-        function CheckAction()
-        {
-            var d = //Получаем расстояния от начальной до конечной точек по обеим осям
-                {
-                    x: touchStart.x - touchPosition.x,
-                    y: touchStart.y - touchPosition.y
-                };
-
-            var msg = ""; //Сообщение
-
-            if(Math.abs(d.x) > Math.abs(d.y)) //Проверяем, движение по какой оси было длиннее
-            {
-                if(Math.abs(d.x) > sensitivity) //Проверяем, было ли движение достаточно длинным
-                {
-                    if(d.x > 0) //Если значение больше нуля, значит пользователь двигал пальцем справа налево
-                    {
-                        msg = "Swipe Left";
-                    }
-                    else //Иначе он двигал им слева направо
-                    {
-                        msg = "Swipe Right";
-                    }
-                }
-            }
-            else //Аналогичные проверки для вертикальной оси
-            {
-                if (Math.abs(d.y) > sensitivity) {
-                    if(d.y > 0) //Свайп вверх
-                    {
-                        msg = "Swipe up";
-                    }
-                    else //Свайп вниз
-                    {
-                        msg = "Swipe down";
-                    }
-                }
-            }
-
-            switch (true) {
-                case msg === 'Swipe down':
-                    events({code: 'Space'})
-                break
-                case msg === 'Swipe up':
-                    events({code: 'KeyR'})
-                break
-                case msg === 'Swipe Right':
-                    events({code: 'KeyE'})
-                break
-                case msg === 'Swipe Left':
-                    events({code: 'KeyW'})
-                break
-                default:
-                    events({code: 'KeyF'})
-                break
-            }
-
-        }
-    }
+    // Функция createSwipes теперь в InputHandler
+    // Оставлена для обратной совместимости, но больше не используется
 }
 
 // getPercent перенесена в utils/GameUtils.js
@@ -4213,4 +3508,3 @@ const Timer = function(callback, delay) {
 };
 
 // random перенесена в utils/GameUtils.js
-

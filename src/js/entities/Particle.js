@@ -32,6 +32,17 @@ export class ParticleManager {
         this.physParticles = []
         this.bounceParticles = []
         this.trails = []
+        
+        // Таймер следа
+        this.trailTimerInterval = null
+        this.stepSound = 0
+        
+        // Колбэки
+        this.player = null
+        this.playerState = null
+        this.playerSpeed = null
+        this.gameState = null
+        this.soundPlayer = null
     }
     
     /**
@@ -40,6 +51,28 @@ export class ParticleManager {
      */
     setTextures(textures) {
         this.textures = textures
+    }
+    
+    /**
+     * Устанавливает колбэки для trailTimer
+     * @param {Object} callbacks - объект с колбэками
+     */
+    setCallbacks(callbacks) {
+        if (callbacks.player !== undefined) this.player = callbacks.player
+        if (callbacks.playerState !== undefined) this.playerState = callbacks.playerState
+        if (callbacks.playerSpeed !== undefined) this.playerSpeed = callbacks.playerSpeed
+        if (callbacks.gameState !== undefined) this.gameState = callbacks.gameState
+        if (callbacks.soundPlayer !== undefined) this.soundPlayer = callbacks.soundPlayer
+    }
+    
+    /**
+     * Обновляет состояние для trailTimer
+     * @param {Object} state - объект с состоянием
+     */
+    updateTrailState(state) {
+        if (state.playerSpeed !== undefined) this.playerSpeed = state.playerSpeed
+        if (state.player !== undefined) this.player = state.player
+        if (state.playerState !== undefined) this.playerState = state.playerState
     }
     
     /**
@@ -345,6 +378,69 @@ export class ParticleManager {
             this.world.removeChild(particle)
         })
         this.trails = []
+    }
+    
+    /**
+     * Запускает таймер частиц следа
+     */
+    startTrailTimer() {
+        // Останавливаем предыдущий таймер, если он существует
+        this.stopTrailTimer()
+        
+        this.stepSound = 0
+        this.trailTimerInterval = setInterval(() => {
+            if (!this.gameState || !this.player) {
+                this.stepSound = 0
+                this.stopTrailTimer()
+                return
+            }
+            
+            // Проверка на окончание игры
+            if (this.gameState.gameEnd) {
+                this.stepSound = 0
+                this.stopTrailTimer()
+                return
+            }
+            
+            // Частицы следа для stimpack
+            if (this.playerState && this.playerState.stimpack) {
+                this.spawnTrailParticle({x: this.player.x, y: this.player.y}, '#ffdd00')
+                this.spawnTrailParticle({x: this.player.x, y: this.player.y - 10}, '#ffdd00')
+                this.spawnTrailParticle({x: this.player.x, y: this.player.y - 20}, '#ffdd00')
+                this.spawnTrailParticle({x: this.player.x, y: this.player.y - 30}, '#ffdd00')
+                this.spawnTrailParticle({x: this.player.x, y: this.player.y - 40}, '#ffdd00')
+            }
+            
+            // Частицы следа при движении
+            if (this.playerSpeed > 0 && !this.gameState.isPause) {
+                this.spawnTrailParticle(this.player)
+                
+                // Дополнительные частицы при качении
+                if (this.playerState && (this.playerState.state === 'roll' || this.playerState.state === 'rollEnd')) {
+                    this.spawnTrailParticle(this.player)
+                    this.spawnTrailParticle(this.player)
+                    this.spawnTrailParticle(this.player)
+                } else {
+                    // Звук шагов
+                    this.stepSound++
+                    if (this.stepSound > 3 && this.soundPlayer) {
+                        this.soundPlayer.footStep()
+                        this.stepSound = 0
+                    }
+                }
+            }
+        }, 100)
+    }
+    
+    /**
+     * Останавливает таймер частиц следа
+     */
+    stopTrailTimer() {
+        if (this.trailTimerInterval) {
+            clearInterval(this.trailTimerInterval)
+            this.trailTimerInterval = null
+        }
+        this.stepSound = 0
     }
     
     /**
