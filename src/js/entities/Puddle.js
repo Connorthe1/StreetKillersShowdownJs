@@ -206,4 +206,8 @@ export class PuddleManager {
         })
         this.puddles = []
     }
+
+    setTextures(puddleTexture) {
+        this.puddleTexture = puddleTexture
+    }
 }

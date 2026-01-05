@@ -694,37 +694,13 @@ export class BuildingManager {
     
     /**
      * Обновляет зиплайны
+     * @deprecated Используйте ZipLineManager.updateZiplines() вместо этого
+     * Метод оставлен для обратной совместимости, но будет удален в будущем
      */
     updateZiplines() {
-        if (!this.player || !this.playerState) return
-        
-        this.zipLines.forEach((b, idx) => {
-            if (b.position.x + b.width < this.zeroLeft) {
-                if (this.world) {
-                    this.world.removeChild(b)
-                }
-                this.zipLines.splice(idx, 1)
-                return
-            }
-            if (this.playerState.inZipLine || b.used) return
-            if (b.position.x + (b.end ? b.width - 20 : -10) < this.player.x && 
-                b.position.x + (b.end ? b.width : 0) > this.player.x) {
-                b.used = true
-                if (this.soundPlayer) {
-                    this.soundPlayer.zipLine()
-                }
-                this.playerState.inZipLine = b.end ? "bot" : "top"
-                if (this.playerSpeed !== null && this.playerSpeed !== undefined) {
-                    this.playerSpeed.value = 0
-                }
-                if (this.playAnimCallback) {
-                    this.playAnimCallback('zipLine')
-                }
-                if (this.player && this.storage && this.skinStore) {
-                    this.player.rotation = this.skinStore[Number(this.storage.selectedSkin)].noRotate ? 0 : 4.8
-                }
-            }
-        })
+        // Метод перенесен в ZipLineManager
+        // Оставлен для обратной совместимости
+        console.warn('BuildingManager.updateZiplines() устарел. Используйте ZipLineManager.updateZiplines()')
     }
     
     /**

@@ -8,7 +8,7 @@ import { Scrollbox } from 'pixi-scrollbox';
 import skinStore from './skinStore.json'
 import storeUpgrades from './upgrades.json'
 import bridge from '@vkontakte/vk-bridge';
-import { Player, playerState, playerDefaultSpeed, playerSpeed, initSpeed, playerPos, secondFloor, player, playerBullets, gun, shotsArr, meleeKill, meleeKillSelectorSide, meleeKillSelectorSpeed, meleeKillStreak, meleeKillStreakTimer, triggerDelay, updateGunFromSkin } from './Player.js'
+import { Player, playerState, playerDefaultSpeed, playerSpeed, initSpeed, player, playerBullets, gun, meleeKill, meleeKillSelectorSide, meleeKillSelectorSpeed, meleeKillStreak, meleeKillStreakTimer, triggerDelay, updateGunFromSkin } from './Player.js'
 import { getPercent, random, randomRGB } from './utils/GameUtils.js'
 import { GAME_SCALE, DEFAULT_GAME_SPEED, SLOW_GAME_SPEED, BULLET_SPEED, FENCE_CHANCE, BUILDING_CHANCE, GROUND_COLORS, BG_SPEED, initGameConfig } from './core/GameConfig.js'
 import { GameState } from './core/GameState.js'
@@ -17,7 +17,15 @@ import { ResourceLoader } from './resources/ResourceLoader.js'
 import { PhysicsManager } from './physics/PhysicsManager.js'
 import { ParticleManager } from './entities/Particle.js'
 import { BulletManager } from './entities/Bullet.js'
-import { EnvironmentManager } from './environment/EnvironmentManager.js'
+import { BackgroundManager } from './environment/Background.js'
+import { GroundManager } from './environment/Ground.js'
+import { BgCarManager } from './entities/BgCar.js'
+import { GarbageManager } from './entities/Garbage.js'
+import { PuddleManager } from './entities/Puddle.js'
+import { CanManager } from './entities/Can.js'
+import { BuildingManager } from './entities/Building.js'
+import { WallManager } from './entities/Wall.js'
+import { ZipLineManager } from './entities/ZipLine.js'
 import { SpawnManager } from './core/SpawnManager.js'
 import { EventManager } from './core/EventManager.js'
 import { HUDManager } from './ui/HUDManager.js'
@@ -27,8 +35,14 @@ import { ScoreManager } from './core/ScoreManager.js'
 import { CollisionDetector } from './physics/CollisionDetector.js'
 import { EnemyManager } from './entities/Enemy.js'
 import { BossManager } from './entities/Boss.js'
+import { GrenadeManager } from './entities/Grenade.js'
+import { TrapManager } from './entities/Trap.js'
+import { MoneyManager } from './entities/Money.js'
+import { PowerUpManager } from './entities/PowerUp.js'
+import { DogEnemyManager } from './entities/DogEnemy.js'
 
-let playerInstance;
+// Переменные игрока импортируются из Player.js
+let playerInstance = null
 
 window.Telegram.WebApp.ready()
 window.Telegram.WebApp.expand()
@@ -67,7 +81,7 @@ let enemyBullets = []
 const bulletSpeed = BULLET_SPEED
 let bulletManager // Инициализируется после создания world
 
-// Окружение теперь управляется через EnvironmentManager
+// Окружение теперь управляется через отдельные менеджеры
 let background
 let bgPosition = 0
 let bgSpeed = BG_SPEED
@@ -80,7 +94,7 @@ const woodsBGarr = []
 let hud
 let stepSound = 0
 let floorPosition = 0
-// Флаги окружения теперь в EnvironmentManager
+// Флаги окружения
 const fenceChance = FENCE_CHANCE
 let isFence = false
 let isBuilding = false
@@ -88,7 +102,17 @@ let afterBuilding = 0
 let isClub = false
 const buildingChance = BUILDING_CHANCE
 let buildingType = 0
-let environmentManager // Инициализируется после создания world
+
+// Менеджеры окружения и сущностей
+let backgroundManager // Инициализируется после создания world
+let groundManager // Инициализируется после создания world
+let bgCarManager // Инициализируется после создания world
+let garbageManager // Инициализируется после создания world
+let puddleManager // Инициализируется после создания world
+let canManager // Инициализируется после создания world
+let buildingManager // Инициализируется после создания world
+let wallManager // Инициализируется после создания world
+let zipLineManager // Инициализируется после создания world
 
 // shotsArr импортируется из Player.js, но также управляется через BulletManager
 let shotsArr = []
@@ -105,7 +129,7 @@ let physParticles = []
 let bounceParticles = []
 let trails = []
 const moneyDrop = []
-// Массивы окружения теперь управляются через EnvironmentManager
+// Массивы окружения теперь управляются через отдельные менеджеры
 let buildings = []
 const zipLines = []
 const grenades = []
@@ -120,6 +144,11 @@ let gameManager // Главный координатор всех систем
 let scoreManager // Менеджер очков и рейтинга
 let collisionDetector // Детектор коллизий
 let enemyManager // Менеджер врагов
+let grenadeManager // Менеджер гранат
+let trapManager // Менеджер ловушек
+let moneyManager // Менеджер денег
+let powerUpManager // Менеджер пауэр-апов
+let dogEnemyManager // Менеджер собаки-врага
 let currentBoss = null
 let bgCar = null
 let currentDogEnemy = null
@@ -213,6 +242,37 @@ window.onload = async function () {
             menuIcons
         )
     }
+    
+    // Установка текстур и параметров в менеджер гранат после загрузки ресурсов
+    if (grenadeManager && activeItems && bounceParticlesTexture && particles) {
+        grenadeManager.activeItems = activeItems
+        grenadeManager.bounceParticlesTexture = bounceParticlesTexture
+        grenadeManager.particles = particles
+    }
+    
+    // Установка текстур и параметров в менеджер ловушек после загрузки ресурсов
+    if (trapManager && bochka && windowTexture && doorTexture) {
+        trapManager.setTextures({
+            bochka: bochka,
+            windowTexture: windowTexture,
+            doorTexture: doorTexture
+        })
+    }
+    
+    // Установка текстур и параметров в менеджер денег после загрузки ресурсов
+    if (moneyManager && menuIcons) {
+        moneyManager.menuIcons = menuIcons
+    }
+    
+    // Установка текстур и параметров в менеджер пауэр-апов после загрузки ресурсов
+    if (powerUpManager && menuIcons) {
+        powerUpManager.menuIcons = menuIcons
+    }
+    
+    // Установка текстур и параметров в менеджер собаки-врага после загрузки ресурсов
+    if (dogEnemyManager && dogEnemy && enemyParams) {
+        dogEnemyManager.setTextures(dogEnemy, enemyParams)
+    }
 
     function init() {
         world = new PIXI.Container()
@@ -230,7 +290,6 @@ window.onload = async function () {
         hud.parentGroup = hudLayer
         hud.zOrder = 9
 
-        background = createBg(bg)
         woodsBG = new PIXI.Container()
         woodsBG.name = 'woodsBG'
         world.addChild(woodsBG)
@@ -256,14 +315,148 @@ window.onload = async function () {
         enemyBullets = bulletArrays.enemyBullets
         // shotsArr будет обновляться в BulletManager, но ссылка остается для Player.js
         
-        // Инициализация менеджера окружения
-        environmentManager = new EnvironmentManager(world, ground, woodsBG, engine, physicsManager, gameState)
+        // Инициализация менеджеров окружения и сущностей
+        backgroundManager = new BackgroundManager(world, WORLD_WIDTH, WORLD_HEIGHT, gameHeight, bg)
+        // Фон создается через BackgroundManager (после инициализации)
+        background = backgroundManager.createBg(bg)
+        backgroundManager.updateState({
+            gameStart: gameState.gameStart,
+            playerSpeed: playerSpeed,
+            gameSpeed: gameSpeed,
+            zeroLeft: zeroLeft
+        })
+        
+        groundManager = new GroundManager(world, ground, woodsBG, engine, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, { textures }, woods)
+        groundManager.updateState({
+            isBuilding: isBuilding,
+            zeroLeft: zeroLeft
+        })
+        groundManager.setSelectGroundColor(selectGroundColor)
+        
+        bgCarManager = new BgCarManager(world, ground, zeroLeft, zeroRight)
+        bgCarManager.setTextures(bgCarTexture)
+        
+        garbageManager = new GarbageManager(world, isClub, enemyBullets, playerBullets, soundPlayer, (char, particleType) => {
+            if (particleManager) {
+                particleManager.createParticle(char, particleType, null, null)
+            }
+        }, zeroLeft)
+        garbageManager.setTextures(garbageTexture)
+        
+        puddleManager = new PuddleManager(world, gameState, player, playerState, buildings, soundPlayer, (points) => {
+            if (scoreManager) scoreManager.addPoints(points)
+        }, (pos, type) => {
+            if (particleManager) {
+                particleManager.createParticle(pos, type, null, null)
+            }
+        }, (ms) => {
+            return new Promise(resolve => setTimeout(resolve, ms))
+        }, zeroRight, playerPos)
+        puddleManager.setTextures(puddleTexture)
+        
+        canManager = new CanManager(world, engine, physicsManager, gameState, player, playerState, enemies, currentDogEnemy, currentBoss, traps, soundPlayer, (points) => {
+            if (scoreManager) scoreManager.addPoints(points)
+        }, (enemy, damage) => {
+            if (enemyManager) enemyManager.damageEnemy(enemy, damage)
+        }, (char, particleType) => {
+            if (particleManager) {
+                particleManager.createParticle(char, particleType, null, null)
+            }
+        }, (barrel) => {
+            // barrelDead callback
+        }, WORLD_HEIGHT)
+        canManager.setTextures(canTexture)
+        
+        buildingManager = new BuildingManager(world, engine, physicsManager, ground, secondFloor, walls, buildings, zipLines, traps, player, playerState, zeroLeft, zeroRight, WORLD_WIDTH, WORLD_HEIGHT, fg)
+        buildingManager.setTextures({
+            build1,
+            build2,
+            buildZiplineTexture,
+            club,
+            inBuildTexture,
+            inFloorTexture,
+            inClubTexture,
+            windowTexture,
+            doorTexture,
+            laserBeamTexture
+        })
+        buildingManager.setCallbacks({
+            createBoss: (type, pos) => {
+                if (bossManager) bossManager.createBoss(type, pos)
+            }
+        })
+        
+        wallManager = new WallManager(world, player, ground, zeroLeft, zeroRight, afterBuilding, textures, inBuildTexture, inClubTexture, inFloorTexture)
+        
+        // Инициализация менеджера ловушек (текстуры будут установлены после загрузки ресурсов)
+        trapManager = new TrapManager(
+            world,
+            null, // player - будет установлен позже
+            playerState,
+            gameState,
+            enemies,
+            currentDogEnemy,
+            playerBullets,
+            zeroRight,
+            afterBuilding,
+            ground,
+            fg,
+            null // bochka - будет установлен позже
+        )
+        
+        // Установка колбэков для TrapManager
+        trapManager.setCallbacks({
+            addPoints: addPoints,
+            damagePlayer: damagePlayer,
+            damageEnemy: damageEnemy,
+            soundPlayer: soundPlayer,
+            createParticles: (char, particleType) => {
+                if (particleManager) {
+                    particleManager.createParticle(char, particleType, null, null)
+                }
+            },
+            createExplode: createExplode,
+            sleep: sleep,
+            gun: gun
+        })
+        
+        zipLineManager = new ZipLineManager(world, zipLines, player, playerState, soundPlayer, (anim) => {
+            if (playerInstance) playerInstance.playAnim(anim)
+        }, playerSpeed, skinStore, storage, zeroLeft)
+        zipLineManager.setTextures(buildZiplineTexture)
+        
+        // Установка колбэков после инициализации всех менеджеров
+        groundManager.setCallbacks({
+            createGarbage: (posX, posY) => {
+                if (garbageManager) {
+                    garbageManager.createGarbage(posX, posY)
+                }
+            },
+            spawnEntity: () => {
+                if (spawnManager) {
+                    spawnManager.spawnEntity()
+                }
+            }
+        })
+        
+        wallManager.setCallbacks({
+            createEnemy: (pos, onSecondFloor) => {
+                if (enemyManager) {
+                    enemyManager.createEnemy(pos, onSecondFloor)
+                }
+            },
+            createGarbage: (posX, posY) => {
+                if (garbageManager) {
+                    garbageManager.createGarbage(posX, posY)
+                }
+            }
+        })
+        
         // Обновление ссылок на массивы для обратной совместимости
-        const envArrays = environmentManager.getArrays()
-        buildings = envArrays.buildings
-        puddles = envArrays.puddles
-        garbages = envArrays.garbages
-        // woodsBGarr будет обновляться через environmentManager
+        buildings = buildingManager.getArrays().buildings
+        zipLines = zipLineManager.getZipLines ? zipLineManager.getZipLines() : zipLines
+        traps = trapManager ? trapManager.getTraps() : traps
+        // puddles и garbages управляются через менеджеры
         
         // Инициализация менеджера спавна
         spawnManager = new SpawnManager(
@@ -335,6 +528,105 @@ window.onload = async function () {
             textStyles
         )
         
+        // Инициализация менеджера гранат (текстуры будут установлены после загрузки ресурсов)
+        grenadeManager = new GrenadeManager(
+            world,
+            engine,
+            physicsManager,
+            null, // player - будет установлен позже
+            playerState,
+            enemies,
+            traps,
+            currentDogEnemy,
+            currentBoss,
+            zeroLeft,
+            null, // activeItems - будет установлен позже
+            null, // bounceParticlesTexture - будет установлен позже
+            null  // particles - будет установлен позже
+        )
+        
+        // Установка колбэков для GrenadeManager
+        grenadeManager.setCallbacks({
+            damagePlayer: damagePlayer,
+            createExplode: createExplode,
+            damageEnemy: damageEnemy,
+            barrelDead: barrelDead,
+            soundPlayer: soundPlayer,
+            sleep: sleep
+        })
+        
+        // Обновление ссылок на массивы для обратной совместимости
+        grenades = grenadeManager.getGrenades()
+        
+        // Инициализация менеджера денег (текстуры будут установлены после загрузки ресурсов)
+        moneyManager = new MoneyManager(
+            world,
+            engine,
+            physicsManager,
+            null, // player - будет установлен позже
+            gameState,
+            zeroLeft,
+            null // menuIcons - будет установлен позже
+        )
+        
+        // Установка колбэков для MoneyManager
+        moneyManager.setCallbacks({
+            soundPlayer: soundPlayer
+        })
+        
+        // Обновление ссылок на массивы для обратной совместимости
+        moneyDrop = moneyManager.getMoneyDrop()
+        
+        // Инициализация менеджера собаки-врага (текстуры будут установлены после загрузки ресурсов)
+        dogEnemyManager = new DogEnemyManager(
+            world,
+            null, // player - будет установлен позже
+            playerState,
+            playerBullets,
+            buildings,
+            zeroRight,
+            playerPos,
+            secondFloor,
+            fg,
+            gameSpeed
+        )
+        
+        // Установка колбэков для DogEnemyManager
+        dogEnemyManager.setCallbacks({
+            damagePlayer: damagePlayer,
+            damageEnemy: damageEnemy,
+            soundPlayer: soundPlayer,
+            gun: gun
+        })
+        
+        // Обновление ссылок на переменные для обратной совместимости
+        currentDogEnemy = dogEnemyManager.getCurrentDogEnemy()
+        
+        // Инициализация менеджера пауэр-апов (текстуры будут установлены после загрузки ресурсов)
+        powerUpManager = new PowerUpManager(
+            world,
+            null, // player - будет установлен позже
+            playerState,
+            gameState,
+            zeroLeft,
+            zeroRight,
+            playerPos,
+            fg,
+            null, // menuIcons - будет установлен позже
+            storage
+        )
+        
+        // Установка колбэков для PowerUpManager
+        powerUpManager.setCallbacks({
+            soundPlayer: soundPlayer,
+            HUDupdatePowerUp: HUDupdatePowerUp,
+            HUDbullets: HUDbullets,
+            gun: gun
+        })
+        
+        // Обновление ссылок на переменные для обратной совместимости
+        activePowerUp = powerUpManager.getActivePowerUp()
+        
         // Инициализация главного менеджера игры
         gameManager = new GameManager()
         gameManager.setManagers({
@@ -342,7 +634,16 @@ window.onload = async function () {
             physicsManager,
             particleManager,
             bulletManager,
-            environmentManager,
+            // environmentManager удален, используем отдельные менеджеры
+            backgroundManager,
+            groundManager,
+            bgCarManager,
+            garbageManager,
+            puddleManager,
+            canManager,
+            buildingManager,
+            wallManager,
+            zipLineManager,
             spawnManager,
             eventManager: null, // Будет установлен позже
             hudManager,
@@ -361,8 +662,9 @@ window.onload = async function () {
         createMenu()
 
         selectGroundColor = random(0,groundColor.length - 1)
+        groundManager.setSelectGroundColor(selectGroundColor)
         for (let i = 0; i <= 3; i++) {
-            createFloor(i, 0)
+            groundManager.createFloor(i)
         }
         playerPos = ground.getLocalBounds().y + 70
         secondFloor = ground.getLocalBounds().y - 120
@@ -372,7 +674,7 @@ window.onload = async function () {
     }
 
     function startGame() {
-        updateGunFromSkin(storage.selectedSkin, storage, getPercent);
+        updateGunFromSkin(storage.selectedSkin, storage, getPercent, skinStore);
 
         HUDbullets()
         HUDpoints()
@@ -473,20 +775,36 @@ window.onload = async function () {
         gun.type = 'pistol'
 
         walls.length = 0
-        traps.length = 0
+        if (trapManager) {
+            trapManager.clear()
+        }
+        // Обновление ссылок на массивы для обратной совместимости
+        traps = trapManager ? trapManager.getTraps() : []
         enemies.length = 0
         if (particleManager) {
             particleManager.clear()
         }
         buildings.length = 0
         zipLines.length = 0
-        grenades.length = 0
+        if (grenadeManager) {
+            grenadeManager.clear()
+        }
+        // Обновление ссылок на массивы для обратной совместимости
+        grenades = grenadeManager ? grenadeManager.getGrenades() : []
+        activeGrenade = null
         puddles.length = 0
         garbages.length = 0
         currentBoss = null
         bgCar = null
+        if (dogEnemyManager) {
+            dogEnemyManager.clear()
+        }
         currentDogEnemy = null
         currentCan = null
+        if (powerUpManager) {
+            powerUpManager.clear()
+        }
+        activePowerUp = null
 
         gameState.isPause = false
         gameState.gameStart = false
@@ -702,45 +1020,142 @@ window.onload = async function () {
         }
         hud.getChildByName('scale').text = `x${gameState.multiplier.toFixed(1)}`;
         updateScore()
-        updateGarbage()
+        // Обновление мусора через GarbageManager
+        if (garbageManager) {
+            garbageManager.updateGarbage()
+        }
         // Use the Player module's updatePlayer method
         if (playerInstance) {
             playerInstance.updatePlayer(delta, gameState.gameEnd, gameState.gameStart, gameSpeed, enemyBullets, world, soundPlayer, damagePlayer)
         }
-        updateBg()
-        updateFloor()
+        // Обновление фона и пола через менеджеры
+        if (backgroundManager) {
+            backgroundManager.updateState({
+                gameStart: gameState.gameStart,
+                playerSpeed: playerSpeed,
+                gameSpeed: gameSpeed,
+                zeroLeft: zeroLeft
+            })
+            backgroundManager.updateBg()
+        }
+        if (groundManager) {
+            groundManager.updateState({
+                isBuilding: isBuilding,
+                zeroLeft: zeroLeft
+            })
+            groundManager.updateFloor()
+        }
         if (bulletManager) {
             bulletManager.updateBullets(zeroLeft, zeroRight, WORLD_WIDTH, gameSpeed)
         }
         updateWall()
         updateEnemies()
-        updateTraps()
+        // Обновление ловушек через TrapManager
+        if (trapManager) {
+            trapManager.updateState({
+                player: player,
+                playerState: playerState,
+                zeroRight: zeroRight,
+                afterBuilding: afterBuilding,
+                currentDogEnemy: currentDogEnemy
+            })
+            trapManager.updateTraps()
+        }
         if (particleManager) {
             particleManager.updateParticles(zeroLeft)
             particleManager.updateBounceParticles()
             particleManager.updateTrailParticles(zeroLeft)
         }
-        updateDropMoney()
+        // Обновление денег через MoneyManager
+        if (moneyManager) {
+            moneyManager.updateState({
+                player: player,
+                zeroLeft: zeroLeft
+            })
+            moneyManager.updateDropMoney()
+        }
         updateBuildings()
-        updateZiplines()
-        updatePuddles()
-        if (activeGrenade) {
-            updateGrenade()
+        // Обновление зиплайнов через ZipLineManager
+        if (zipLineManager) {
+            zipLineManager.updateState({
+                player: player,
+                playerState: playerState,
+                zeroLeft: zeroLeft
+            })
+            zipLineManager.updateZiplines()
         }
-        if (activePowerUp) {
-            updatePowerUp()
+        // Обновление луж через PuddleManager
+        if (puddleManager) {
+            puddleManager.updateState({
+                player: player,
+                playerState: playerState,
+                zeroLeft: zeroLeft
+            })
+            puddleManager.updatePuddles()
         }
-        if (currentCan) {
-            updateCan()
+        if (grenadeManager && grenadeManager.getActiveGrenade()) {
+            grenadeManager.updateGrenade()
         }
-        if (currentDogEnemy) {
-            updateDogEnemy()
+        // Обновление пауэр-апов через PowerUpManager
+        if (powerUpManager) {
+            powerUpManager.updateState({
+                player: player,
+                zeroLeft: zeroLeft,
+                zeroRight: zeroRight
+            })
+            powerUpManager.updatePowerUp()
+            // Синхронизация activePowerUp для обратной совместимости
+            activePowerUp = powerUpManager.getActivePowerUp()
         }
-        if (grenades.length > 0) {
-            updateGrenades()
+        // Обновление банки через CanManager
+        if (canManager && currentCan) {
+            canManager.updateState({
+                zeroLeft: zeroLeft,
+                zeroRight: zeroRight,
+                player: player,
+                playerState: playerState
+            })
+            canManager.updateCan()
+            currentCan = canManager.getCurrentCan()
         }
-        if (bgCar) {
-            updateBgCar()
+        // Обновление собаки-врага через DogEnemyManager
+        if (dogEnemyManager) {
+            dogEnemyManager.updateState({
+                player: player,
+                playerState: playerState,
+                playerBullets: playerBullets,
+                buildings: buildings,
+                zeroRight: zeroRight,
+                zeroLeft: zeroLeft,
+                gameSpeed: gameSpeed
+            })
+            dogEnemyManager.updateDogEnemy()
+            // Синхронизация currentDogEnemy для обратной совместимости
+            currentDogEnemy = dogEnemyManager.getCurrentDogEnemy()
+        }
+        // Обновление состояния GrenadeManager
+        if (grenadeManager) {
+            grenadeManager.updateState({
+                player: player,
+                playerState: playerState,
+                zeroLeft: zeroLeft,
+                currentDogEnemy: currentDogEnemy,
+                currentBoss: currentBoss
+            })
+            if (grenadeManager.getGrenades().length > 0) {
+                grenadeManager.updateGrenades()
+            }
+            // Синхронизация activeGrenade для обратной совместимости
+            activeGrenade = grenadeManager.getActiveGrenade()
+        }
+        // Обновление фоновой машины через BgCarManager
+        if (bgCarManager) {
+            bgCarManager.updateState({
+                zeroLeft: zeroLeft,
+                zeroRight: zeroRight
+            })
+            bgCarManager.updateBgCar()
+            bgCar = bgCarManager.getBgCar()
         }
         if (currentBoss) {
             updateBoss()
@@ -1279,17 +1694,24 @@ window.onload = async function () {
     }
 
     function spawnEntity() {
-        if (Math.random() < 0.05 && !activePowerUp) {
-            createPowerUp()
+        if (Math.random() < 0.05 && powerUpManager && !powerUpManager.hasActivePowerUp()) {
+            powerUpManager.createPowerUp()
         }
-        if (Math.random() < 0.05 && !currentDogEnemy && gameState.points > 2000) {
-            createDogEnemy()
+        if (Math.random() < 0.05 && dogEnemyManager && !dogEnemyManager.hasDogEnemy() && gameState.points > 2000) {
+            dogEnemyManager.createDogEnemy()
         }
         if (Math.random() < 0.5 && !bgCar) {
             createBgCar()
         }
         if (Math.random() < 0.2) {
-            createPuddle()
+            // Создание лужи через PuddleManager
+            if (puddleManager) {
+                puddleManager.updateState({
+                    zeroRight: zeroRight,
+                    playerPos: playerPos
+                })
+                puddleManager.createPuddle()
+            }
         }
         if (!isClub && !currentBoss) {
             const randomBuild = Math.floor(Math.random() * (10 - 1 + 1) + 1)
@@ -1322,7 +1744,11 @@ window.onload = async function () {
             createEnemy()
         }
         if (Math.random() < 0.1 && !currentCan) {
-            createCan()
+            // Создание банки через CanManager
+            if (canManager) {
+                canManager.createCan(zeroRight, playerPos, storage, fg)
+                currentCan = canManager.getCurrentCan()
+            }
         }
         if (!isBuilding && !currentBoss && (afterBuilding < zeroRight - WORLD_WIDTH / 2)) {
             if (Math.random() < Math.min(gameState.points / 40000, 0.1) && gameState.points > 2000) {
@@ -1332,7 +1758,9 @@ window.onload = async function () {
             }
             if (Math.random() < 0.3) {
                 console.log('bochka')
-                createBarrel()
+                if (trapManager) {
+                    trapManager.createBarrel()
+                }
                 return
             }
             if (Math.random() < 0.5) {
@@ -1812,9 +2240,9 @@ window.onload = async function () {
             buildZipline.zIndex = 1
             world.addChild(buildZipline)
             zipLines.push(buildZipline)
-            createWindow(position + 11)
+            if (trapManager) trapManager.createWindow(position + 11)
             if (Math.random() < 0.5) {
-                createDoor(position + buildBack.width - 72, true)
+                if (trapManager) trapManager.createDoor(position + buildBack.width - 72, true)
             }
             if (Math.random() < 0.5) {
                 createCoverInBuild(position + buildBack.width - 180, true)
@@ -1832,10 +2260,10 @@ window.onload = async function () {
                         createCoverInBuild(buildBack.x - 50, true)
                     }
                     if (type === 'end') {
-                        createWindow(position + buildBack.width - 93)
+                        if (trapManager) trapManager.createWindow(position + buildBack.width - 93)
                     } else {
                         if (Math.random() < 0.5) {
-                            createDoor(position + buildBack.width - 72)
+                            if (trapManager) trapManager.createDoor(position + buildBack.width - 72)
                         }
                     }
                 } else {
@@ -1863,12 +2291,12 @@ window.onload = async function () {
                         createCoverInBuild(position + 210, true)
                     }
                     if (Math.random() < 0.5) {
-                        createWindow(position - 108)
+                        if (trapManager) trapManager.createWindow(position - 108)
                     } else {
-                        createDoor(position - 88, true)
+                        if (trapManager) trapManager.createDoor(position - 88, true)
                     }
                     if (type === 'end') {
-                        createWindow(position + buildBack.width - 212)
+                        if (trapManager) trapManager.createWindow(position + buildBack.width - 212)
                     }
                 } else {
                     buildBack = new PIXI.Sprite(build2.textures.Build2Outroof)
@@ -1967,9 +2395,9 @@ window.onload = async function () {
         if (type === 'start') {
             buildBack = new PIXI.Sprite(build1.textures.Build1FOne)
             buildFront = new PIXI.Sprite(build1.textures.Build1FOneClose)
-            createDoor(position + 32)
+            if (trapManager) trapManager.createDoor(position + 32)
             if (Math.random() < 0.5) {
-                createDoor(position + buildBack.width - 72)
+                if (trapManager) trapManager.createDoor(position + buildBack.width - 72)
             }
             if (Math.random() < 0.5) {
                 createCoverInBuild(position + buildBack.width / 2)
@@ -1983,7 +2411,7 @@ window.onload = async function () {
                     createCoverInBuild(position + buildBack.width - 150)
                 }
                 if (Math.random() < 0.5) {
-                    createDoor(position + buildBack.width - 72)
+                    if (trapManager) trapManager.createDoor(position + buildBack.width - 72)
                 }
             } else {
                 buildBack = new PIXI.Sprite(build1.textures.Build1FThree)
@@ -1995,7 +2423,7 @@ window.onload = async function () {
                     createCoverInBuild(position + buildBack.width - 340)
                 }
                 if (Math.random() < 0.5) {
-                    createDoor(position + buildBack.width - 72)
+                    if (trapManager) trapManager.createDoor(position + buildBack.width - 72)
                 }
             }
             if (type !== 'end') {
@@ -2191,47 +2619,8 @@ window.onload = async function () {
         walls.push(wall)
     }
 
-    function updateDropMoney() {
-        moneyDrop.forEach((b, idx) => {
-            b.position = b.body.position
-            if (b.body.speed > 0.2) {
-                b.rotation += 0.1
-            } else {
-                b.rotation = b.body.angle
-            }
-            if (player.x + 20 > b.x && player.x < b.x + 10) {
-                soundPlayer.coins()
-                world.removeChild(b)
-                Matter.World.remove(engine.world, b.body)
-                moneyDrop.splice(idx, 1)
-                gameState.collectedMoney += random(1, 10)
-                return
-            }
-            if (b.x < zeroLeft) {
-                world.removeChild(b)
-                Matter.World.remove(engine.world, b.body)
-                moneyDrop.splice(idx, 1)
-            }
-        })
-    }
-
-    function spawnDropMoney(pos) {
-        const money = new PIXI.Sprite(menuIcons.textures.money)
-        money.scale.set(0.15)
-        money.anchor.set(0.5)
-        money.position.set(pos.x, pos.y)
-
-        money.body = Matter.Bodies.rectangle(money.x, money.y, 2, 10, {isStatic: false, restitution: 0.5});
-        money.rotation = Math.floor(Math.random() * (6 + 1))
-        world.addChild(money)
-        Matter.World.add(engine.world, money.body);
-        let randomMassX = Math.random() * money.body.mass
-        const randomMassY = Math.random() * money.body.mass
-        randomMassX *= Math.round(Math.random()) ? 1 : -1;
-        Matter.Body.applyForce(money.body, money.body.position, {x: randomMassX / 50, y: -randomMassY / 35});
-
-        moneyDrop.push(money)
-    }
+    // Функции updateDropMoney и spawnDropMoney теперь в MoneyManager
+    // Оставлены для обратной совместимости, но больше не используются
 
     function spawnBounceParticle(char, particleType, tint) {
         if (particleManager) {
@@ -2244,72 +2633,8 @@ window.onload = async function () {
         // Функция оставлена для обратной совместимости
     }
 
-    function grenadeBounce() {
-        const grenade = new PIXI.Sprite(activeItems.textures.handGrenade)
-        grenade.scale.set(1.2)
-        grenade.anchor.set(0.5)
-        grenade.position.set(player.x + 10, player.y - 20)
-
-        grenade.body = Matter.Bodies.rectangle(grenade.x, grenade.y, 2, 10, {isStatic: false, restitution: 0.5});
-        grenade.rotation = Math.floor(Math.random() * (6 + 1))
-        world.addChild(grenade)
-
-        Matter.World.add(engine.world, grenade.body);
-        Matter.Body.applyForce(grenade.body, grenade.body.position, {x: 0.0005, y: -0.0003});
-
-        activeGrenade = grenade
-        sleep(650).then(() => {
-            grenadeExplode()
-        })
-    }
-
-    function grenadeExplode() {
-        createExplode(activeGrenade, 0,0, false)
-        const g = activeGrenade.getBounds()
-        enemies.forEach(enemy => {
-            const e = enemy.getBounds()
-            if (e.x > g.x - 200 && e.x < g.x + 200) {
-                if (enemy.params.dead) return
-                damageEnemy(enemy, 8)
-            }
-        })
-        traps.forEach(trap => {
-            const t = trap.getBounds()
-            if (t.x > g.x - 200 && t.x < g.x + 200 && !trap.dead) {
-                if (trap.type) {
-                    if (trap.type === 'window') soundPlayer.glassBreak()
-                    trap.play()
-                    trap.dead = true
-                } else {
-                    barrelDead(trap)
-                }
-            }
-        })
-        if (currentDogEnemy) {
-            if (currentDogEnemy.getBounds().x > g.x - 200 && currentDogEnemy.getBounds().x < g.x + 200) {
-                if (currentDogEnemy.params.dead) return
-                damageEnemy(currentDogEnemy, 8)
-            }
-        }
-        if (currentBoss) {
-            if (currentBoss.getBounds().x > g.x - 200 && currentBoss.getBounds().x < g.x + 200) {
-                if (currentBoss.params.dead) return
-                damageEnemy(currentBoss, 8, true)
-            }
-        }
-        world.removeChild(activeGrenade)
-        Matter.World.remove(engine.world, activeGrenade.body)
-        activeGrenade = null
-    }
-
-    function updateGrenade() {
-        activeGrenade.position = activeGrenade.body.position
-        if (activeGrenade.body.speed > 0.2) {
-            activeGrenade.rotation += 0.1
-        } else {
-            activeGrenade.rotation = activeGrenade.body.angle
-        }
-    }
+    // Функции grenadeBounce, grenadeExplode, updateGrenade теперь в GrenadeManager
+    // Оставлены для обратной совместимости, но больше не используются
 
     function createParticles(char, particleType, floor, size) {
         if (particleManager) {
@@ -2567,7 +2892,9 @@ window.onload = async function () {
             break
             case currentBoss.type === 'bossLauncher':
                 enemyShotAnim(currentBoss, fireTimes)
-                shotGrenade(currentBoss, 0, 0)
+                if (grenadeManager) {
+                    grenadeManager.shotGrenade(currentBoss, 0, 0)
+                }
                 await sleep(200)
             break
         }
@@ -2597,69 +2924,8 @@ window.onload = async function () {
         });
     }
 
-    function updateGrenades() {
-        grenades.forEach((b, idx) => {
-            if (b.dead) return
-            if ((player.x + 40 > b.x && b.x + b.width > player.x) && playerState.state === 'shot' && b.body.speed > 2) {
-                activateGrenade(b, idx, true)
-                return
-            }
-            b.lifeTime--
-            if (b.lifeTime <= 0) {
-                b.dead = true
-                activateGrenade(b, idx)
-                return
-            }
-            b.position = b.body.position
-            b.rotation = b.body.angle
-        })
-    }
-
-    function shotGrenade(char, offsetX, offsetY) {
-        const grenade = new PIXI.Sprite(bounceParticlesTexture.textures.grenade)
-        grenade.scale.set(-1.5)
-        grenade.position.set(char.x + offsetX, char.y - offsetY)
-        grenade.lifeTime = 100
-        grenade.type = 'grenade'
-
-        grenade.body = Matter.Bodies.rectangle(grenade.x, grenade.y, 12, 4, {isStatic: false, restitution: 0.5});
-        world.addChild(grenade)
-
-        Matter.World.add(engine.world, grenade.body);
-        let randomMassX = Math.random() * (0.2 - 0.1) + 0.1
-        Matter.Body.applyForce(grenade.body, grenade.body.position, {x: -randomMassX / 100, y: -0.0005});
-        grenades.push(grenade)
-    }
-
-    async function activateGrenade(grenade,idx, now) {
-        if (now) {
-            damagePlayer()
-            createExplode(grenade, 0, 0, false)
-            Matter.World.remove(engine.world, grenade.body)
-            world.removeChild(grenade)
-            grenades.splice(idx, 1)
-            return
-        }
-        const warning = new PIXI.Sprite(particles.textures.detection)
-        warning.zIndex = 20
-        warning.anchor.set(0.5)
-        warning.tint = 16776960
-        warning.scale.x = 1.5
-        warning.scale.y = 2
-        warning.position.set(grenade.x, grenade.y - 40)
-        world.addChild(warning)
-        await sleep(300)
-        warning.tint = 16711680
-        await sleep(200)
-        if (playerState.state === 'shot') {
-            damagePlayer()
-        }
-        createExplode(grenade, 0, 0)
-        Matter.World.remove(engine.world, grenade.body)
-        world.removeChild(warning)
-        world.removeChild(grenade)
-        grenades.splice(idx, 1)
-    }
+    // Функции updateGrenades, shotGrenade, activateGrenade теперь в GrenadeManager
+    // Оставлены для обратной совместимости, но больше не используются
 
     function updateBoss() {
         if (currentBoss.x + currentBoss.width < zeroLeft) {
@@ -2699,58 +2965,8 @@ window.onload = async function () {
         })
     }
 
-    function updateDogEnemy() {
-        if (!currentDogEnemy.params.dead) {
-            if (!currentDogEnemy.skip) {
-                if (player.x + 40 > currentDogEnemy.x && player.x < currentDogEnemy.x + currentDogEnemy.width && player.y + player.height > currentDogEnemy.y && player.y < currentDogEnemy.y + currentDogEnemy.height) {
-                    damagePlayer()
-                    currentDogEnemy.skip = true
-                }
-            }
-            currentDogEnemy.x -= currentDogEnemy.params.speed * gameSpeed
-            playerBullets.forEach((bullet, idx) => {
-                if (currentDogEnemy.x + currentDogEnemy.width > bullet.x && currentDogEnemy.x < bullet.x && currentDogEnemy.y - currentDogEnemy.height < bullet.y && currentDogEnemy.y + currentDogEnemy.height / 2 > bullet.y) {
-                    world.removeChild(bullet)
-                    playerBullets.splice(idx, 1)
-                    damageEnemy(currentDogEnemy,gun.damage)
-                }
-            })
-        }
-        if (currentDogEnemy.x + 100 < zeroLeft) {
-            world.removeChild(currentDogEnemy)
-            currentDogEnemy = null
-        }
-    }
-
-    function createDogEnemy() {
-        soundPlayer.dogBarking()
-        let randomPos = Math.floor(zeroRight + random(10, 10))
-        let level = playerPos
-        if (buildings.length > 0) {
-            const activeBuilding = buildings[0]
-            const lastBuilding = buildings[buildings.length - 1].getLocalBounds()
-            if ((lastBuilding.x + lastBuilding.width > randomPos && activeBuilding.getLocalBounds().x < randomPos) && activeBuilding.secondFloor) {
-                level = secondFloor
-                level = secondFloor
-            }
-        }
-        const dog = new PIXI.AnimatedSprite(dogEnemy.animations.idle)
-        dog.anchor.set(0.5)
-        dog.scale.set(2)
-        dog.animationSpeed = 0.2
-        dog.position.set(zeroRight + 100, level)
-        dog.params = {}
-        dog.parentGroup = fg
-        dog.zOrder = 6
-        Object.keys(enemyParams.dog).forEach(item => {
-            dog.params[item] = enemyParams.dog[item]
-        })
-        dog.params.speed = random(0.5, 1, true, true)
-        dog.params.animset = dogEnemy.animations
-        currentDogEnemy = dog
-        world.addChild(currentDogEnemy)
-        dog.play()
-    }
+    // Функции updateDogEnemy и createDogEnemy теперь в DogEnemyManager
+    // Оставлены для обратной совместимости, но больше не используются
 
     function createEnemy(pos, canCover) {
         let randomPos = pos || Math.floor(zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50))
@@ -2886,7 +3102,9 @@ window.onload = async function () {
             }
             if (enemy.params.moneyDrop) {
                 for (let i = 0; i <= random(0,enemy.params.moneyDrop); i++) {
-                    spawnDropMoney(enemy)
+                    if (moneyManager) {
+                        moneyManager.spawnDropMoney(enemy)
+                    }
                 }
             }
             if (isBoss) bossReward()
@@ -3100,102 +3318,11 @@ window.onload = async function () {
         }
     }
 
-    function updatePowerUp() {
-        if (activePowerUp.x < zeroLeft) {
-            world.removeChild(activePowerUp)
-            activePowerUp = null
-            return;
-        }
-        if (player.x + player.width / 4 > activePowerUp.x) {
-            soundPlayer.powerUp()
-            world.removeChild(activePowerUp)
-            const findAlreadyActive = playerState.activePowerUps.find(item => item.type === activePowerUp.type)
-            if (findAlreadyActive) {
-                findAlreadyActive.expired = Date.now() + ((5 + (5 * storage.upgrades[activePowerUp.type])) * 1000)
-            } else {
-                playerState.activePowerUps.push({
-                    type: activePowerUp.type,
-                    expired: Date.now() + ((5 + (5 * storage.upgrades[activePowerUp.type])) * 1000)
-                })
-                HUDupdatePowerUp()
-                switch (true) {
-                    case activePowerUp.type === 'boostAmmo':
-                        gun.currentAmmo = gun.ammo * 2
-                        gun.ammo*= 2
-                        HUDbullets()
-                    break
-                    case activePowerUp.type === 'boostGun':
-                        gun.damage*= 2
-                    break
-                }
-            }
-            activePowerUp = null
-            return
-        }
-        if (activePowerUp.y > activePowerUp.init + 10) {
-            activePowerUp.positive = true
-        }
-        if (activePowerUp.y < activePowerUp.init - 10) {
-            activePowerUp.positive = false
-        }
-        if (activePowerUp.positive) {
-            activePowerUp.y -= 0.2
-        } else {
-            activePowerUp.y += 0.2
-        }
-    }
+    // Функции updatePowerUp и createPowerUp теперь в PowerUpManager
+    // Оставлены для обратной совместимости, но больше не используются
 
-    function createPowerUp() {
-        const randomPos = Math.floor(zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50))
-        const rand = random(0, 2)
-        const powerUps = ['boostAmmo', 'boostGun', 'boostShield']
-        const powerUp = new PIXI.Sprite(menuIcons.textures[powerUps[rand]])
-        powerUp.type = powerUps[rand]
-        powerUp.scale.set(0.4)
-        powerUp.anchor.set(0.5)
-        powerUp.parentGroup = fg
-        powerUp.zOrder = 6
-        powerUp.position.set(randomPos, playerPos - 10)
-        powerUp.init = powerUp.y
-        powerUp.positive = false
-        activePowerUp = powerUp
-        world.addChild(powerUp)
-    }
-
-    function createBarrel() {
-        const randomPos = Math.floor(zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50))
-        if (afterBuilding > randomPos - 100) {
-            return
-        }
-        let findErr
-        traps.forEach(trap => {
-            const t = trap.getLocalBounds()
-            if (randomPos > t.x - 100 &&
-                randomPos < t.x + t.width + 100) {
-                findErr = true
-            }
-        })
-        if (findErr) return
-        const bochkaContainer = new PIXI.Container()
-        const bochkaTop = new PIXI.AnimatedSprite(bochka.animations.bochkaTop)
-        const bochkaDown = new PIXI.AnimatedSprite(bochka.animations.bochkaDown)
-        bochkaTop.scale.set(2)
-        bochkaDown.scale.set(2)
-        bochkaTop.loop = false
-        bochkaDown.loop = false
-        bochkaTop.animationSpeed = 0.2
-        bochkaDown.animationSpeed = 0.2
-        bochkaDown.anchor.set(0.5)
-        bochkaTop.anchor.set(0.5)
-        bochkaDown.parentGroup = fg
-        bochkaDown.zOrder = 10
-        bochkaTop.position.set(randomPos, ground.getLocalBounds().y + 56)
-        bochkaDown.position.set(randomPos, bochkaTop.y + 6)
-        bochkaContainer.addChild(bochkaTop)
-        bochkaContainer.addChild(bochkaDown)
-        world.addChild(bochkaContainer)
-        traps.push(bochkaContainer)
-    }
+    // Функция createBarrel теперь в TrapManager
+    // Оставлена для обратной совместимости, но больше не используется
 
     function createExplode(target, offsetX, offsetY, isBig, silence) {
         cameraShake(2, 500)
@@ -3215,124 +3342,8 @@ window.onload = async function () {
         }
     }
 
-    async function barrelDead(barrel) {
-        soundPlayer.damageMetal()
-        soundPlayer.beep()
-        addPoints(30)
-        gameState.scoreStreak += 2
-        barrel.dead = true
-        await sleep(100)
-        const b = barrel.getBounds()
-        if (currentDogEnemy) {
-            const e = currentDogEnemy.getBounds()
-            if (e.x + e.width > b.x - 100 && e.x < b.x + b.width + 100) {
-                if (currentDogEnemy.params.dead) return
-                damageEnemy(currentDogEnemy, 4)
-            }
-        }
-        enemies.forEach(enemy => {
-            const e = enemy.getBounds()
-            if (e.x + e.width > b.x - 100 && e.x < b.x + b.width + 100) {
-                if (enemy.params.dead) return
-                damageEnemy(enemy, 4)
-            }
-        })
-        if (!playerState.inCover) {
-            const p = player.getBounds()
-            if (p.x + p.width > b.x - 20 && p.x + 40 < b.x + b.width + 20) {
-                damagePlayer()
-            }
-        }
-        barrel.children[0].textures = bochka.animations.bochkaTopDead
-        barrel.children[1].textures = bochka.animations.bochkaDownDead
-        barrel.children[0].play()
-        barrel.children[1].play()
-        for (let i = 0; i < 20; i++) {
-            createParticles(barrel.children[0], 'spark')
-        }
-        createExplode(barrel.children[0], -20, 10, false)
-        createExplode(barrel.children[1], 20, 30, false, true)
-    }
-
-    function updateTraps() {
-        traps.forEach((trap, idx) => {
-            const trapB = trap.getBounds()
-            if (!trap.dead) {
-                const p = player.getBounds()
-                if (p.x > trapB.x + 20 && p.x < trapB.x + 50) {
-                    if (trap.type) {
-                        if (trap.type === 'window') soundPlayer.glassBreak()
-                        trap.play()
-                        trap.dead = true
-                        addPoints(25)
-                    } else {
-                        if (playerState.state === 'roll' || playerState.state === 'rollEnd') return
-                        barrelDead(trap)
-                    }
-                }
-                if (currentDogEnemy) {
-                    const d = currentDogEnemy.getBounds()
-                    if (d.x + d.width > trapB.x && d.x < trapB.x + trapB.width) {
-                        if (trap.type) {
-                            if (trap.type === 'window') soundPlayer.glassBreak()
-                            if (trap.type === 'door') return;
-                            trap.play()
-                            gameState.scoreStreak += 5
-                            trap.dead = true
-                            addPoints(25)
-                            damageEnemy(currentDogEnemy, gun.damage)
-                        } else {
-                            barrelDead(trap)
-                        }
-                    }
-                }
-                playerBullets.forEach((bullet, bulletIdx) => {
-                    const bulletBound = bullet.getBounds()
-                    if (bulletBound.x + bulletBound.width > trapB.x + (trap.type ? trapB.width / 2 : trapB.width / 4) && bulletBound.x < trapB.x + trapB.width && bulletBound.y > trapB.y && bulletBound.y < trapB.y + trapB.height) {
-                        world.removeChild(bullet)
-                        playerBullets.splice(bulletIdx, 1)
-                        if (trap.type) {
-                            if (trap.type === 'window') soundPlayer.glassBreak()
-                            trap.play()
-                            trap.dead = true
-                            addPoints(25)
-                            gameState.scoreStreak += 1
-                        } else {
-                            barrelDead(trap)
-                        }
-                    }
-                })
-            }
-            if (trapB.x + trapB.width < 0) {
-                world.removeChild(trap)
-                traps.splice(idx, 1)
-            }
-        })
-    }
-
-    function createWindow(pos) {
-        const window = new PIXI.AnimatedSprite(windowTexture.animations.window)
-        window.loop = false
-        window.animationSpeed = 0.6
-        window.anchor.set(0.5)
-        window.position.set(pos, ground.getLocalBounds().y - 137)
-        window.zIndex = 1
-        window.type = 'window'
-        world.addChild(window)
-        traps.push(window)
-    }
-
-    function createDoor(pos, secondFloor) {
-        const door = new PIXI.AnimatedSprite(doorTexture.animations.door)
-        door.loop = false
-        door.animationSpeed = 0.6
-        door.anchor.set(0.5)
-        door.position.set(pos, secondFloor ? ground.getLocalBounds().y - 143 : ground.getLocalBounds().y + 47)
-        door.zIndex = 1
-        door.type = 'door'
-        world.addChild(door)
-        traps.push(door)
-    }
+    // Функции barrelDead, updateTraps, createWindow, createDoor теперь в TrapManager
+    // Оставлены для обратной совместимости, но больше не используются
 
     function detectWall() {
         let p = player.getBounds()
@@ -3618,7 +3629,9 @@ window.onload = async function () {
                 storage.activeItems.grenades -= 1
                 playerState.skillCD = true
                 hud.getChildByName('skills').alpha = 0.3
-                grenadeBounce()
+                if (grenadeManager) {
+                    grenadeManager.grenadeBounce()
+                }
                 HUDupdateSkills()
                 sleep(6000).then(() => {
                     hud.getChildByName('skills').alpha = 1

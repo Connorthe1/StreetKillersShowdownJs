@@ -1,15 +1,17 @@
 /**
  * EnvironmentManager.js
  * 
- * Менеджер окружения игры
+ * @deprecated Этот модуль устарел и будет удален в будущем.
+ * Функциональность была разделена на отдельные модули:
+ * - BackgroundManager - управление фоном
+ * - GroundManager - управление землей/полом
+ * - BgCarManager - управление фоновыми машинами
+ * - GarbageManager - управление мусором
+ * - PuddleManager - управление лужами
+ * - CanManager - управление банками
+ * - BuildingManager - управление зданиями
  * 
- * Содержит:
- * - Управление фоном (createBg, updateBg)
- * - Управление землей/полом (createFloor, updateFloor, createWood)
- * - Управление фоновыми машинами (createBgCar, updateBgCar)
- * - Управление объектами окружения (createGarbage, updateGarbage, createPuddle, updatePuddles, createCan, updateCan)
- * - Управление зданиями (spawnBuilding, createBuilding, createClub)
- * - Логика спавна объектов окружения
+ * Используйте отдельные менеджеры вместо этого модуля.
  */
 
 import * as PIXI from 'pixi.js'

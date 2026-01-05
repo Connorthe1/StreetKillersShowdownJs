@@ -132,11 +132,14 @@ export class WallManager {
     
     /**
      * Создает укрытие в здании
+     * @deprecated Используйте BuildingManager.createCoverInBuild() вместо этого
+     * Метод оставлен для обратной совместимости, но будет удален в будущем
      * @param {number} pos - позиция X
      * @param {boolean} isSecondFloor - на втором этаже
      * @param {boolean} isRoof - на крыше
      */
     createCoverInBuild(pos, isSecondFloor, isRoof) {
+        console.warn('WallManager.createCoverInBuild() устарел. Используйте BuildingManager.createCoverInBuild()')
         if (!this.inBuildTexture || !this.inFloorTexture) {
             console.warn('Cover textures not available')
             return null
@@ -175,11 +178,14 @@ export class WallManager {
     
     /**
      * Создает укрытие в клубе
+     * @deprecated Используйте BuildingManager.createCoverInClub() вместо этого
+     * Метод оставлен для обратной совместимости, но будет удален в будущем
      * @param {number} pos - позиция X
      * @param {number} type - тип укрытия (0, 1, 2)
      * @param {boolean} forBoss - для босса
      */
     createCoverInClub(pos, type, forBoss) {
+        console.warn('WallManager.createCoverInClub() устарел. Используйте BuildingManager.createCoverInClub()')
         if (!this.inClubTexture) {
             console.warn('Club cover textures not available')
             return null

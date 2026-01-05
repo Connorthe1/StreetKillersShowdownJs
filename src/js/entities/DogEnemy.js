@@ -6,10 +6,9 @@
  * Содержит:
  * - Создание собаки-врага (createDogEnemy)
  * - Обновление собаки-врага (updateDogEnemy)
- * - Логика движения к игроку
- * - Коллизии с игроком (урон)
- * - Коллизии с пулями игрока
- * - Определение уровня (первый/второй этаж)
+ * - Движение к игроку
+ * - Коллизии с игроком и пулями
+ * - Удаление за границами экрана
  */
 
 import * as PIXI from 'pixi.js'
@@ -19,18 +18,17 @@ import { random } from '../utils/GameUtils.js'
  * Менеджер собаки-врага
  */
 export class DogEnemyManager {
-    constructor(world, player, playerState, playerBullets, buildings, zeroLeft, zeroRight, playerPos, secondFloor, gameSpeed, fg) {
+    constructor(world, player, playerState, playerBullets, buildings, zeroRight, playerPos, secondFloor, fg, gameSpeed) {
         this.world = world
         this.player = player
         this.playerState = playerState
         this.playerBullets = playerBullets
         this.buildings = buildings
-        this.zeroLeft = zeroLeft
         this.zeroRight = zeroRight
         this.playerPos = playerPos
         this.secondFloor = secondFloor
-        this.gameSpeed = gameSpeed
         this.fg = fg
+        this.gameSpeed = gameSpeed
         
         // Текущая собака-враг
         this.currentDogEnemy = null
@@ -70,8 +68,10 @@ export class DogEnemyManager {
     updateState(state) {
         if (state.player !== undefined) this.player = state.player
         if (state.playerState !== undefined) this.playerState = state.playerState
-        if (state.zeroLeft !== undefined) this.zeroLeft = state.zeroLeft
+        if (state.playerBullets !== undefined) this.playerBullets = state.playerBullets
+        if (state.buildings !== undefined) this.buildings = state.buildings
         if (state.zeroRight !== undefined) this.zeroRight = state.zeroRight
+        if (state.zeroLeft !== undefined) this.zeroLeft = state.zeroLeft
         if (state.gameSpeed !== undefined) this.gameSpeed = state.gameSpeed
     }
     
@@ -84,34 +84,27 @@ export class DogEnemyManager {
             return null
         }
         
-        if (this.currentDogEnemy) {
-            // Удаляем предыдущую собаку, если она существует
-            this.removeDogEnemy()
-        }
-        
-        // Звук лая
         if (this.soundPlayer) {
             this.soundPlayer.dogBarking()
         }
         
-        // Определение позиции
         let randomPos = Math.floor(this.zeroRight + random(10, 10))
         let level = this.playerPos
         
-        // Проверка, нужно ли спавнить на втором этаже
+        // Проверка на здания (может быть на втором этаже)
         if (this.buildings && this.buildings.length > 0) {
             const activeBuilding = this.buildings[0]
             const lastBuilding = this.buildings[this.buildings.length - 1]
             const lastBuildingBounds = lastBuilding.getLocalBounds ? lastBuilding.getLocalBounds() : lastBuilding
+            const activeBuildingBounds = activeBuilding.getLocalBounds ? activeBuilding.getLocalBounds() : activeBuilding
             
             if ((lastBuildingBounds.x + lastBuildingBounds.width > randomPos && 
-                 activeBuilding.getLocalBounds().x < randomPos) && 
+                 activeBuildingBounds.x < randomPos) && 
                 activeBuilding.secondFloor) {
                 level = this.secondFloor
             }
         }
         
-        // Создание собаки
         const dog = new PIXI.AnimatedSprite(this.dogEnemy.animations.idle)
         dog.anchor.set(0.5)
         dog.scale.set(2)
@@ -121,14 +114,13 @@ export class DogEnemyManager {
         dog.parentGroup = this.fg
         dog.zOrder = 6
         
-        // Копирование параметров
-        if (this.enemyParams.dog) {
+        // Копирование параметров из enemyParams.dog
+        if (this.enemyParams && this.enemyParams.dog) {
             Object.keys(this.enemyParams.dog).forEach(item => {
                 dog.params[item] = this.enemyParams.dog[item]
             })
         }
         
-        // Случайная скорость
         dog.params.speed = random(0.5, 1, true, true)
         dog.params.animset = this.dogEnemy.animations
         dog.skip = false
@@ -138,8 +130,8 @@ export class DogEnemyManager {
         if (this.world) {
             this.world.addChild(dog)
         }
-        dog.play()
         
+        dog.play()
         return dog
     }
     
@@ -149,11 +141,16 @@ export class DogEnemyManager {
     updateDogEnemy() {
         if (!this.currentDogEnemy) return
         
-        // Проверка смерти
         if (!this.currentDogEnemy.params.dead) {
-            // Коллизия с игроком (урон)
+            // Коллизия с игроком
             if (!this.currentDogEnemy.skip && this.player) {
-                if (this.checkPlayerCollision()) {
+                const playerBounds = this.player.getBounds ? this.player.getBounds() : this.player
+                const dogBounds = this.currentDogEnemy.getBounds ? this.currentDogEnemy.getBounds() : this.currentDogEnemy
+                
+                if (playerBounds.x + 40 > dogBounds.x && 
+                    playerBounds.x < dogBounds.x + dogBounds.width && 
+                    playerBounds.y + playerBounds.height > dogBounds.y && 
+                    playerBounds.y < dogBounds.y + dogBounds.height) {
                     if (this.damagePlayerCallback) {
                         this.damagePlayerCallback()
                     }
@@ -166,65 +163,35 @@ export class DogEnemyManager {
             
             // Коллизия с пулями игрока
             if (this.playerBullets && this.gun) {
-                this.checkBulletCollisions()
+                this.playerBullets.forEach((bullet, idx) => {
+                    const bulletBounds = bullet.getBounds ? bullet.getBounds() : bullet
+                    const dogBounds = this.currentDogEnemy.getBounds ? this.currentDogEnemy.getBounds() : this.currentDogEnemy
+                    
+                    if (dogBounds.x + dogBounds.width > bulletBounds.x && 
+                        dogBounds.x < bulletBounds.x && 
+                        dogBounds.y - dogBounds.height < bulletBounds.y && 
+                        dogBounds.y + dogBounds.height / 2 > bulletBounds.y) {
+                        
+                        if (this.world) {
+                            this.world.removeChild(bullet)
+                        }
+                        this.playerBullets.splice(idx, 1)
+                        
+                        if (this.damageEnemyCallback) {
+                            this.damageEnemyCallback(this.currentDogEnemy, this.gun.damage)
+                        }
+                    }
+                })
             }
         }
         
         // Удаление за левой границей
         if (this.currentDogEnemy.x + 100 < this.zeroLeft) {
-            this.removeDogEnemy()
-        }
-    }
-    
-    /**
-     * Проверяет коллизию с игроком
-     */
-    checkPlayerCollision() {
-        if (!this.player || !this.currentDogEnemy) return false
-        
-        return this.player.x + 40 > this.currentDogEnemy.x &&
-            this.player.x < this.currentDogEnemy.x + this.currentDogEnemy.width &&
-            this.player.y + this.player.height > this.currentDogEnemy.y &&
-            this.player.y < this.currentDogEnemy.y + this.currentDogEnemy.height
-    }
-    
-    /**
-     * Проверяет коллизии с пулями игрока
-     */
-    checkBulletCollisions() {
-        if (!this.playerBullets || !this.currentDogEnemy) return
-        
-        this.playerBullets.forEach((bullet, idx) => {
-            if (this.currentDogEnemy.x + this.currentDogEnemy.width > bullet.x &&
-                this.currentDogEnemy.x < bullet.x &&
-                this.currentDogEnemy.y - this.currentDogEnemy.height < bullet.y &&
-                this.currentDogEnemy.y + this.currentDogEnemy.height / 2 > bullet.y) {
-                
-                // Удаление пули
-                if (this.world) {
-                    this.world.removeChild(bullet)
-                }
-                this.playerBullets.splice(idx, 1)
-                
-                // Урон собаке
-                if (this.damageEnemyCallback && this.gun) {
-                    this.damageEnemyCallback(this.currentDogEnemy, this.gun.damage)
-                }
+            if (this.world) {
+                this.world.removeChild(this.currentDogEnemy)
             }
-        })
-    }
-    
-    /**
-     * Удаляет собаку-врага
-     */
-    removeDogEnemy() {
-        if (!this.currentDogEnemy) return
-        
-        if (this.world) {
-            this.world.removeChild(this.currentDogEnemy)
+            this.currentDogEnemy = null
         }
-        
-        this.currentDogEnemy = null
     }
     
     /**
@@ -245,6 +212,11 @@ export class DogEnemyManager {
      * Очищает собаку-врага
      */
     clear() {
-        this.removeDogEnemy()
+        if (this.currentDogEnemy) {
+            if (this.world) {
+                this.world.removeChild(this.currentDogEnemy)
+            }
+            this.currentDogEnemy = null
+        }
     }
 }

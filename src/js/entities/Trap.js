@@ -44,6 +44,10 @@ export class TrapManager {
         this.createExplodeCallback = null
         this.sleepCallback = null
         this.gun = null
+        
+        // Текстуры (устанавливаются позже)
+        this.windowTexture = null
+        this.doorTexture = null
     }
     
     /**
@@ -328,6 +332,74 @@ export class TrapManager {
             this.createExplodeCallback(barrel.children[0], -20, 10, false)
             this.createExplodeCallback(barrel.children[1], 20, 30, false, true)
         }
+    }
+    
+    /**
+     * Создает окно
+     * @param {number} pos - позиция по X
+     */
+    createWindow(pos) {
+        if (!this.windowTexture || !this.ground) {
+            console.warn('Window texture or ground not available')
+            return null
+        }
+        
+        const window = new PIXI.AnimatedSprite(this.windowTexture.animations.window)
+        window.loop = false
+        window.animationSpeed = 0.6
+        window.anchor.set(0.5)
+        
+        const groundY = this.ground.getLocalBounds ? this.ground.getLocalBounds().y : 0
+        window.position.set(pos, groundY - 137)
+        window.zIndex = 1
+        window.type = 'window'
+        window.dead = false
+        
+        if (this.world) {
+            this.world.addChild(window)
+        }
+        
+        this.traps.push(window)
+        return window
+    }
+    
+    /**
+     * Создает дверь
+     * @param {number} pos - позиция по X
+     * @param {boolean} secondFloor - на втором этаже
+     */
+    createDoor(pos, secondFloor) {
+        if (!this.doorTexture || !this.ground) {
+            console.warn('Door texture or ground not available')
+            return null
+        }
+        
+        const door = new PIXI.AnimatedSprite(this.doorTexture.animations.door)
+        door.loop = false
+        door.animationSpeed = 0.6
+        door.anchor.set(0.5)
+        
+        const groundY = this.ground.getLocalBounds ? this.ground.getLocalBounds().y : 0
+        door.position.set(pos, secondFloor ? groundY - 143 : groundY + 47)
+        door.zIndex = 1
+        door.type = 'door'
+        door.dead = false
+        
+        if (this.world) {
+            this.world.addChild(door)
+        }
+        
+        this.traps.push(door)
+        return door
+    }
+    
+    /**
+     * Устанавливает текстуры
+     */
+    setTextures(textures) {
+        if (textures.windowTexture) this.windowTexture = textures.windowTexture
+        if (textures.doorTexture) this.doorTexture = textures.doorTexture
+        if (textures.bochka) this.bochka = textures.bochka
     }
     
     /**

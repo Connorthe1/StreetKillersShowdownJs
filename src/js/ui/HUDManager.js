@@ -354,10 +354,11 @@ export class HUDManager {
     
     /**
      * Создает UI для ближнего боя
+     * @deprecated Используйте MeleeKillUIManager.createMeleeKillUI() вместо этого
+     * Метод оставлен для обратной совместимости, но будет удален в будущем
      */
     createMeleeKillUI(enemy, world) {
-        // Эта функция будет реализована в отдельном модуле MeleeKillUI
-        // Пока оставляем заглушку
+        console.warn('HUDManager.createMeleeKillUI() устарел. Используйте MeleeKillUIManager.createMeleeKillUI()')
         return null
     }
 }
