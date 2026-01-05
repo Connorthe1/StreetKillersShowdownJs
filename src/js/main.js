@@ -17,6 +17,12 @@ import { ResourceLoader } from './resources/ResourceLoader.js'
 import { PhysicsManager } from './physics/PhysicsManager.js'
 import { ParticleManager } from './entities/Particle.js'
 import { BulletManager } from './entities/Bullet.js'
+import { EnvironmentManager } from './environment/EnvironmentManager.js'
+import { SpawnManager } from './core/SpawnManager.js'
+import { EventManager } from './core/EventManager.js'
+import { HUDManager } from './ui/HUDManager.js'
+import { CameraManager } from './core/CameraManager.js'
+import { GameManager } from './core/GameManager.js'
 
 let playerInstance;
 
@@ -57,9 +63,10 @@ let enemyBullets = []
 const bulletSpeed = BULLET_SPEED
 let bulletManager // Инициализируется после создания world
 
+// Окружение теперь управляется через EnvironmentManager
 let background
 let bgPosition = 0
-let bgSpeed = BG_SPEED;
+let bgSpeed = BG_SPEED
 
 let world
 let particleContainer
@@ -69,6 +76,7 @@ const woodsBGarr = []
 let hud
 let stepSound = 0
 let floorPosition = 0
+// Флаги окружения теперь в EnvironmentManager
 const fenceChance = FENCE_CHANCE
 let isFence = false
 let isBuilding = false
@@ -76,6 +84,7 @@ let afterBuilding = 0
 let isClub = false
 const buildingChance = BUILDING_CHANCE
 let buildingType = 0
+let environmentManager // Инициализируется после создания world
 
 // shotsArr импортируется из Player.js, но также управляется через BulletManager
 let shotsArr = []
@@ -92,12 +101,18 @@ let physParticles = []
 let bounceParticles = []
 let trails = []
 const moneyDrop = []
-const buildings = []
+// Массивы окружения теперь управляются через EnvironmentManager
+let buildings = []
 const zipLines = []
 const grenades = []
-const puddles = []
-const garbages = []
+let puddles = []
+let garbages = []
 let particleManager // Инициализируется после создания world
+let spawnManager // Инициализируется после создания world
+let eventManager // Инициализируется после создания canvas
+let hudManager // Инициализируется после создания hud
+let cameraManager // Инициализируется после создания world
+let gameManager // Главный координатор всех систем
 let currentBoss = null
 let bgCar = null
 let currentDogEnemy = null
@@ -213,6 +228,61 @@ window.onload = async function () {
         enemyBullets = bulletArrays.enemyBullets
         // shotsArr будет обновляться в BulletManager, но ссылка остается для Player.js
         
+        // Инициализация менеджера окружения
+        environmentManager = new EnvironmentManager(world, ground, woodsBG, engine, physicsManager, gameState)
+        // Обновление ссылок на массивы для обратной совместимости
+        const envArrays = environmentManager.getArrays()
+        buildings = envArrays.buildings
+        puddles = envArrays.puddles
+        garbages = envArrays.garbages
+        // woodsBGarr будет обновляться через environmentManager
+        
+        // Инициализация менеджера спавна
+        spawnManager = new SpawnManager(
+            gameState,
+            world,
+            enemies,
+            buildings,
+            currentBoss,
+            currentDogEnemy,
+            activePowerUp,
+            bgCar,
+            currentCan,
+            isBuilding,
+            isClub,
+            afterBuilding,
+            zeroRight,
+            WORLD_WIDTH
+        )
+        
+        // Инициализация менеджера HUD
+        hudManager = new HUDManager(hud, gameState, gameWidth, gameHeight, textStyles)
+        
+        // Инициализация менеджера камеры
+        cameraManager = new CameraManager(world, gameState, WORLD_WIDTH)
+        
+        // Инициализация главного менеджера игры
+        gameManager = new GameManager()
+        gameManager.setManagers({
+            gameState,
+            physicsManager,
+            particleManager,
+            bulletManager,
+            environmentManager,
+            spawnManager,
+            eventManager: null, // Будет установлен позже
+            hudManager,
+            cameraManager,
+            storageManager,
+            resourceLoader: null // Будет установлен позже
+        })
+        gameManager.setGameObjects({
+            world,
+            hud,
+            app,
+            player: null // Будет установлен позже
+        })
+        
         createMenu()
 
         selectGroundColor = random(0,groundColor.length - 1)
@@ -241,6 +311,19 @@ window.onload = async function () {
         }
 
         music = soundPlayer.startMusic()
+        
+        // Инициализация менеджера событий
+        eventManager = new EventManager()
+        eventManager.setKeyHandler(events)
+        eventManager.setSwipeHandler((swipeMsg) => {
+            const keyCode = eventManager.mapSwipeToKey(swipeMsg)
+            if (keyCode) {
+                events({ code: keyCode })
+            }
+        })
+        eventManager.init(app.renderer.view)
+        
+        // Старый обработчик оставлен для обратной совместимости
         document.addEventListener('keyup', events)
         app.ticker.maxFPS = 60
         app.ticker.minFPS = 60
