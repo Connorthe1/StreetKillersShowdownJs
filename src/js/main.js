@@ -12,6 +12,8 @@ import { Player, playerState, playerDefaultSpeed, playerSpeed, initSpeed, player
 import { getPercent, random, randomRGB } from './utils/GameUtils.js'
 import { GAME_SCALE, DEFAULT_GAME_SPEED, SLOW_GAME_SPEED, BULLET_SPEED, FENCE_CHANCE, BUILDING_CHANCE, GROUND_COLORS, BG_SPEED, initGameConfig } from './core/GameConfig.js'
 import { GameState } from './core/GameState.js'
+import { StorageManager, BASE_STORAGE } from './storage/StorageManager.js'
+import { ResourceLoader } from './resources/ResourceLoader.js'
 
 let playerInstance;
 
@@ -102,30 +104,10 @@ let hudLayer
 // Флаги состояния теперь в gameState (isPause, isMenu, gameStart, gameEnd)
 
 //STORAGE
-const baseStorage = {
-    record: 0,
-    money: 0,
-    gold: 0,
-    lang: 'ru',
-    muteSound: false,
-    muteMusic: false,
-    lastUpdate: 0,
-    selectedSkin: 2,
-    ownedSkins: [0],
-    activeItems: {
-        stimpack: 0,
-        grenades: 0
-    },
-    upgrades: {
-        boostAmmo: 0,
-        boostGun: 0,
-        boostShield: 0,
-        can: 0,
-        gunTrigger: 0,
-        accuracy: 0,
-    }
-}
-let storage = baseStorage
+// Инициализация менеджера хранилища
+const storageManager = new StorageManager()
+// Для обратной совместимости оставляем storage как ссылку на storageManager.storage
+let storage = storageManager.getStorage()
 
 window.onload = async function () {
     const app = new PIXI.Application({
@@ -147,71 +129,31 @@ window.onload = async function () {
     app.stage.addChild(new Layer(hudLayer));
     PIXI.BaseTexture.defaultOptions.scaleMode = 0
 
-    const loaderView = new PIXI.Container()
-    app.stage.addChild(loaderView)
-    const loaderGif = await PIXI.Assets.load('./assets/loading/loader.json');
-    const logo = await PIXI.Assets.load('./assets/loading/logopng.png');
-    const logoSprite = new PIXI.Sprite(logo)
-    logoSprite.width = gameWidth
-    logoSprite.height = gameHeight
-    loaderView.addChild(logoSprite)
-    const loaderSprite = new PIXI.AnimatedSprite(loaderGif.animations.loader)
-    loaderSprite.animationSpeed = 0.5
-    loaderSprite.anchor.set(0.5)
-    loaderSprite.position.set(gameWidth / 2, gameHeight - gameHeight / 4)
-    loaderSprite.play()
-    loaderView.addChild(loaderSprite)
+    // Инициализация загрузчика ресурсов
+    const resourceLoader = new ResourceLoader()
+    
+    // Загрузка загрузочного экрана
+    await resourceLoader.loadLoaderScreen(app, gameWidth, gameHeight)
 
     createSwipes()
     //VK load
     // await getData()
 
-    //LOAD ASSETS
-    await PIXI.Assets.load('./assets/fonts/anothercastle3.ttf');
-    PIXI.Assets.addBundle('sounds', sounds);
-    const textures = await PIXI.Assets.load('./assets/textures/textures.json');
-    const woods = await PIXI.Assets.load('./assets/textures/woods.json');
-    const build1 = await PIXI.Assets.load('./assets/textures/build1.json');
-    const build2 = await PIXI.Assets.load('./assets/textures/build2.json');
-    const buildZiplineTexture = await PIXI.Assets.load('./assets/textures/buildZipline.json');
-    const club = await PIXI.Assets.load('./assets/textures/club.json');
-    const laserBeamTexture = await PIXI.Assets.load('./assets/textures/laserBeam.json');
-    const inBuildTexture = await PIXI.Assets.load('./assets/textures/inBuild.json');
-    const inFloorTexture = await PIXI.Assets.load('./assets/textures/inFloor.json');
-    const inClubTexture = await PIXI.Assets.load('./assets/textures/inClub.json');
-    skinStore[0].param = await PIXI.Assets.load('./assets/character/character.json');
-    skinStore[1].param = await PIXI.Assets.load('./assets/character/characterPremium.json');
-    skinStore[2].param = await PIXI.Assets.load('./assets/character/characterPremiumNigga.json');
-    skinStore[3].param = await PIXI.Assets.load('./assets/character/characterLogo.json');
-    skinStore[4].param = await PIXI.Assets.load('./assets/character/characterCowboy.json');
-    skinStore[5].param = await PIXI.Assets.load('./assets/character/characterAnime.json');
-    const enemiesTexture = await PIXI.Assets.load('./assets/enemies/enemies.json');
-    const dogEnemy = await PIXI.Assets.load('./assets/enemies/dog.json');
-    const bossGun = await PIXI.Assets.load('./assets/enemies/bossGun.json');
-    const bossLauncher = await PIXI.Assets.load('./assets/enemies/bossLauncher.json');
-    const bossVan = await PIXI.Assets.load('./assets/enemies/bossVan.json');
-    const bossSmg = await PIXI.Assets.load('./assets/enemies/bossSmg.json');
-    const particles = await PIXI.Assets.load('./assets/particles/particles.json');
-    const bigExplode = await PIXI.Assets.load('./assets/particles/bigExplode.json');
-    const physParticlesTexture = await PIXI.Assets.load('./assets/particles/physParticles.json');
-    const bounceParticlesTexture = await PIXI.Assets.load('./assets/particles/bounceParticles.json');
-    const bochka = await PIXI.Assets.load('./assets/entity/bochka.json');
-    const canTexture = await PIXI.Assets.load('./assets/entity/can.json');
-    const windowTexture = await PIXI.Assets.load('./assets/entity/window.json');
-    const doorTexture = await PIXI.Assets.load('./assets/entity/door.json');
-    const bgCarTexture = await PIXI.Assets.load('./assets/textures/bgCar.json');
-    const puddleTexture = await PIXI.Assets.load('./assets/entity/puddle.json');
-    const garbageTexture = await PIXI.Assets.load('./assets/entity/garbage.json');
-    const activeItems = await PIXI.Assets.load('./assets/hud/activeItems.json');
-    const menuButtons = await PIXI.Assets.load('./assets/hud/menuButtons.json')
-    const menuIcons = await PIXI.Assets.load('./assets/hud/menuIcons.json')
-    const menuPause = await PIXI.Assets.load('./assets/hud/menuPause.json')
-    const menuUI = await PIXI.Assets.load('./assets/hud/menuUI.json')
-    await PIXI.Assets.loadBundle('sounds')
-    // await character.parse();
+    // Загрузка всех ресурсов
+    const resources = await resourceLoader.loadAllAssets()
+    
+    // Извлечение ресурсов для обратной совместимости
+    const {
+        textures, woods, build1, build2, buildZiplineTexture, club,
+        laserBeamTexture, inBuildTexture, inFloorTexture, inClubTexture, bgCarTexture,
+        enemiesTexture, dogEnemy, bossGun, bossLauncher, bossVan, bossSmg,
+        particles, bigExplode, physParticlesTexture, bounceParticlesTexture,
+        bochka, canTexture, windowTexture, doorTexture, puddleTexture, garbageTexture,
+        activeItems, menuButtons, menuIcons, menuPause, menuUI, bg
+    } = resources
 
-    const bg = await PIXI.Assets.load('./assets/BG.png')
-    app.stage.removeChild(loaderView)
+    // Удаление загрузочного экрана
+    resourceLoader.removeLoaderScreen(app)
     init()
 
     function init() {
@@ -359,9 +301,7 @@ window.onload = async function () {
             restartGame()
             return
         }
-        if (Number(storage.record) < gameState.points) {
-            storage.record = gameState.points
-        }
+        storageManager.updateRecord(gameState.points)
 
 
         const endScreen = new PIXI.Container()
@@ -490,8 +430,8 @@ window.onload = async function () {
                 collectedMoneyValue.text = `${initCMoney}$`
             }, 10);
         });
-        storage.money = Number(storage.money) + pointsToMoney + collectedToMoney
-        storage.money = Number(storage.money) + collectedToMoney
+        storageManager.addMoney(pointsToMoney + collectedToMoney)
+        storageManager.addMoney(collectedToMoney)
 
         //AVERAGE SCORE
         const score = new PIXI.Text('F', textStyles.default180);
@@ -513,8 +453,7 @@ window.onload = async function () {
             }, 10);
         });
 
-        localStorage.setItem('storage', JSON.stringify(storage))
-        // await bridge.send("VKWebAppStorageSet", {key: 'storage', value: JSON.stringify(storage)})
+        await storageManager.save()
         //EXIT
         const exit = new PIXI.Sprite(menuButtons.textures.exit)
         exit.scale.set(0.7, 0.6)
@@ -1086,8 +1025,7 @@ window.onload = async function () {
         exit.on('pointerdown', () => {
             menu.removeChildren(0, menu.children.length)
             createMenu()
-            localStorage.setItem('storage', JSON.stringify(storage))
-            // bridge.send("VKWebAppStorageSet", {key: 'storage', value: JSON.stringify(storage)})
+            storageManager.save() // Сохранение без await, так как обработчик не async
         });
     }
 
@@ -4082,10 +4020,9 @@ window.onload = async function () {
     // }
 
     async function getData() {
-        const parse = JSON.parse(localStorage.getItem('storage'))
-        if (parse) {
-            storage = parse
-        }
+        await storageManager.load()
+        // Обновляем ссылку на storage после загрузки
+        storage = storageManager.getStorage()
     }
 
     function createSwipes() {
