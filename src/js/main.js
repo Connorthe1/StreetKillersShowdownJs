@@ -314,6 +314,16 @@ window.onload = async function () {
     if (endScreenManager && menuButtons) {
         endScreenManager.menuButtons = menuButtons
     }
+    
+    // Установка текстур и параметров в менеджер HUD после загрузки ресурсов
+    if (hudManager && activeItems && menuIcons && menuPause && menuUI) {
+        hudManager.setTextures({
+            activeItems: activeItems,
+            menuIcons: menuIcons,
+            menuPause: menuPause,
+            menuUI: menuUI
+        })
+    }
 
     function init() {
         world = new PIXI.Container()
@@ -468,7 +478,8 @@ window.onload = async function () {
         zipLineManager = new ZipLineManager(world, zipLines, player, playerState, soundPlayer, (anim) => {
             if (playerInstance) playerInstance.playAnim(anim)
         }, playerSpeed, skinStore, storage, zeroLeft)
-        zipLineManager.setTextures(buildZiplineTexture)
+        // Текстуры зиплайнов устанавливаются в BuildingManager при создании зданий
+        // ZipLineManager не требует установки текстур, так как управляет уже созданными зиплайнами
         
         // Установка колбэков после инициализации всех менеджеров
         groundManager.setCallbacks({
@@ -668,8 +679,16 @@ window.onload = async function () {
         // Установка колбэков для PowerUpManager
         powerUpManager.setCallbacks({
             soundPlayer: soundPlayer,
-            HUDupdatePowerUp: HUDupdatePowerUp,
-            HUDbullets: HUDbullets,
+            HUDupdatePowerUp: () => {
+                if (hudManager) {
+                    hudManager.updatePowerUps(playerState)
+                }
+            },
+            HUDbullets: () => {
+                if (hudManager) {
+                    hudManager.createBulletsDisplay(gun)
+                }
+            },
             gun: gun
         })
         
@@ -775,8 +794,16 @@ window.onload = async function () {
                         endScreenManager.createEndScreen()
                     }
                 },
-                HUDupdatePowerUp: HUDupdatePowerUp,
-                HUDremoveShield: HUDremoveShield,
+                HUDupdatePowerUp: () => {
+                    if (hudManager) {
+                        hudManager.updatePowerUps(playerState)
+                    }
+                },
+                HUDremoveShield: () => {
+                    if (hudManager) {
+                        hudManager.removeShield()
+                    }
+                },
                 getSecondFloor: () => secondFloor,
                 setPlayerSpeed: (speed) => {
                     playerSpeed = speed
@@ -848,9 +875,38 @@ window.onload = async function () {
     function startGame() {
         updateGunFromSkin(storage.selectedSkin, storage, getPercent, skinStore);
 
-        HUDbullets()
-        HUDpoints()
-        HUDpause()
+        if (hudManager) {
+            hudManager.createBulletsDisplay(gun)
+            hudManager.createMainHUD(playerState, storage, app)
+            hudManager.createPauseMenu({
+                storage: storage,
+                hasMeleeKill: () => meleeKillManager && meleeKillManager.hasMeleeKill(),
+                pauseGame: () => {
+                    const allAnimated = world.children.filter(item => item.animationSpeed)
+                    allAnimated.forEach(item => item.stop())
+                    music.set('paused', true)
+                    gameState.isPause = true
+                },
+                pauseTimeouts: () => {
+                    timeouts.forEach(item => item.pause())
+                },
+                resumeGame: () => {
+                    const allAnimated = world.children.filter(item => item.animationSpeed)
+                    allAnimated.forEach(item => item.play())
+                    music.set('paused', false)
+                    gameState.isPause = false
+                },
+                resumeTimeouts: () => {
+                    timeouts.forEach(item => item.resume())
+                },
+                endGame: (skip) => {
+                    if (endScreenManager) {
+                        timeouts.length = 0
+                        endScreenManager.createEndScreen(skip)
+                    }
+                }
+            })
+        }
         if (playerInstance) {
             const playerSkin = playerState.currentSkin || skinStore[Number(storage.selectedSkin)].param
             player = playerInstance.createPlayer(playerSkin, -100, playerPos)
@@ -1033,7 +1089,9 @@ window.onload = async function () {
             playerState.rollId.stop()
             playerState.rollId = null
         }
-        hud.getChildByName('fps').text = Math.floor(app.ticker.FPS)
+        if (hudManager) {
+            hudManager.updateFPS(app.ticker.FPS)
+        }
         physicsManager.update();
         // Обновление ближнего боя через MeleeKillManager
         if (meleeKillManager) {
@@ -1045,12 +1103,15 @@ window.onload = async function () {
             // Синхронизация meleeKill для обратной совместимости
             meleeKill = meleeKillManager.getMeleeKill()
         }
-        const currentPoints = gameState.updatePoints()
-        if (currentPoints !== gameState.points || gameState.pointsToAdd > 0) {
-            hud.getChildByName('points').text = gameState.points;
+        if (hudManager) {
+            hudManager.updatePoints()
         }
-        hud.getChildByName('scale').text = `x${gameState.multiplier.toFixed(1)}`;
-        updateScore()
+        if (hudManager) {
+            hudManager.updateMultiplier()
+        }
+        if (scoreManager) {
+            scoreManager.updateScore(playerState.stimpack)
+        }
         // Обновление мусора через GarbageManager
         if (garbageManager) {
             garbageManager.updateGarbage()
@@ -1557,7 +1618,9 @@ window.onload = async function () {
                         break
                     }
                     playerState.activePowerUps.splice(idx, 1)
-                    HUDupdatePowerUp()
+                    if (hudManager) {
+                        hudManager.updatePowerUps(playerState)
+                    }
                     console.log('endPW')
                 }
             })
@@ -2107,14 +2170,18 @@ window.onload = async function () {
                 text = new PIXI.Text('+1', textStyles.default80)
                 icon.scale.set(2)
                 storage.activeItems.stimpack += 1
-                HUDupdateSkills()
+                if (hudManager) {
+                    hudManager.updateSkills(storage)
+                }
             break
             case rand === 2:
                 icon = new PIXI.Sprite(activeItems.textures.handGrenadeIcon)
                 text = new PIXI.Text('+1', textStyles.default80)
                 icon.scale.set(1.5)
                 storage.activeItems.grenades += 1
-                HUDupdateSkills()
+                if (hudManager) {
+                    hudManager.updateSkills(storage)
+                }
             break
             case rand === 3:
                 icon = new PIXI.Sprite(menuIcons.textures.money)
@@ -2917,7 +2984,9 @@ window.onload = async function () {
                         break
                     }
                     player.onComplete = () => {
-                        HUDbullets()
+                        if (hudManager) {
+                            hudManager.createBulletsDisplay(gun)
+                        }
                         gun.currentAmmo = gun.ammo
                         if (playerState.inCover) {
                             playAnim('idle')
@@ -2980,8 +3049,9 @@ window.onload = async function () {
                         player.tint = player.color
                     }
                     gun.currentAmmo--
-                    hud.getChildByName('magazine').removeChildAt(0)
-                    hud.getChildByName('magazine').x -= 16
+                    if (hudManager) {
+                        hudManager.removeBullet()
+                    }
                     playAnim('shot')
                     shot(player, gun.offsetX, gun.offsetY, gun.type, true)
                     if (playerState.stimpack) {
@@ -3016,13 +3086,17 @@ window.onload = async function () {
                 if (playerState.skillCD || storage.activeItems.grenades === 0) return;
                 storage.activeItems.grenades -= 1
                 playerState.skillCD = true
-                hud.getChildByName('skills').alpha = 0.3
+                if (hudManager) {
+                    hudManager.setSkillsAlpha(0.3)
+                    hudManager.updateSkills(storage)
+                }
                 if (grenadeManager) {
                     grenadeManager.grenadeBounce()
                 }
-                HUDupdateSkills()
                 sleep(6000).then(() => {
-                    hud.getChildByName('skills').alpha = 1
+                    if (hudManager) {
+                        hudManager.setSkillsAlpha(1)
+                    }
                     playerState.skillCD = false
                 })
             break
@@ -3031,14 +3105,18 @@ window.onload = async function () {
                 if (playerState.skillCD || storage.activeItems.stimpack === 0) return;
                 storage.activeItems.stimpack -= 1
                 playerState.skillCD = true
-                hud.getChildByName('skills').alpha = 0.3
+                if (hudManager) {
+                    hudManager.setSkillsAlpha(0.3)
+                    hudManager.updateSkills(storage)
+                    hudManager.createShield(playerState)
+                }
                 playerState.stimpack = true
                 soundPlayer.useSkill()
-                HUDupdateSkills()
-                HUDcreateShield()
                 sleep(15000).then(() => {
-                    HUDremoveShield()
-                    hud.getChildByName('skills').alpha = 1
+                    if (hudManager) {
+                        hudManager.removeShield()
+                        hudManager.setSkillsAlpha(1)
+                    }
                     playerState.skillCD = false
                     playerState.stimpack = false
                 })
@@ -3053,168 +3131,8 @@ window.onload = async function () {
         }
     }
 
-    function HUDbullets() {
-        const oldMagazine = hud.getChildByName('magazine')
-        if (oldMagazine) {
-            hud.removeChild(oldMagazine)
-        }
-        const magazine = new PIXI.Container()
-        for (let i = 0; i < gun.ammo; i++) {
-            const bullet = new PIXI.Sprite(activeItems.textures.bullet)
-            bullet.position.x = i * (bullet.width + 2)
-            magazine.addChild(bullet)
-        }
-        magazine.name = 'magazine'
-        magazine.position.set(20, gameHeight - 60)
-        hud.addChild(magazine)
-    }
-
-    function HUDpoints() {
-        const pointsStyle = new PIXI.TextStyle({
-            fontFamily: 'ACastle3',
-            fontSize: 56,
-            fontStyle: 'italic',
-            fontWeight: 'bold',
-            fill: ['#ffffff', '#00ff99'], // gradient
-            stroke: '#4a1850',
-            strokeThickness: 5,
-            dropShadow: true,
-            dropShadowColor: '#000000',
-            dropShadowBlur: 4,
-            dropShadowAngle: Math.PI / 6,
-            dropShadowDistance: 6,
-            wordWrap: true,
-            wordWrapWidth: 440,
-            lineJoin: 'round',
-        });
-        const points = new PIXI.Text('0', pointsStyle);
-        points.anchor.set(1, 0)
-        points.x = gameWidth - 20
-        points.y = 40
-        points.name = 'points'
-
-        const scaleStyle = new PIXI.TextStyle({
-            fontFamily: 'ACastle3',
-            fontSize: 32,
-            fontStyle: 'italic',
-            fontWeight: 'bold',
-            fill: ['#ffffff', '#00ff99'], // gradient
-            stroke: '#4a1850',
-            strokeThickness: 5,
-            dropShadow: true,
-            dropShadowColor: '#000000',
-            dropShadowBlur: 4,
-            dropShadowAngle: Math.PI / 6,
-            dropShadowDistance: 6,
-            wordWrap: true,
-            wordWrapWidth: 440,
-            lineJoin: 'round',
-        });
-        const scale = new PIXI.Text('x0', scaleStyle);
-        scale.anchor.set(1, 0)
-        scale.x = gameWidth - 20
-        scale.y = 90
-        scale.name = 'scale'
-
-        const scoreStyle = new PIXI.TextStyle({
-            fontFamily: 'ACastle3',
-            fontSize: 100,
-            fontStyle: 'italic',
-            fontWeight: 'bold',
-            fill: ['#ffffff', '#00ff99'], // gradient
-            stroke: '#4a1850',
-            strokeThickness: 5,
-            dropShadow: true,
-            dropShadowColor: '#000000',
-            dropShadowBlur: 4,
-            dropShadowAngle: Math.PI / 6,
-            dropShadowDistance: 6,
-            wordWrap: true,
-            wordWrapWidth: 440,
-            lineJoin: 'round',
-        });
-        const score = new PIXI.Text('F', scoreStyle);
-        score.anchor.set(1, 0)
-        score.x = gameWidth - 20
-        score.y = 140
-        score.name = 'score'
-
-        const hearts = new PIXI.Container()
-        for (let i = 0; i < playerState.health; i++) {
-            const heart = new PIXI.Sprite(activeItems.textures.heart)
-            heart.position.x = (2 - i) * (heart.width / 2 + 10)
-            hearts.addChild(heart)
-        }
-        hearts.name = 'hearts'
-        hearts.position.set(20, 46)
-        hearts.zIndex = 1
-
-        const skills = new PIXI.Container()
-        skills.position.set(20, hearts.y + 50)
-        skills.name = 'skills'
-        const stimpack = new PIXI.Sprite(activeItems.textures.stimpack)
-        stimpack.scale.set(0.9)
-        stimpack.position.set(0, 0)
-        const stimpackText = new PIXI.Text(storage.activeItems.stimpack, textStyles.default30);
-        stimpackText.name = 'stimpackText'
-        stimpackText.position.set(stimpack.x + stimpack.width, stimpack.y + stimpack.height / 2)
-
-        const handGrenade = new PIXI.Sprite(activeItems.textures.handGrenadeIcon)
-        handGrenade.scale.set(0.6)
-        handGrenade.position.set(-6, stimpack.y + 40)
-        const handGrenadeText = new PIXI.Text(storage.activeItems.grenades, textStyles.default30);
-        handGrenadeText.name = 'handGrenadeText'
-        handGrenadeText.position.set(handGrenade.x + handGrenade.width, handGrenade.y + handGrenade.height / 2)
-
-        const powerUps = new PIXI.Container()
-        powerUps.name = 'powerUps'
-        powerUps.position.set(90, 120)
-
-        skills.addChild(stimpackText)
-        skills.addChild(stimpack)
-        skills.addChild(handGrenadeText)
-        skills.addChild(handGrenade)
-        hud.addChild(powerUps)
-        hud.addChild(skills)
-        hud.addChild(hearts)
-        hud.addChild(score)
-        hud.addChild(scale);
-        hud.addChild(points);
-
-        const fps = new PIXI.Text(app.ticker.FPS, textStyles.default40);
-        fps.name = 'fps'
-        fps.position.set(5, 100)
-        hud.addChild(fps);
-    }
-
-    function HUDupdateSkills() {
-        hud.getChildByName('skills').getChildByName('stimpackText').text = storage.activeItems.stimpack
-        hud.getChildByName('skills').getChildByName('handGrenadeText').text = storage.activeItems.grenades
-    }
-    function HUDremoveShield() {
-        const shield = hud.getChildByName('shield')
-        if (shield) {
-            hud.removeChild(hud.getChildByName('shield'))
-        }
-    }
-    function HUDcreateShield() {
-        const shield = new PIXI.Sprite(activeItems.textures.goldHeart)
-        shield.name = 'shield'
-        shield.position.set(20 + (playerState.health) * (shield.width / 2 + 8), 46)
-        hud.addChild(shield)
-    }
-
-    function HUDupdatePowerUp() {
-        const powerUps = hud.getChildByName('powerUps')
-        powerUps.removeChildren(0, powerUps.children.length)
-        if (playerState.activePowerUps.length === 0) return
-        playerState.activePowerUps.forEach((item, idx) => {
-            const powerUp = new PIXI.Sprite(menuIcons.textures[item.type])
-            powerUp.scale.set(0.5)
-            powerUp.position.set(50 * idx, 0)
-            powerUps.addChild(powerUp)
-        })
-    }
+    // Функции HUDbullets, HUDpoints, HUDupdateSkills, HUDremoveShield, HUDcreateShield, HUDupdatePowerUp
+    // теперь в HUDManager. Оставлены для обратной совместимости, но больше не используются.
 
     function addPoints(points) {
         if (scoreManager) {
@@ -3243,185 +3161,9 @@ window.onload = async function () {
         }
     }
 
-    function HUDpause() {
-        const hudPause = new PIXI.Container()
-        hud.addChild(hudPause)
-
-        const pause = new PIXI.Sprite(menuPause.textures.pause)
-        pause.eventMode = 'static'
-        pause.anchor.set(1)
-        pause.position.set(gameWidth - 20, gameHeight - 20)
-        hudPause.addChild(pause)
-
-        const pauseMenu = new PIXI.Container()
-        hudPause.addChild(pauseMenu)
-        pauseMenu.visible = false
-
-        const bg = new PIXI.Graphics();
-        bg.beginFill(0x000);
-        bg.alpha = 0.4
-        bg.drawRect(0, 0, gameWidth, gameHeight);
-        pauseMenu.addChild(bg)
-
-        const play = new PIXI.Sprite(menuPause.textures.play)
-        play.eventMode = 'static'
-        play.anchor.set(1)
-        play.position.set(gameWidth - 20, gameHeight - 20)
-        pauseMenu.addChild(play)
-
-        const heading = new PIXI.Text('PAUSE', textStyles.default80);
-        heading.anchor.set(0.5, 1)
-        heading.position.set(gameWidth / 2, gameHeight / 4)
-        pauseMenu.addChild(heading)
-
-        const distance = new PIXI.Text(`record: ${storage.record}`, textStyles.default40);
-        distance.anchor.set(0, 1)
-        distance.position.set(20, gameHeight - 20)
-        pauseMenu.addChild(distance)
-
-        const leave = new PIXI.Sprite(menuUI.textures.shortexit)
-        leave.eventMode = 'static'
-        leave.anchor.set(0.5)
-        leave.scale.set(0.5)
-        leave.position.set(gameWidth / 2, gameHeight / 2)
-        pauseMenu.addChild(leave)
-
-        const leaveMenu = new PIXI.Container()
-        hudPause.addChild(leaveMenu)
-        leaveMenu.visible = false
-        const leaveText = new PIXI.Text('leaving?', textStyles.default56);
-        leaveText.anchor.set(0.5, 0)
-        leaveText.position.set(gameWidth / 2, gameHeight / 2.5)
-        leaveMenu.addChild(leaveText)
-        const leaveDesc = new PIXI.Text('your run progress will be lost are you sure?', textStyles.default30);
-        leaveDesc.anchor.set(0.5, 0)
-        leaveDesc.position.set(gameWidth / 2, leaveText.y + leaveText.height + 20)
-        leaveMenu.addChild(leaveDesc)
-
-        const cancelButton = new PIXI.Sprite(menuUI.textures.exitclear)
-        cancelButton.eventMode = 'static'
-        cancelButton.anchor.set(1, 0)
-        cancelButton.scale.set(0.5, 0.4)
-        cancelButton.position.set(gameWidth / 2 - 10, leaveDesc.y + leaveDesc.height + 20)
-        leaveMenu.addChild(cancelButton)
-        const cancelButtonText = new PIXI.Text('leave', textStyles.default40);
-        cancelButtonText.anchor.set(0.5)
-        cancelButtonText.position.set(cancelButton.x - cancelButton.width / 2, cancelButton.y + cancelButton.height / 2 + 2)
-        leaveMenu.addChild(cancelButtonText)
-
-        const stayButton = new PIXI.Sprite(menuUI.textures.stayclear)
-        stayButton.eventMode = 'static'
-        stayButton.anchor.set(0)
-        stayButton.scale.set(0.5, 0.4)
-        stayButton.position.set(gameWidth / 2 + 10, leaveDesc.y + leaveDesc.height + 20)
-        leaveMenu.addChild(stayButton)
-        const stayButtonText = new PIXI.Text('stay', textStyles.default40);
-        stayButtonText.anchor.set(0.5)
-        stayButtonText.position.set(stayButton.x + stayButton.width / 2, stayButton.y + stayButton.height / 2 + 2)
-        leaveMenu.addChild(stayButtonText)
-
-        const timerMenu = new PIXI.Container()
-        hudPause.addChild(timerMenu)
-        timerMenu.visible = false
-        const bgTimer = new PIXI.Graphics();
-        bgTimer.beginFill(0x000);
-        bgTimer.alpha = 0.4
-        bgTimer.drawRect(0, 0, gameWidth, gameHeight);
-        timerMenu.addChild(bgTimer)
-        const timerText = new PIXI.Text('0', textStyles.default180);
-        timerText.anchor.set(0.5)
-        timerText.position.set(gameWidth / 2, gameHeight / 2)
-        timerMenu.addChild(timerText)
-
-        pause.on('pointerdown', () => {
-            if (meleeKillManager && meleeKillManager.hasMeleeKill()) return
-            const allAnimated = world.children.filter(item => item.animationSpeed)
-            allAnimated.forEach(item => {
-                item.stop()
-            })
-            music.set('paused', true)
-            gameState.isPause = true
-            hud.getChildByName('magazine').visible = false
-            pauseMenu.visible = true
-            leave.visible = true
-            pause.visible = false
-            timeouts.forEach(item => {
-                item.pause()
-            })
-        })
-
-        play.on('pointerdown', () => {
-            pauseMenu.visible = false
-            leaveMenu.visible = false
-            timerMenu.visible = true
-            let timer = 3
-            timerText.text = timer
-            const delay = setInterval(() => {
-                timer--
-                timerText.text = timer
-                if (timer <= 0) {
-                    clearInterval(delay)
-                    hud.getChildByName('magazine').visible = true
-                    timerMenu.visible = false
-                    const allAnimated = world.children.filter(item => item.animationSpeed)
-                    allAnimated.forEach(item => {
-                        item.play()
-                    })
-                    music.set('paused', false)
-                    gameState.isPause = false
-                    pause.visible = true
-                    timeouts.forEach(item => {
-                        item.resume()
-                    })
-                }
-            }, 1000)
-        })
-
-        leave.on('pointerdown', () => {
-            leaveMenu.visible = true
-            leave.visible = false
-        })
-
-        cancelButton.on('pointerdown', () => {
-            if (endScreenManager) {
-                timeouts.length = 0
-                endScreenManager.createEndScreen(true)
-            }
-        })
-
-        stayButton.on('pointerdown', () => {
-            leaveMenu.visible = false
-            leave.visible = true
-        })
-    }
-
-    function updateScore() {
-        if (scoreManager) {
-            scoreManager.updateScore(playerState.stimpack)
-        } else {
-            // Fallback на старую логику
-            const score = gameState.updateScore(playerState.stimpack)
-            const scoreElement = hud.getChildByName('score')
-            if (scoreElement) {
-                scoreElement.text = score
-                const scoreColors = {
-                    'F': ["#ffffff","#ff0000"],
-                    'E': ["#ffffff","#ff5858"],
-                    'D': ["#ffffff","#ffa4d5"],
-                    'C': ["#ffffff","#83b9ff"],
-                    'B': ["#ffffff","#b0ff89"],
-                    'A': ["#ffffff","#9eff11"],
-                    'A+': ["#ffffff","#ffec6e"],
-                    'S': ["#ffffff","#ffcd00"],
-                    'S+': ["#ffffff","#ffa33c"],
-                    'S++': ["#ffffff","#ff6200"]
-                }
-                if (scoreColors[score]) {
-                    scoreElement.style._fill = scoreColors[score]
-                }
-            }
-        }
-    }
+    // Функция HUDpause теперь в HUDManager.createPauseMenu(). Оставлена для обратной совместимости, но больше не используется.
+    
+    // Функция updateScore теперь в ScoreManager.updateScore() и HUDManager.updateScore(). Оставлена для обратной совместимости, но больше не используется.
 
     // async function getData() {
     //     return

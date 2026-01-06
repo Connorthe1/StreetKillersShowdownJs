@@ -103,13 +103,31 @@ export class HUDManager {
         const points = new PIXI.Text('0', pointsStyle)
         points.anchor.set(1, 0)
         points.x = this.gameWidth - 20
-        points.y = 20
+        points.y = 40
         points.name = 'points'
         
-        const scale = new PIXI.Text('x1.0', pointsStyle)
+        const scaleStyle = new PIXI.TextStyle({
+            fontFamily: 'ACastle3',
+            fontSize: 32,
+            fontStyle: 'italic',
+            fontWeight: 'bold',
+            fill: ['#ffffff', '#00ff99'],
+            stroke: '#4a1850',
+            strokeThickness: 5,
+            dropShadow: true,
+            dropShadowColor: '#000000',
+            dropShadowBlur: 4,
+            dropShadowAngle: Math.PI / 6,
+            dropShadowDistance: 6,
+            wordWrap: true,
+            wordWrapWidth: 440,
+            lineJoin: 'round',
+        })
+        
+        const scale = new PIXI.Text('x0', scaleStyle)
         scale.anchor.set(1, 0)
         scale.x = this.gameWidth - 20
-        scale.y = 80
+        scale.y = 90
         scale.name = 'scale'
         
         // Стиль для рейтинга
@@ -360,6 +378,151 @@ export class HUDManager {
     createMeleeKillUI(enemy, world) {
         console.warn('HUDManager.createMeleeKillUI() устарел. Используйте MeleeKillUIManager.createMeleeKillUI()')
         return null
+    }
+    
+    /**
+     * Создает меню паузы
+     */
+    createPauseMenu(callbacks) {
+        if (!this.menuPause || !this.menuUI) {
+            console.warn('MenuPause or MenuUI textures not available')
+            return
+        }
+        
+        const hudPause = new PIXI.Container()
+        this.hud.addChild(hudPause)
+
+        const pause = new PIXI.Sprite(this.menuPause.textures.pause)
+        pause.eventMode = 'static'
+        pause.anchor.set(1)
+        pause.position.set(this.gameWidth - 20, this.gameHeight - 20)
+        hudPause.addChild(pause)
+
+        const pauseMenu = new PIXI.Container()
+        hudPause.addChild(pauseMenu)
+        pauseMenu.visible = false
+
+        const bg = new PIXI.Graphics()
+        bg.beginFill(0x000)
+        bg.alpha = 0.4
+        bg.drawRect(0, 0, this.gameWidth, this.gameHeight)
+        pauseMenu.addChild(bg)
+
+        const play = new PIXI.Sprite(this.menuPause.textures.play)
+        play.eventMode = 'static'
+        play.anchor.set(1)
+        play.position.set(this.gameWidth - 20, this.gameHeight - 20)
+        pauseMenu.addChild(play)
+
+        const heading = new PIXI.Text('PAUSE', this.textStyles.default80)
+        heading.anchor.set(0.5, 1)
+        heading.position.set(this.gameWidth / 2, this.gameHeight / 4)
+        pauseMenu.addChild(heading)
+
+        const distance = new PIXI.Text(`record: ${callbacks.storage?.record || 0}`, this.textStyles.default40)
+        distance.anchor.set(0, 1)
+        distance.position.set(20, this.gameHeight - 20)
+        pauseMenu.addChild(distance)
+
+        const leave = new PIXI.Sprite(this.menuUI.textures.shortexit)
+        leave.eventMode = 'static'
+        leave.anchor.set(0.5)
+        leave.scale.set(0.5)
+        leave.position.set(this.gameWidth / 2, this.gameHeight / 2)
+        pauseMenu.addChild(leave)
+
+        const leaveMenu = new PIXI.Container()
+        hudPause.addChild(leaveMenu)
+        leaveMenu.visible = false
+        const leaveText = new PIXI.Text('leaving?', this.textStyles.default56)
+        leaveText.anchor.set(0.5, 0)
+        leaveText.position.set(this.gameWidth / 2, this.gameHeight / 2.5)
+        leaveMenu.addChild(leaveText)
+        const leaveDesc = new PIXI.Text('your run progress will be lost are you sure?', this.textStyles.default30)
+        leaveDesc.anchor.set(0.5, 0)
+        leaveDesc.position.set(this.gameWidth / 2, leaveText.y + leaveText.height + 20)
+        leaveMenu.addChild(leaveDesc)
+
+        const cancelButton = new PIXI.Sprite(this.menuUI.textures.exitclear)
+        cancelButton.eventMode = 'static'
+        cancelButton.anchor.set(1, 0)
+        cancelButton.scale.set(0.5, 0.4)
+        cancelButton.position.set(this.gameWidth / 2 - 10, leaveDesc.y + leaveDesc.height + 20)
+        leaveMenu.addChild(cancelButton)
+        const cancelButtonText = new PIXI.Text('leave', this.textStyles.default40)
+        cancelButtonText.anchor.set(0.5)
+        cancelButtonText.position.set(cancelButton.x - cancelButton.width / 2, cancelButton.y + cancelButton.height / 2 + 2)
+        leaveMenu.addChild(cancelButtonText)
+
+        const stayButton = new PIXI.Sprite(this.menuUI.textures.stayclear)
+        stayButton.eventMode = 'static'
+        stayButton.anchor.set(0)
+        stayButton.scale.set(0.5, 0.4)
+        stayButton.position.set(this.gameWidth / 2 + 10, leaveDesc.y + leaveDesc.height + 20)
+        leaveMenu.addChild(stayButton)
+        const stayButtonText = new PIXI.Text('stay', this.textStyles.default40)
+        stayButtonText.anchor.set(0.5)
+        stayButtonText.position.set(stayButton.x + stayButton.width / 2, stayButton.y + stayButton.height / 2 + 2)
+        leaveMenu.addChild(stayButtonText)
+
+        const timerMenu = new PIXI.Container()
+        hudPause.addChild(timerMenu)
+        timerMenu.visible = false
+        const bgTimer = new PIXI.Graphics()
+        bgTimer.beginFill(0x000)
+        bgTimer.alpha = 0.4
+        bgTimer.drawRect(0, 0, this.gameWidth, this.gameHeight)
+        timerMenu.addChild(bgTimer)
+        const timerText = new PIXI.Text('0', this.textStyles.default180)
+        timerText.anchor.set(0.5)
+        timerText.position.set(this.gameWidth / 2, this.gameHeight / 2)
+        timerMenu.addChild(timerText)
+
+        pause.on('pointerdown', () => {
+            if (callbacks.hasMeleeKill && callbacks.hasMeleeKill()) return
+            if (callbacks.pauseGame) callbacks.pauseGame()
+            this.hud.getChildByName('magazine').visible = false
+            pauseMenu.visible = true
+            leave.visible = true
+            pause.visible = false
+            if (callbacks.pauseTimeouts) callbacks.pauseTimeouts()
+        })
+
+        play.on('pointerdown', () => {
+            pauseMenu.visible = false
+            leaveMenu.visible = false
+            timerMenu.visible = true
+            let timer = 3
+            timerText.text = timer
+            const delay = setInterval(() => {
+                timer--
+                timerText.text = timer
+                if (timer <= 0) {
+                    clearInterval(delay)
+                    this.hud.getChildByName('magazine').visible = true
+                    timerMenu.visible = false
+                    if (callbacks.resumeGame) callbacks.resumeGame()
+                    pause.visible = true
+                    if (callbacks.resumeTimeouts) callbacks.resumeTimeouts()
+                }
+            }, 1000)
+        })
+
+        leave.on('pointerdown', () => {
+            leaveMenu.visible = true
+            leave.visible = false
+        })
+
+        cancelButton.on('pointerdown', () => {
+            if (callbacks.endGame) {
+                callbacks.endGame(true)
+            }
+        })
+
+        stayButton.on('pointerdown', () => {
+            leaveMenu.visible = false
+            leave.visible = true
+        })
     }
 }
 
