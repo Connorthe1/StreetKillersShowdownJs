@@ -3,28 +3,32 @@
     "name": "AMMO BOOSTER",
     "initPrice": 600,
     "maxLvl": 5,
-    "icon": "this.menuIcons.textures.boostAmmo",
+    "icon": "boostAmmo",
+    "texturePack": "menuIcons",
     "idName": "boostAmmo"
   },
   {
     "name": "DAMAGE BOOSTER",
     "initPrice": 700,
     "maxLvl": 5,
-    "icon": "this.menuIcons.textures.boostGun",
+    "icon": "boostGun",
+    "texturePack": "menuIcons",
     "idName": "boostGun"
   },
   {
     "name": "ARMOR BOOSTER",
     "initPrice": 500,
     "maxLvl": 5,
-    "icon": "this.menuIcons.textures.boostShield",
+    "icon": "boostShield",
+    "texturePack": "menuIcons",
     "idName": "boostShield"
   },
   {
     "name": "TITANIUM CAN",
     "initPrice": 1000,
     "maxLvl": 2,
-    "icon": "this.canTexture.textures.pixelCan",
+    "icon": "pixelCan",
+    "texturePack": "canTexture",
     "scale": 4,
     "idName": "can"
   },
@@ -32,7 +36,8 @@
     "name": "GUN TRIGGER",
     "initPrice": 2000,
     "maxLvl": 5,
-    "icon": "this.menuIcons.textures.gunTrigger",
+    "icon": "gunTrigger",
+    "texturePack": "menuIcons",
     "scale": 1.5,
     "idName": "gunTrigger"
   },
@@ -40,7 +45,8 @@
     "name": "ACCURACY MUZZLE BRAKE",
     "initPrice": 1000,
     "maxLvl": 5,
-    "icon": "this.menuIcons.textures.muzzleBrake",
+    "icon": "muzzleBrake",
+    "texturePack": "menuIcons",
     "scale": 1.5,
     "idName": "accuracy"
   }

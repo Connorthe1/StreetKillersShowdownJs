@@ -6,7 +6,7 @@ import { Layer, Group, Stage } from '@pixi/layers';
 import * as Matter from 'matter-js'
 import skinStore from './skinStore.json'
 import bridge from '@vkontakte/vk-bridge';
-import { Player, playerState, playerDefaultSpeed, playerSpeed, initSpeed, player, playerBullets, gun, meleeKill, meleeKillSelectorSide, meleeKillSelectorSpeed, meleeKillStreak, meleeKillStreakTimer, triggerDelay, updateGunFromSkin } from './Player.js'
+import { Player } from './Player.js'
 import { getPercent, random, randomRGB } from './utils/GameUtils.js'
 import { GAME_SCALE, DEFAULT_GAME_SPEED, SLOW_GAME_SPEED, BULLET_SPEED, FENCE_CHANCE, BUILDING_CHANCE, GROUND_COLORS, BG_SPEED, initGameConfig } from './core/GameConfig.js'
 import { GameState } from './core/GameState.js'
@@ -45,8 +45,31 @@ import { MeleeKillManager } from './ui/MeleeKillManager.js'
 import { MenuManager } from './ui/Menu.js'
 import { EndScreenManager } from './ui/EndScreen.js'
 
-// Переменные игрока импортируются из Player.js
+// Экземпляр игрока
 let playerInstance = null
+
+// Алиасы для обратной совместимости (будут установлены после инициализации playerInstance)
+let playerState, playerDefaultSpeed, playerSpeed, initSpeed, player, gun
+
+// Функция для синхронизации playerSpeed с playerInstance
+function setPlayerSpeed(speed) {
+    if (playerInstance) {
+        playerInstance.speed = speed
+        playerSpeed = playerInstance.playerSpeed
+    } else {
+        playerSpeed = speed
+    }
+}
+
+// Функция для синхронизации playerDefaultSpeed с playerInstance
+function setPlayerDefaultSpeed(speed) {
+    if (playerInstance) {
+        playerInstance.defaultSpeed = speed
+        playerDefaultSpeed = playerInstance.playerDefaultSpeed
+    } else {
+        playerDefaultSpeed = speed
+    }
+}
 
 window.Telegram.WebApp.ready()
 window.Telegram.WebApp.expand()
@@ -80,8 +103,7 @@ let music = null
 let playerPos = WORLD_HEIGHT - 230
 let secondFloor = WORLD_HEIGHT - 420
 
-// Массивы пуль теперь управляются через BulletManager
-let enemyBullets = []
+// Массивы пуль управляются через BulletManager
 const bulletSpeed = BULLET_SPEED
 let bulletManager // Инициализируется после создания world
 
@@ -342,16 +364,12 @@ window.onload = async function () {
         
         // Инициализация менеджера пуль
         bulletManager = new BulletManager(world, gameState, particleManager)
-        // Обновление ссылок на массивы для обратной совместимости
-        const bulletArrays = bulletManager.getBulletArrays()
-        // playerBullets и shotsArr импортируются из Player.js, но обновим ссылки
-        enemyBullets = bulletArrays.enemyBullets
         // shotsArr будет обновляться в BulletManager, но ссылка остается для Player.js
         
         // Инициализация менеджеров окружения и сущностей
-        backgroundManager = new BackgroundManager(world, WORLD_WIDTH, WORLD_HEIGHT, gameHeight, bg)
+        backgroundManager = new BackgroundManager(world, WORLD_WIDTH, WORLD_HEIGHT, gameHeight, resources)
         // Фон создается через BackgroundManager (после инициализации)
-        background = backgroundManager.createBg(bg)
+        background = backgroundManager.createBg()
         backgroundManager.updateState({
             gameStart: gameState.gameStart,
             playerSpeed: playerSpeed,
@@ -359,7 +377,7 @@ window.onload = async function () {
             zeroLeft: zeroLeft
         })
         
-        groundManager = new GroundManager(world, ground, woodsBG, engine, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, { textures }, woods)
+        groundManager = new GroundManager(world, ground, woodsBG, engine, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources, woods)
         groundManager.updateState({
             isBuilding: isBuilding,
             zeroLeft: zeroLeft
@@ -369,7 +387,7 @@ window.onload = async function () {
         bgCarManager = new BgCarManager(world, ground, zeroLeft, zeroRight)
         bgCarManager.setTextures(bgCarTexture)
         
-        garbageManager = new GarbageManager(world, isClub, enemyBullets, playerBullets, soundPlayer, (char, particleType) => {
+        garbageManager = new GarbageManager(world, isClub, bulletManager.enemyBullets, bulletManager.playerBullets, soundPlayer, (char, particleType) => {
             if (particleManager) {
                 particleManager.createParticle(char, particleType, null, null)
             }
@@ -430,7 +448,7 @@ window.onload = async function () {
             gameState,
             enemies,
             currentDogEnemy,
-            playerBullets,
+            bulletManager.playerBullets,
             zeroRight,
             afterBuilding,
             ground,
@@ -491,6 +509,34 @@ window.onload = async function () {
             }
         })
         
+        // Установка колбэков для ZipLineManager
+        if (zipLineManager) {
+            zipLineManager.setCallbacks({
+                playAnim: (anim) => {
+                    if (playerInstance) playerInstance.playAnim(anim)
+                },
+                playerSpeed: setPlayerSpeed
+            })
+        }
+        
+        // Установка колбэков для PuddleManager
+        if (puddleManager) {
+            puddleManager.setCallbacks({
+                addPoints: (points) => {
+                    if (scoreManager) scoreManager.addPoints(points)
+                },
+                soundPlayer: soundPlayer,
+                createParticles: (pos, type) => {
+                    if (particleManager) {
+                        particleManager.createParticle(pos, type, null, null)
+                    }
+                },
+                sleep: sleep,
+                playerSpeed: setPlayerSpeed,
+                playerDefaultSpeed: typeof playerDefaultSpeed === 'number' ? { value: playerDefaultSpeed } : playerDefaultSpeed
+            })
+        }
+        
         // Обновление ссылок на массивы для обратной совместимости
         if (buildingManager && buildingManager.getArrays) {
             buildings = buildingManager.getArrays().buildings
@@ -541,7 +587,7 @@ window.onload = async function () {
             world,
             gameState,
             enemies,
-            playerBullets,
+            bulletManager.playerBullets,
             player,
             playerState,
             traps,
@@ -560,7 +606,7 @@ window.onload = async function () {
             enemies,
             walls,
             traps,
-            playerBullets,
+            bulletManager.playerBullets,
             null, // player - будет установлен позже
             playerState,
             zeroLeft,
@@ -633,7 +679,7 @@ window.onload = async function () {
             world,
             null, // player - будет установлен позже
             playerState,
-            playerBullets,
+            bulletManager.playerBullets,
             buildings,
             zeroRight,
             playerPos,
@@ -777,7 +823,7 @@ window.onload = async function () {
         })
 
         // Инициализация UI менеджеров (текстуры передаются сразу, так как они уже загружены)
-        menuManager = new MenuManager(app, gameState, storage, gameWidth, gameHeight, textStyles, menuButtons, menuIcons, menuUI, activeItems, skinStore, storageManager)
+        menuManager = new MenuManager(app, gameState, storage, gameWidth, gameHeight, textStyles, resources, storageManager)
         meleeKillManager = new MeleeKillManager(hud, gameState, gameWidth, gameHeight, textStyles)
 
         // Установка колбэков для UI менеджеров
@@ -834,9 +880,7 @@ window.onload = async function () {
                     }
                 },
                 getSecondFloor: () => secondFloor,
-                setPlayerSpeed: (speed) => {
-                    playerSpeed = speed
-                }
+                setPlayerSpeed: setPlayerSpeed
             })
         }
         
@@ -898,10 +942,36 @@ window.onload = async function () {
         
         // Initialize player instance
         playerInstance = new Player()
+        playerInstance.initSpeed = 5
+        playerInstance.defaultSpeed = 5
+        playerInstance.speed = 5
+        
+        // Установка алиасов для обратной совместимости
+        playerState = playerInstance.playerState
+        gun = playerInstance.gun
+        
+        // Функции для синхронизации скоростей
+        const syncSpeeds = () => {
+            playerDefaultSpeed = playerInstance.playerDefaultSpeed
+            playerSpeed = playerInstance.playerSpeed
+            initSpeed = playerInstance.initSpeed
+        }
+        syncSpeeds()
+        // Функции для синхронизации других свойств
+        const syncOther = () => {
+        }
+        syncOther()
+
     }
 
     function startGame() {
-        updateGunFromSkin(storage.selectedSkin, storage, getPercent, skinStore);
+        if (playerInstance) {
+            playerInstance.updateGunFromSkin(storage.selectedSkin, storage, getPercent, skinStore)
+            // Обновление алиасов после изменения оружия
+            gun = playerInstance.gun
+            playerDefaultSpeed = playerInstance.playerDefaultSpeed
+            playerSpeed = playerInstance.playerSpeed
+        }
 
         if (hudManager) {
             hudManager.createBulletsDisplay(gun)
@@ -939,6 +1009,13 @@ window.onload = async function () {
             const playerSkin = playerState.currentSkin || skinStore[Number(storage.selectedSkin)].param
             player = playerInstance.createPlayer(playerSkin, -100, playerPos)
             world.addChild(player)
+            // Обновление алиаса player
+            player = playerInstance.player
+        }
+        
+        // Обновление ссылки на игрока в GameManager
+        if (gameManager && player) {
+            gameManager.setPlayer(player)
         }
         
         // Обновление ссылки на игрока в PlayerDamageManager
@@ -1037,15 +1114,15 @@ window.onload = async function () {
         if (bulletManager) {
             bulletManager.clear()
         }
-        // Обновление ссылок на массивы
-        if (bulletManager) {
-            const bulletArrays = bulletManager.getBulletArrays()
-            enemyBullets = bulletArrays.enemyBullets
-        }
 
-        initSpeed = 5
-        playerDefaultSpeed = initSpeed
-        playerSpeed = playerDefaultSpeed
+        if (playerInstance) {
+            playerInstance.initSpeed = 5
+            playerInstance.defaultSpeed = 5
+            playerInstance.speed = 5
+            initSpeed = playerInstance.initSpeed
+            playerDefaultSpeed = playerInstance.playerDefaultSpeed
+            playerSpeed = playerInstance.playerSpeed
+        }
         distance = 0
 
         background = null
@@ -1062,11 +1139,13 @@ window.onload = async function () {
         isClub = false
         buildingType = 0
 
-        triggerDelay = false
-        gun.currentAmmo = 5
-        gun.ammo = 5
-        gun.angle = 0.4
-        gun.type = 'pistol'
+        if (playerInstance) {
+            playerInstance.gun.currentAmmo = 5
+            playerInstance.gun.ammo = 5
+            playerInstance.gun.angle = 0.4
+            playerInstance.gun.type = 'pistol'
+            gun = playerInstance.gun
+        }
 
         walls.length = 0
         if (trapManager) {
@@ -1128,8 +1207,6 @@ window.onload = async function () {
                 gameSpeed: gameSpeed
             })
             meleeKillManager.updateMeleeKill()
-            // Синхронизация meleeKill для обратной совместимости
-            meleeKill = meleeKillManager.getMeleeKill()
         }
         if (hudManager) {
             hudManager.updatePoints()
@@ -1146,7 +1223,7 @@ window.onload = async function () {
         }
         // Use the Player module's updatePlayer method
         if (playerInstance) {
-            playerInstance.updatePlayer(delta, gameState.gameEnd, gameState.gameStart, gameSpeed, enemyBullets, world, soundPlayer, () => {
+            playerInstance.updatePlayer(delta, gameState.gameEnd, gameState.gameStart, gameSpeed, bulletManager.enemyBullets, world, soundPlayer, () => {
                 if (playerDamageManager) {
                     playerDamageManager.damagePlayer()
                 }
@@ -1253,7 +1330,7 @@ window.onload = async function () {
             dogEnemyManager.updateState({
                 player: player,
                 playerState: playerState,
-                playerBullets: playerBullets,
+                playerBullets: bulletManager.playerBullets,
                 buildings: buildings,
                 zeroRight: zeroRight,
                 zeroLeft: zeroLeft,
@@ -1299,7 +1376,7 @@ window.onload = async function () {
                 if (player.y < secondFloor) {
                     playerState.inZipLine = ''
                     player.rotation = 0
-                    playerSpeed = playerDefaultSpeed
+                    setPlayerSpeed(playerDefaultSpeed)
                     player.y = secondFloor
                     playerState.secondFloor = true
                     const e = {
@@ -1312,7 +1389,7 @@ window.onload = async function () {
                 if (player.y > playerPos) {
                     playerState.inZipLine = ''
                     player.rotation = 0
-                    playerSpeed = playerDefaultSpeed
+                    setPlayerSpeed(playerDefaultSpeed)
                     player.y = playerPos
                     playerState.secondFloor = false
                     if (playerInstance) playerInstance.playAnim('')
@@ -1328,19 +1405,12 @@ window.onload = async function () {
             shotsArr = bulletManager.shotsArr
         }
         
-        // Синхронизация playerBullets с BulletManager для обратной совместимости
-        if (bulletManager) {
-            const bulletArrays = bulletManager.getBulletArrays()
-            // playerBullets импортируется из Player.js, но обновляем ссылку для синхронизации
-            // Это нужно для того, чтобы код, использующий playerBullets, работал корректно
-            // Примечание: playerBullets может использоваться в Player.js, поэтому нужно быть осторожным
-        }
         const detectedWall = detectWall()
         if (detectedWall && !playerState.inCover) {
             if (((playerState.state === 'roll' || playerState.state === 'rollEnd') && !playerState.leaveCover) || (detectedWall.forBoss && !currentBoss.params.dead)) {
                 playerState.inBossFight = detectedWall.forBoss
                 playerState.inCover = true
-                playerSpeed = 0
+                setPlayerSpeed(0)
                 player.x = detectedWall.coverX
                 if (playerInstance) playerInstance.playAnim('idle')
             }
@@ -1449,7 +1519,7 @@ window.onload = async function () {
                 return;
             }
             if (garbage.type === 3 || garbage.type === 4) {
-                enemyBullets.forEach(bullet => {
+                bulletManager.enemyBullets.forEach(bullet => {
                     const b = bullet.getBounds()
                     const g = garbage.getBounds()
                     if (g.x > b.x && b.x + b.width > g.x && g.y > b.y && b.y + b.height > g.y) {
@@ -1464,7 +1534,7 @@ window.onload = async function () {
                         return
                     }
                 })
-                playerBullets.forEach(bullet => {
+                bulletManager.playerBullets.forEach(bullet => {
                     const b = bullet.getBounds()
                     const g = garbage.getBounds()
                     if (g.x > b.x && b.x + b.width > g.x && g.y > b.y && b.y + b.height > g.y) {
@@ -1512,7 +1582,7 @@ window.onload = async function () {
                 if (playerState.state === 'roll' || playerState.state === 'rollEnd') {
                     addPoints(20)
                     gameState.scoreStreak += 1
-                    playerSpeed = playerDefaultSpeed * 1.5
+                    setPlayerSpeed(playerDefaultSpeed) * 1.5
                     soundPlayer.waterStep()
                     for (let i = 0; i <= 20; i++) {
                         if (particleManager) {
@@ -1662,11 +1732,11 @@ window.onload = async function () {
         player.x += (0.5 * playerSpeed) * gameSpeed;
         zeroLeft = player.x - 100
         zeroRight = player.x + WORLD_WIDTH
-        enemyBullets.forEach((bullet, idx) => {
+        bulletManager.enemyBullets.forEach((bullet, idx) => {
             if (player.x + 40 > bullet.x && player.x < bullet.x && player.y - player.height / 2 < bullet.y && player.y + player.height / 2 > bullet.y) {
                 if (playerState.state === 'roll' || playerState.state === 'rollEnd' || (playerState.inCover && playerState.state !== 'shot')) return soundPlayer.bulletSkip()
                 world.removeChild(bullet)
-                enemyBullets.splice(idx, 1)
+                bulletManager.enemyBullets.splice(idx, 1)
                 if (playerState.invincible) {
                     return
                 }
@@ -1865,7 +1935,7 @@ window.onload = async function () {
                 b.used = true
                 soundPlayer.zipLine()
                 playerState.inZipLine = b.end ? "bot" : "top"
-                playerSpeed = 0
+                setPlayerSpeed(0)
                 playAnim('zipLine')
                 player.rotation = skinStore[Number(storage.selectedSkin)].noRotate ? 0 : 4.8
             }
@@ -2371,12 +2441,12 @@ window.onload = async function () {
                 }
             }
         }
-        playerBullets.forEach((bullet, idx) => {
+        bulletManager.playerBullets.forEach((bullet, idx) => {
             const b = bullet.getBounds()
             const boss = currentBoss.getBounds()
             if (b.x + b.width > boss.x && boss.x + boss.width > b.x && b.y + b.height > boss.y && boss.y + boss.height > b.y) {
                 world.removeChild(bullet)
-                playerBullets.splice(idx, 1)
+                bulletManager.playerBullets.splice(idx, 1)
                 if (currentBoss.x - player.x < 200) {
                     damageEnemy(currentBoss,gun.damage * 2, currentBoss.type !== 'bossSmg')
                 } else {
@@ -2579,11 +2649,11 @@ window.onload = async function () {
                     }
                 }
                 //check player bullets
-                playerBullets.forEach((bullet, idx) => {
+                bulletManager.playerBullets.forEach((bullet, idx) => {
                     if (enemy.x - enemy.width / 2 < bullet.x + bullet.width && enemy.x + enemy.width / 2 > bullet.x && enemy.y - enemy.height / 2 < bullet.y && enemy.y + enemy.height / 2 > bullet.y) {
                         if (enemy.params.inCover) return
                         world.removeChild(bullet)
-                        playerBullets.splice(idx, 1)
+                        bulletManager.playerBullets.splice(idx, 1)
                         if (enemy.x - player.x < getPercent(WORLD_WIDTH, 30)) {
                             damageEnemy(enemy,gun.damage * 2)
                         } else {
@@ -2657,101 +2727,6 @@ window.onload = async function () {
                 world.removeChild(bgCar)
                 bgCar = null
             }
-        }
-    }
-
-    function createFloor(idx) {
-        const part = new PIXI.Container()
-        const floor = new PIXI.Sprite(textures.textures.ground)
-        floor.anchor.set(0,1)
-        floor.position.set((floorPosition + idx) * floor.width, WORLD_HEIGHT)
-        floor.tint = groundColor[selectGroundColor]
-        let bgWall
-        const randomWall = Math.floor(Math.random() * (10 - 1 + 1) + 1)
-        if (randomWall < fenceChance) {
-            if (!isFence) {
-                bgWall = new PIXI.Sprite(textures.textures.groundFenceStart)
-            } else {
-                bgWall = new PIXI.Sprite(textures.textures.groundFenceMiddle)
-            }
-            isFence = true
-        } else {
-            if (isFence) {
-                bgWall = new PIXI.Sprite(textures.textures.groundFenceEnd)
-            } else {
-                bgWall = new PIXI.Sprite(textures.textures.groundWall)
-            }
-            isFence = false
-        }
-        if (Math.random() > 0.5) createWood(floor.x, floor.y - floor.height)
-        if (Math.random() > 0.75 && isBuilding) {
-            const posX = random(10, 100)
-            const posY = random(94, 104)
-            if (garbageManager) {
-                garbageManager.createGarbage(floor.x + floor.width + posX, floor.y + posY)
-            }
-        }
-        if (Math.random() > 0.75 && isBuilding) {
-            const posX = random(10, 100)
-            const posY = random(65, 75)
-            if (garbageManager) {
-                garbageManager.createGarbage(floor.x + floor.width + posX, floor.y + posY)
-            }
-        }
-        floor.body = Matter.Bodies.rectangle(floor.x, floor.y - floor.height + 44, floor.width + 20, 40, {isStatic: true});
-        bgWall.anchor.set(0,1)
-        bgWall.position.set((floorPosition + idx) * bgWall.width, floor.y - floor.height)
-        part.addChild(floor)
-        part.addChild(bgWall)
-        ground.addChild(part)
-        Matter.World.add(engine.world, floor.body);
-    }
-
-    function updateFloor() {
-        if (zeroLeft - ground.getLocalBounds().x > 192) {
-            floorPosition++
-            Matter.World.remove(engine.world, ground.getChildAt(0).children[0].body);
-            ground.removeChildAt(0)
-            createFloor(3)
-            spawnEntity()
-        }
-        woodsBGarr.forEach((wood, idx) => {
-            const w = wood.getBounds()
-            if (w.x + w.width < 0) {
-                woodsBG.removeChild(wood)
-                woodsBGarr.splice(idx, 1)
-            }
-        })
-    }
-
-    function createWood(posX, posY) {
-        const wood = new PIXI.AnimatedSprite(woods.animations[`wood${random(1,4)}_part`])
-        wood.scale.set(random(0.8,1.5,true, true))
-        wood.anchor.set(0,1)
-        wood.position.set(posX, posY + 60)
-        wood.animationSpeed = 0.1
-        wood.play()
-
-        woodsBGarr.push(wood)
-        woodsBG.addChild(wood)
-    }
-
-    function createBg(img) {
-        const tiling = new PIXI.TilingSprite(img, WORLD_WIDTH + 100, gameHeight + 100)
-        // tiling.scale.set(0.8)
-        tiling.anchor.set(0.5, 1)
-        tiling.zIndex = -10
-        tiling.tilePosition.y = gameHeight
-        tiling.position.set(WORLD_WIDTH / 2, WORLD_HEIGHT)
-        world.addChild(tiling)
-        return tiling
-    }
-
-    function updateBg() {
-        if (gameStart) {
-            bgPosition -= (bgSpeed * playerSpeed) * gameSpeed
-            background.x = zeroLeft + WORLD_WIDTH / 2
-            background.tilePosition.x = bgPosition
         }
     }
 
@@ -2842,15 +2817,6 @@ window.onload = async function () {
                 spawnBounceParticle,
                 sleep
             )
-            // Обновление ссылок на массивы для обратной совместимости
-            if (friendly) {
-                const bulletArrays = bulletManager.getBulletArrays()
-                // Обновляем shotsArr для синхронизации
-                shotsArr = bulletArrays.shotsArr
-                // playerBullets импортируется из Player.js и управляется там
-                // Но пули добавляются через BulletManager, поэтому нужно синхронизировать
-                // Примечание: playerBullets может использоваться в Player.js, поэтому синхронизация происходит через импорт
-            }
         }
     }
 
@@ -2931,7 +2897,7 @@ window.onload = async function () {
                 if ((!playerState.state || playerState.state === 'rollEnd') && gun.currentAmmo < gun.ammo && (!meleeKillManager || !meleeKillManager.hasMeleeKill())) {
                     soundPlayer.gunReload(gun.type)
                     playAnim('reload')
-                    playerSpeed = 0
+                    setPlayerSpeed(0)
                     switch (true) {
                         case gun.type === 'shotgun':
                             for (let i = 0; i < gun.ammo - gun.currentAmmo; i++) {
@@ -2962,7 +2928,7 @@ window.onload = async function () {
                             playAnim('idle')
                             return
                         }
-                        playerSpeed = playerDefaultSpeed
+                        setPlayerSpeed(playerDefaultSpeed)
                         playAnim()
                     }
                 }
@@ -2973,7 +2939,7 @@ window.onload = async function () {
                     gameState.scoreStreak += 1
                     soundPlayer.slide()
                     playAnim('roll')
-                    playerSpeed = playerDefaultSpeed * 1.5
+                    setPlayerSpeed(playerDefaultSpeed) * 1.5
                     if (playerState.inCover) {
                         playerState.inCover = false
                         player.anchor.y = 0.5
@@ -2989,7 +2955,7 @@ window.onload = async function () {
                                 gameState.scoreStreak += 1
                             } else {
                                 if (meleeKillManager && meleeKillManager.hasMeleeKill()) return
-                                playerSpeed = playerDefaultSpeed
+                                setPlayerSpeed(playerDefaultSpeed)
                                 playAnim()
                             }
                             playerState.rollId = null
@@ -3004,14 +2970,14 @@ window.onload = async function () {
                     meleeKillManager.handleMeleeKill(false, false)
                     return
                 }
-                if ((!playerState.state || playerState.state === 'rollEnd') && !triggerDelay) {
+                if ((!playerState.state || playerState.state === 'rollEnd') && !playerInstance.triggerDelay) {
                     if (gun.currentAmmo <= 0) {
                         soundPlayer.pistolEmpty()
                         return;
                     }
-                    triggerDelay = true
+                    playerInstance.triggerDelay = true
                     sleep(gun.shotTrigger).then(() => {
-                        triggerDelay = false
+                        playerInstance.triggerDelay = false
                     })
                     if (playerState.inCover) {
                         // player.y = playerState.secondFloor ? secondFloor : playerPos
@@ -3030,13 +2996,13 @@ window.onload = async function () {
                         })
                     }
                     if (!gun.noStop) {
-                        playerSpeed = 0
+                        setPlayerSpeed(0)
                         player.onComplete = () => {
                             if (playerState.inCover) {
                                 playAnim('idle')
                                 return
                             }
-                            playerSpeed = playerDefaultSpeed
+                            setPlayerSpeed(playerDefaultSpeed)
                             playAnim()
                         }
                     } else {
@@ -3046,7 +3012,7 @@ window.onload = async function () {
                             }
                             return
                         }
-                        playerSpeed = playerDefaultSpeed
+                        setPlayerSpeed(playerDefaultSpeed)
                         playAnim()
                     }
                 }
@@ -3093,9 +3059,9 @@ window.onload = async function () {
             break
             case e.code === 'KeyQ':
                 if (playerSpeed) {
-                    playerSpeed = 0
+                    setPlayerSpeed(0)
                 } else {
-                    playerSpeed = playerDefaultSpeed
+                    setPlayerSpeed(playerDefaultSpeed)
                 }
             break
         }
@@ -3126,7 +3092,7 @@ window.onload = async function () {
                 }
                 if (gameState.scoreStreak <= 0) return
                 gameState.decreaseStreak()
-                playerDefaultSpeed = initSpeed + gameState.points / 10000
+                setPlayerDefaultSpeed(initSpeed) + gameState.points / 10000
             }, 500)
         }
     }

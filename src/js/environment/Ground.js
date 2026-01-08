@@ -21,7 +21,7 @@ import { FENCE_CHANCE, GROUND_COLORS } from '../core/GameConfig.js'
  * Менеджер земли/пола
  */
 export class GroundManager {
-    constructor(world, ground, woodsBG, engine, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, textures, woods) {
+    constructor(world, ground, woodsBG, engine, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources, woods) {
         this.world = world
         this.ground = ground
         this.woodsBG = woodsBG
@@ -29,7 +29,7 @@ export class GroundManager {
         this.physicsManager = physicsManager
         this.WORLD_WIDTH = WORLD_WIDTH
         this.WORLD_HEIGHT = WORLD_HEIGHT
-        this.textures = textures
+        this.resources = resources
         this.woods = woods
         
         // Состояние пола
@@ -51,8 +51,8 @@ export class GroundManager {
     /**
      * Устанавливает текстуры
      */
-    setTextures(textures, woods) {
-        if (textures) this.textures = textures
+    setTextures(resources, woods) {
+        if (resources) this.resources = resources
         if (woods) this.woods = woods
     }
     
@@ -77,13 +77,8 @@ export class GroundManager {
      * @param {number} idx - индекс сегмента
      */
     createFloor(idx) {
-        if (!this.textures) {
-            console.warn('Ground textures not available')
-            return null
-        }
-        
         const part = new PIXI.Container()
-        const floor = new PIXI.Sprite(this.textures.textures.ground)
+        const floor = new PIXI.Sprite(this.resources.textures.textures.ground)
         floor.anchor.set(0, 1)
         floor.position.set((this.floorPosition + idx) * floor.width, this.WORLD_HEIGHT)
         floor.tint = this.groundColor[this.selectGroundColor]
@@ -95,17 +90,17 @@ export class GroundManager {
         if (randomWall < this.fenceChance) {
             // Забор
             if (!this.isFence) {
-                bgWall = new PIXI.Sprite(this.textures.textures.groundFenceStart)
+                bgWall = new PIXI.Sprite(this.resources.textures.textures.groundFenceStart)
             } else {
-                bgWall = new PIXI.Sprite(this.textures.textures.groundFenceMiddle)
+                bgWall = new PIXI.Sprite(this.resources.textures.textures.groundFenceMiddle)
             }
             this.isFence = true
         } else {
             // Обычная стена
             if (this.isFence) {
-                bgWall = new PIXI.Sprite(this.textures.textures.groundFenceEnd)
+                bgWall = new PIXI.Sprite(this.resources.textures.textures.groundFenceEnd)
             } else {
-                bgWall = new PIXI.Sprite(this.textures.textures.groundWall)
+                bgWall = new PIXI.Sprite(this.resources.textures.textures.groundWall)
             }
             this.isFence = false
         }

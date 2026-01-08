@@ -146,7 +146,16 @@ export class PuddleManager {
             // Увеличение скорости
             if (this.playerSpeed !== null && this.playerSpeed !== undefined &&
                 this.playerDefaultSpeed !== null && this.playerDefaultSpeed !== undefined) {
-                this.playerSpeed.value = this.playerDefaultSpeed.value * 1.5
+                const defaultSpeed = (typeof this.playerDefaultSpeed === 'object' && this.playerDefaultSpeed.value !== undefined) 
+                    ? this.playerDefaultSpeed.value 
+                    : (typeof this.playerDefaultSpeed === 'number' ? this.playerDefaultSpeed : 1)
+                const newSpeed = defaultSpeed * 1.5
+                
+                if (typeof this.playerSpeed === 'function') {
+                    this.playerSpeed(newSpeed)
+                } else if (typeof this.playerSpeed === 'object' && this.playerSpeed.value !== undefined) {
+                    this.playerSpeed.value = newSpeed
+                }
             }
             
             // Звук и частицы

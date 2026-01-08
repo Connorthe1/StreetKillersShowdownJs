@@ -105,10 +105,20 @@ export class GameManager {
      * Устанавливает игровые объекты
      */
     setGameObjects(objects) {
-        if (objects.world) this.world = objects.world
-        if (objects.hud) this.hud = objects.hud
-        if (objects.app) this.app = objects.app
-        if (objects.player) this.player = objects.player
+        if (objects.world !== undefined) this.world = objects.world
+        if (objects.hud !== undefined) this.hud = objects.hud
+        if (objects.app !== undefined) this.app = objects.app
+        if (objects.player !== undefined) {
+            // Прямое присваивание, чтобы избежать проблем с геттерами
+            this.player = objects.player
+        }
+    }
+    
+    /**
+     * Устанавливает игрока напрямую
+     */
+    setPlayer(playerInstance) {
+        this.player = playerInstance
     }
     
     /**

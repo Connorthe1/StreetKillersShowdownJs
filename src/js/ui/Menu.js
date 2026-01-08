@@ -18,30 +18,21 @@ import { StoreManager } from './Store.js'
  * Менеджер главного меню
  */
 export class MenuManager {
-    constructor(app, gameState, storage, gameWidth, gameHeight, textStyles, menuButtons, menuIcons, menuUI, activeItems, skinStore, storageManager) {
+    constructor(app, gameState, storage, gameWidth, gameHeight, textStyles, resources, storageManager) {
         this.app = app
         this.gameState = gameState
         this.storage = storage
         this.gameWidth = gameWidth
         this.gameHeight = gameHeight
         this.textStyles = textStyles
-        this.menuButtons = menuButtons
-        this.menuIcons = menuIcons
-        this.menuUI = menuUI
+        this.resources = resources  // Main textures object
+        this.storageManager = storageManager
         
         // Меню
         this.menu = null
         
         // StoreManager (внутренний)
         this.storeManager = null
-        if (activeItems && skinStore) {
-            // Инициализация будет выполнена при создании меню
-            this.storeManagerConfig = {
-                activeItems,
-                skinStore,
-                storageManager
-            }
-        }
         
         // Callbacks
         this.startGameCallback = null
@@ -60,7 +51,7 @@ export class MenuManager {
      * Создает главное меню
      */
     createMenu() {
-        if (!this.menuButtons || !this.menuIcons || !this.menuUI) {
+        if (!this.resources) {
             console.warn('Menu textures not available')
             return null
         }
@@ -103,14 +94,14 @@ export class MenuManager {
         main.addChild(topMenu)
         
         // Кнопка магазина
-        const store = new PIXI.Sprite(this.menuButtons.textures.shop)
+        const store = new PIXI.Sprite(this.resources.menuButtons.textures.shop)
         store.eventMode = 'static'
         store.anchor.set(1, 0)
         store.position.set(this.gameWidth - 20, 60)
         main.addChild(store)
         
         // Кнопка миссий
-        const missions = new PIXI.Sprite(this.menuButtons.textures.missions)
+        const missions = new PIXI.Sprite(this.resources.menuButtons.textures.missions)
         missions.scale.set(0.8)
         missions.eventMode = 'static'
         missions.anchor.set(0, 0)
@@ -118,7 +109,7 @@ export class MenuManager {
         main.addChild(missions)
         
         // Кнопка настроек
-        const settings = new PIXI.Sprite(this.menuUI.textures.settingsicon)
+        const settings = new PIXI.Sprite(this.resources.menuUI.textures.settingsicon)
         settings.scale.set(0.6)
         settings.eventMode = 'static'
         settings.anchor.set(1, 1)
@@ -128,7 +119,7 @@ export class MenuManager {
         // Обработчики событий
         store.on('pointerdown', () => {
             main.visible = false
-            if (this.storeManagerConfig && !this.storeManager) {
+            if (!this.storeManager) {
                 // Инициализируем StoreManager при первом открытии магазина
                 this.storeManager = new StoreManager(
                     menu,
@@ -136,17 +127,13 @@ export class MenuManager {
                     this.gameWidth,
                     this.gameHeight,
                     this.textStyles,
-                    this.menuButtons,
-                    this.menuIcons,
-                    this.menuUI,
-                    this.storeManagerConfig.activeItems,
-                    this.storeManagerConfig.skinStore
+                    this.resources
                 )
                 this.storeManager.setCallbacks({
                     createMenu: () => {
                         this.createMenu()
                     },
-                    storageManager: this.storeManagerConfig.storageManager
+                    storageManager: this.storageManager
                 })
             }
             if (this.storeManager) {
@@ -182,14 +169,14 @@ export class MenuManager {
      */
     createTopMenu() {
         const topMenu = new PIXI.Container()
-        const topMenuBg = new PIXI.Sprite(this.menuButtons.textures.button)
+        const topMenuBg = new PIXI.Sprite(this.resources.menuButtons.textures.button)
         topMenuBg.tint = 5197647
         topMenuBg.width = this.gameWidth
         topMenuBg.height = 50
         topMenu.addChild(topMenuBg)
         
         // Иконка кубка и рекорд
-        const cup = new PIXI.Sprite(this.menuIcons.textures.cup)
+        const cup = new PIXI.Sprite(this.resources.menuIcons.textures.cup)
         cup.position.set(16, 16)
         topMenu.addChild(cup)
         
@@ -203,7 +190,7 @@ export class MenuManager {
         money.anchor.set(1, 0)
         topMenu.addChild(money)
         
-        const moneyIcon = new PIXI.Sprite(this.menuIcons.textures.money)
+        const moneyIcon = new PIXI.Sprite(this.resources.menuIcons.textures.money)
         moneyIcon.scale.set(0.45)
         moneyIcon.anchor.set(1, 0)
         moneyIcon.position.set(money.x - money.width - 10, 14)
@@ -215,7 +202,7 @@ export class MenuManager {
         gold.anchor.set(1, 0)
         topMenu.addChild(gold)
         
-        const goldIcon = new PIXI.Sprite(this.menuIcons.textures.goldbar)
+        const goldIcon = new PIXI.Sprite(this.resources.menuIcons.textures.goldbar)
         goldIcon.scale.set(0.3)
         goldIcon.anchor.set(1, 0)
         goldIcon.position.set(gold.x - gold.width - 10, 16)

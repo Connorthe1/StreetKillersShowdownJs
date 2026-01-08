@@ -101,7 +101,11 @@ export class ZipLineManager {
                 
                 // Остановка игрока
                 if (this.playerSpeed !== null && this.playerSpeed !== undefined) {
-                    this.playerSpeed.value = 0
+                    if (typeof this.playerSpeed === 'function') {
+                        this.playerSpeed(0)
+                    } else if (typeof this.playerSpeed === 'object' && this.playerSpeed.value !== undefined) {
+                        this.playerSpeed.value = 0
+                    }
                 }
                 
                 // Анимация зиплайна
