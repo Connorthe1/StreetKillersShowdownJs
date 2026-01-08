@@ -12,12 +12,14 @@
  */
 
 import * as PIXI from 'pixi.js'
+import { Scrollbox } from 'pixi-scrollbox';
+import storeUpgrades from '../upgrades.json'
 
 /**
  * Менеджер магазина
  */
 export class StoreManager {
-    constructor(menu, storage, gameWidth, gameHeight, textStyles, menuButtons, menuIcons, menuUI, activeItems, storeUpgrades, skinStore, Scrollbox) {
+    constructor(menu, storage, gameWidth, gameHeight, textStyles, menuButtons, menuIcons, menuUI, activeItems, skinStore) {
         this.menu = menu
         this.storage = storage
         this.gameWidth = gameWidth
@@ -29,7 +31,6 @@ export class StoreManager {
         this.activeItems = activeItems
         this.storeUpgrades = storeUpgrades
         this.skinStore = skinStore
-        this.Scrollbox = Scrollbox
         
         // Магазин
         this.store = null
@@ -98,7 +99,7 @@ export class StoreManager {
         store.addChild(exit)
         
         // Прокручиваемый список апгрейдов
-        const scrollUpgrades = new this.Scrollbox({
+        const scrollUpgrades = new Scrollbox({
             boxWidth: this.gameWidth,
             boxHeight: this.gameHeight - 290,
             fade: true,
@@ -108,7 +109,7 @@ export class StoreManager {
         scrollUpgrades.visible = true
         
         // Прокручиваемый список скинов
-        const scrollSkins = new this.Scrollbox({
+        const scrollSkins = new Scrollbox({
             boxWidth: this.gameWidth,
             boxHeight: this.gameHeight - 290,
             scrollbarSize: 2
@@ -231,8 +232,9 @@ export class StoreManager {
      */
     createUpgradeItem(item, idx, scrollContainer) {
         const upgrade = new PIXI.Container()
+        console.log(item.icon)
         const upgradeSprite = new PIXI.Sprite(eval(item.icon))
-        const upgradeUpgrade = new PIXI.Sprite(this.menuUI.textures.buy)
+        const upgradeButton = new PIXI.Sprite(this.menuUI.textures.buy)
         const upgradeLevel = new PIXI.Text(
             item.maxLvl === this.storage.upgrades[item.idName] ? 'MAX' : `LV.${Math.min(this.storage.upgrades[item.idName] + 1, item.maxLvl)}`,
             this.textStyles.default30
@@ -243,18 +245,18 @@ export class StoreManager {
         upgrade.position.set(0, 60 + 100 * idx)
         upgrade.addChild(upgradeSprite)
         upgrade.addChild(upgradeName)
-        upgrade.addChild(upgradeUpgrade)
+        upgrade.addChild(upgradeButton)
         upgrade.addChild(upgradeLevel)
         
         if (item.scale) upgradeSprite.scale.set(item.scale)
         upgradeSprite.position.set(10, 5)
         upgradeName.position.set(85, 10)
         
-        upgradeUpgrade.anchor.set(1, 0)
-        upgradeUpgrade.scale.set(1.1)
-        upgradeUpgrade.position.set(this.gameWidth - 10, 0)
+        upgradeButton.anchor.set(1, 0)
+        upgradeButton.scale.set(1.1)
+        upgradeButton.position.set(this.gameWidth - 10, 0)
         upgradeLevel.anchor.set(0.5)
-        upgradeLevel.position.set(upgradeUpgrade.x - upgradeUpgrade.width / 2, upgradeUpgrade.y + upgradeUpgrade.height / 2)
+        upgradeLevel.position.set(upgradeButton.x - upgradeButton.width / 2, upgradeButton.y + upgradeButton.height / 2)
         
         // Индикаторы уровня
         for (let i = 0; i < item.maxLvl; i++) {
@@ -267,7 +269,7 @@ export class StoreManager {
         
         // Покупка апгрейда
         if (item.maxLvl > this.storage.upgrades[item.idName]) {
-            upgradeUpgrade.eventMode = 'static'
+            upgradeButton.eventMode = 'static'
             upgradeLevel.eventMode = 'passive'
             const upgradePrice = new PIXI.Text(
                 item.initPrice + item.initPrice * this.storage.upgrades[item.idName],
@@ -280,7 +282,7 @@ export class StoreManager {
             upgradePriceIcon.scale.set(0.5)
             upgradePriceIcon.position.set(upgradePrice.x + upgradePrice.width + 10, 50)
             
-            upgradeUpgrade.on('pointerdown', () => {
+            upgradeButton.on('pointerdown', () => {
                 const price = item.initPrice + item.initPrice * this.storage.upgrades[item.idName]
                 if (this.storage.money >= price) {
                     this.storage.money -= price
@@ -474,3 +476,4 @@ export class StoreManager {
         this.store = null
     }
 }
+

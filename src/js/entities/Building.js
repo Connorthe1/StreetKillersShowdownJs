@@ -741,4 +741,13 @@ export class BuildingManager {
         this.buildingType = 0
         this.afterBuilding = 0
     }
+    
+    /**
+     * Возвращает массивы данных для обратной совместимости
+     */
+    getArrays() {
+        return {
+            buildings: this.buildings
+        };
+    }
 }

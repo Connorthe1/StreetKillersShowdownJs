@@ -38,7 +38,6 @@ export class GameManager {
         this.explosionManager = null
         this.meleeKillManager = null
         this.menuManager = null
-        this.storeManager = null
         this.endScreenManager = null
         this.playerDamageManager = null
         // Менеджеры окружения
@@ -88,7 +87,6 @@ export class GameManager {
         if (managers.explosionManager) this.explosionManager = managers.explosionManager
         if (managers.meleeKillManager) this.meleeKillManager = managers.meleeKillManager
         if (managers.menuManager) this.menuManager = managers.menuManager
-        if (managers.storeManager) this.storeManager = managers.storeManager
         if (managers.endScreenManager) this.endScreenManager = managers.endScreenManager
         if (managers.playerDamageManager) this.playerDamageManager = managers.playerDamageManager
         // Менеджеры окружения
@@ -233,7 +231,6 @@ export class GameManager {
             explosionManager: this.explosionManager,
             meleeKillManager: this.meleeKillManager,
             menuManager: this.menuManager,
-            storeManager: this.storeManager,
             endScreenManager: this.endScreenManager,
             playerDamageManager: this.playerDamageManager,
             backgroundManager: this.backgroundManager,

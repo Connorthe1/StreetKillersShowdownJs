@@ -4,9 +4,7 @@ import { soundPlayer } from './playSound.js'
 import * as PIXI from 'pixi.js'
 import { Layer, Group, Stage } from '@pixi/layers';
 import * as Matter from 'matter-js'
-import { Scrollbox } from 'pixi-scrollbox';
 import skinStore from './skinStore.json'
-import storeUpgrades from './upgrades.json'
 import bridge from '@vkontakte/vk-bridge';
 import { Player, playerState, playerDefaultSpeed, playerSpeed, initSpeed, player, playerBullets, gun, meleeKill, meleeKillSelectorSide, meleeKillSelectorSpeed, meleeKillStreak, meleeKillStreakTimer, triggerDelay, updateGunFromSkin } from './Player.js'
 import { getPercent, random, randomRGB } from './utils/GameUtils.js'
@@ -45,7 +43,6 @@ import { InputHandler } from './core/InputHandler.js'
 import { ExplosionManager } from './entities/ExplosionManager.js'
 import { MeleeKillManager } from './ui/MeleeKillManager.js'
 import { MenuManager } from './ui/Menu.js'
-import { StoreManager } from './ui/Store.js'
 import { EndScreenManager } from './ui/EndScreen.js'
 
 // Переменные игрока импортируются из Player.js
@@ -128,18 +125,18 @@ const groundColor = GROUND_COLORS
 let selectGroundColor = 0
 // textStyles теперь в gameConfig
 
-const walls = []
-const traps = []
-const enemies = []
+let walls = []
+let traps = []
+let enemies = []
 // Массивы частиц теперь управляются через ParticleManager
 let physParticles = []
 let bounceParticles = []
 let trails = []
-const moneyDrop = []
+let moneyDrop = []
 // Массивы окружения теперь управляются через отдельные менеджеры
 let buildings = []
-const zipLines = []
-const grenades = []
+let zipLines = []
+let grenades = []
 let puddles = []
 let garbages = []
 let particleManager // Инициализируется после создания world
@@ -152,6 +149,7 @@ let gameManager // Главный координатор всех систем
 let scoreManager // Менеджер очков и рейтинга
 let collisionDetector // Детектор коллизий
 let enemyManager // Менеджер врагов
+let bossManager // Менеджер боссов
 let grenadeManager // Менеджер гранат
 let trapManager // Менеджер ловушек
 let moneyManager // Менеджер денег
@@ -160,7 +158,6 @@ let dogEnemyManager // Менеджер собаки-врага
 let explosionManager // Менеджер взрывов
 let meleeKillManager // Менеджер ближнего боя
 let menuManager // Менеджер меню
-let storeManager // Менеджер магазина
 let endScreenManager // Менеджер экрана окончания
 let currentBoss = null
 let bgCar = null
@@ -230,7 +227,7 @@ window.onload = async function () {
     resourceLoader.removeLoaderScreen(app)
     init()
     
-    // Установка текстур в менеджер частиц после инициализации
+    // Установка текстур и параметров в менеджер частиц после загрузки ресурсов
     if (particleManager && physParticlesTexture && bounceParticlesTexture) {
         particleManager.setTextures({ physParticlesTexture, bounceParticlesTexture })
     }
@@ -293,21 +290,6 @@ window.onload = async function () {
             bigExplode: bigExplode,
             bochka: bochka
         })
-    }
-    
-    // Установка текстур и параметров в менеджер меню после загрузки ресурсов
-    if (menuManager && menuButtons && menuIcons && menuUI) {
-        menuManager.menuButtons = menuButtons
-        menuManager.menuIcons = menuIcons
-        menuManager.menuUI = menuUI
-    }
-    
-    // Установка текстур и параметров в менеджер магазина после загрузки ресурсов
-    if (storeManager && menuButtons && menuIcons && menuUI && activeItems) {
-        storeManager.menuButtons = menuButtons
-        storeManager.menuIcons = menuIcons
-        storeManager.menuUI = menuUI
-        storeManager.activeItems = activeItems
     }
     
     // Установка текстур и параметров в менеджер экрана окончания после загрузки ресурсов
@@ -415,6 +397,7 @@ window.onload = async function () {
             }
         }, (barrel) => {
             // barrelDead callback
+            trapManager.barrelDead(barrel)
         }, WORLD_HEIGHT)
         canManager.setTextures(canTexture)
         
@@ -509,7 +492,9 @@ window.onload = async function () {
         })
         
         // Обновление ссылок на массивы для обратной совместимости
-        buildings = buildingManager.getArrays().buildings
+        if (buildingManager && buildingManager.getArrays) {
+            buildings = buildingManager.getArrays().buildings
+        }
         zipLines = zipLineManager.getZipLines ? zipLineManager.getZipLines() : zipLines
         traps = trapManager ? trapManager.getTraps() : traps
         // puddles и garbages управляются через менеджеры
@@ -607,10 +592,16 @@ window.onload = async function () {
         
         // Установка колбэков для GrenadeManager (explosionManager будет установлен позже)
         grenadeManager.setCallbacks({
-            damagePlayer: damagePlayer,
+            damagePlayer: () => {
+                if (playerDamageManager) {
+                    playerDamageManager.damagePlayer()
+                }
+            },
             createExplode: null, // Будет установлен после инициализации explosionManager
             damageEnemy: damageEnemy,
-            barrelDead: barrelDead,
+            barrelDead: (barrel) => {
+                trapManager.barrelDead(barrel)
+            },
             soundPlayer: soundPlayer,
             sleep: sleep
         })
@@ -626,7 +617,7 @@ window.onload = async function () {
             null, // player - будет установлен позже
             gameState,
             zeroLeft,
-            null // menuIcons - будет установлен позже
+            menuIcons // menuIcons - будет установлен позже
         )
         
         // Установка колбэков для MoneyManager
@@ -653,7 +644,11 @@ window.onload = async function () {
         
         // Установка колбэков для DogEnemyManager
         dogEnemyManager.setCallbacks({
-            damagePlayer: damagePlayer,
+            damagePlayer: () => {
+                if (playerDamageManager) {
+                    playerDamageManager.damagePlayer()
+                }
+            },
             damageEnemy: damageEnemy,
             soundPlayer: soundPlayer,
             gun: gun
@@ -711,14 +706,20 @@ window.onload = async function () {
         // Обновление колбэков для GrenadeManager и TrapManager с ExplosionManager
         if (grenadeManager) {
             grenadeManager.setCallbacks({
-                damagePlayer: damagePlayer,
+                damagePlayer: () => {
+                    if (playerDamageManager) {
+                        playerDamageManager.damagePlayer()
+                    }
+                },
                 createExplode: (target, offsetX, offsetY, isBig, silence) => {
                     if (explosionManager) {
                         explosionManager.createExplode(target, offsetX, offsetY, isBig, silence)
                     }
                 },
                 damageEnemy: damageEnemy,
-                barrelDead: barrelDead,
+                barrelDead: (barrel) => {
+                    trapManager.barrelDead(barrel)
+                },
                 soundPlayer: soundPlayer,
                 sleep: sleep
             })
@@ -727,7 +728,11 @@ window.onload = async function () {
         if (trapManager) {
             trapManager.setCallbacks({
                 addPoints: addPoints,
-                damagePlayer: damagePlayer,
+                damagePlayer: () => {
+                    if (playerDamageManager) {
+                        playerDamageManager.damagePlayer()
+                    }
+                },
                 damageEnemy: damageEnemy,
                 soundPlayer: soundPlayer,
                 createParticles: (char, particleType) => {
@@ -770,6 +775,30 @@ window.onload = async function () {
                 timeouts.length = 0
             }
         })
+
+        // Инициализация UI менеджеров (текстуры передаются сразу, так как они уже загружены)
+        menuManager = new MenuManager(app, gameState, storage, gameWidth, gameHeight, textStyles, menuButtons, menuIcons, menuUI, activeItems, skinStore, storageManager)
+        meleeKillManager = new MeleeKillManager(hud, gameState, gameWidth, gameHeight, textStyles)
+
+        // Установка колбэков для UI менеджеров
+        if (menuManager) {
+            menuManager.setCallbacks({
+                startGame: startGame,
+                sleep: sleep
+            })
+        }
+
+        if (meleeKillManager) {
+            meleeKillManager.setCallbacks({
+                damagePlayer: () => {
+                    if (playerDamageManager) {
+                        playerDamageManager.damagePlayer()
+                    }
+                },
+                damageEnemy: damageEnemy,
+                soundPlayer: soundPlayer
+            })
+        }
         
         // Установка колбэков для PlayerDamageManager
         if (playerDamageManager) {
@@ -833,7 +862,7 @@ window.onload = async function () {
             hudManager,
             cameraManager,
             storageManager,
-            resourceLoader: null, // Будет установлен позже
+            resourceLoader,
             scoreManager,
             collisionDetector,
             enemyManager,
@@ -845,7 +874,6 @@ window.onload = async function () {
             explosionManager,
             meleeKillManager,
             menuManager,
-            storeManager,
             endScreenManager,
             playerDamageManager
         })
@@ -1596,7 +1624,7 @@ window.onload = async function () {
                         trap.play()
                         trap.dead = true
                     } else {
-                        barrelDead(trap)
+                        trapManager.barrelDead(trap)
                     }
                 }
             })
@@ -2211,69 +2239,11 @@ window.onload = async function () {
     }
 
     function createBoss(propType, propPos) {
-        let randomPos = propPos || Math.floor(zeroRight + random(300, 750))
-
-        enemies.forEach((enemy, idx) => {
-            if (enemy.x > randomPos - 400 && enemy.x < randomPos + 50) {
-                world.removeChild(enemy)
-                enemies.splice(idx, 1)
-            }
-        })
-
-        walls.forEach((wall, idx) => {
-            if (wall.x > randomPos - 400 && wall.x < randomPos + 200) {
-                world.removeChild(wall)
-                walls.splice(idx, 1)
-            }
-        })
-
-        traps.forEach((trap, idx) => {
-            if (!trap.type) {
-                const t = trap.getLocalBounds()
-                if (t.x > randomPos - 400 && t.x < randomPos + 200) {
-                    world.removeChild(trap)
-                    traps.splice(idx, 1)
-                }
-            }
-        })
-
-        let type
-        const randType = propType || random(1, 4)
-        switch (true) {
-            case randType === 1:
-                type = 'bossGun'
-            break
-            case randType === 2:
-                type = 'bossLauncher'
-            break
-            case randType === 3:
-                type = 'bossVan'
-            break
-            case randType === 4:
-                type = 'bossSmg'
-            break
-        }
-
-        if (propType === 4) {
-            createCoverInClub(randomPos - (WORLD_WIDTH / 1.8), 0, true)
+        if (typeof bossManager !== 'undefined' && bossManager) {
+            bossManager.createBoss(propType, propPos);
         } else {
-            createWall(randomPos - (WORLD_WIDTH / 1.8), true)
+            console.error('bossManager is not defined');
         }
-        const boss = new PIXI.AnimatedSprite(eval(type).animations.idle)
-        boss.anchor.set(0.5)
-        boss.animationSpeed = 0.15
-        boss.position.set(type === 'bossVan' ? randomPos + 25 : randomPos, playerPos - (type === 'bossVan' ? 36 : 10))
-        boss.params = {
-            animset: eval(type).animations
-        }
-        Object.keys(enemyParams[type]).forEach(item => {
-            boss.params[item] = enemyParams[type][item]
-        })
-        boss.zIndex = 10
-        boss.type = type
-        currentBoss = boss
-        world.addChild(currentBoss)
-        boss.play()
     }
 
     async function bossShooting() {

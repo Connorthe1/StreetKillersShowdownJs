@@ -8,15 +8,17 @@
  * - Управление элементами меню
  * - Кнопки: старт, магазин, миссии, настройки
  * - Отображение рекорда, денег, золота
+ * - Управление магазином (StoreManager создается внутри)
  */
 
 import * as PIXI from 'pixi.js'
+import { StoreManager } from './Store.js'
 
 /**
  * Менеджер главного меню
  */
 export class MenuManager {
-    constructor(app, gameState, storage, gameWidth, gameHeight, textStyles, menuButtons, menuIcons, menuUI) {
+    constructor(app, gameState, storage, gameWidth, gameHeight, textStyles, menuButtons, menuIcons, menuUI, activeItems, skinStore, storageManager) {
         this.app = app
         this.gameState = gameState
         this.storage = storage
@@ -30,9 +32,19 @@ export class MenuManager {
         // Меню
         this.menu = null
         
+        // StoreManager (внутренний)
+        this.storeManager = null
+        if (activeItems && skinStore) {
+            // Инициализация будет выполнена при создании меню
+            this.storeManagerConfig = {
+                activeItems,
+                skinStore,
+                storageManager
+            }
+        }
+        
         // Callbacks
         this.startGameCallback = null
-        this.createStoreCallback = null
         this.sleepCallback = null
     }
     
@@ -41,7 +53,6 @@ export class MenuManager {
      */
     setCallbacks(callbacks) {
         if (callbacks.startGame) this.startGameCallback = callbacks.startGame
-        if (callbacks.createStore) this.createStoreCallback = callbacks.createStore
         if (callbacks.sleep) this.sleepCallback = callbacks.sleep
     }
     
@@ -52,6 +63,11 @@ export class MenuManager {
         if (!this.menuButtons || !this.menuIcons || !this.menuUI) {
             console.warn('Menu textures not available')
             return null
+        }
+        
+        // Удаляем старое меню, если оно существует
+        if (this.menu && this.app.stage) {
+            this.app.stage.removeChild(this.menu)
         }
         
         this.gameState.isMenu = true
@@ -70,7 +86,7 @@ export class MenuManager {
         let bg = new PIXI.Graphics()
         bg.eventMode = 'static'
         bg.beginFill(0x000)
-        bg.alpha = 0.3
+        bg.alpha = 0.6
         bg.drawRect(0, 0, this.gameWidth, this.gameHeight)
         main.addChild(bg)
         
@@ -112,8 +128,29 @@ export class MenuManager {
         // Обработчики событий
         store.on('pointerdown', () => {
             main.visible = false
-            if (this.createStoreCallback) {
-                this.createStoreCallback(menu)
+            if (this.storeManagerConfig && !this.storeManager) {
+                // Инициализируем StoreManager при первом открытии магазина
+                this.storeManager = new StoreManager(
+                    menu,
+                    this.storage,
+                    this.gameWidth,
+                    this.gameHeight,
+                    this.textStyles,
+                    this.menuButtons,
+                    this.menuIcons,
+                    this.menuUI,
+                    this.storeManagerConfig.activeItems,
+                    this.storeManagerConfig.skinStore
+                )
+                this.storeManager.setCallbacks({
+                    createMenu: () => {
+                        this.createMenu()
+                    },
+                    storageManager: this.storeManagerConfig.storageManager
+                })
+            }
+            if (this.storeManager) {
+                this.storeManager.createStore()
             }
         })
         
@@ -208,6 +245,10 @@ export class MenuManager {
      * Очищает меню
      */
     clear() {
+        if (this.storeManager) {
+            this.storeManager.clear()
+            this.storeManager = null
+        }
         this.removeMenu()
     }
 }
