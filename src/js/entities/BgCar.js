@@ -17,22 +17,15 @@ import { random, randomRGB } from '../utils/GameUtils.js'
  * Менеджер фоновых машин
  */
 export class BgCarManager {
-    constructor(world, zeroLeft, zeroRight, ground, bgCarTexture) {
+    constructor(world, ground, zeroLeft, zeroRight, resources) {
         this.world = world
         this.zeroLeft = zeroLeft
         this.zeroRight = zeroRight
         this.ground = ground
-        this.bgCarTexture = bgCarTexture
+        this.resources = resources
         
         // Текущая фоновая машина
         this.bgCar = null
-    }
-    
-    /**
-     * Устанавливает текстуры
-     */
-    setTextures(bgCarTexture) {
-        this.bgCarTexture = bgCarTexture
     }
     
     /**
@@ -47,19 +40,14 @@ export class BgCarManager {
      * Создает фоновую машину
      */
     createBgCar() {
-        if (!this.bgCarTexture) {
-            console.warn('BgCar texture not available')
-            return null
-        }
-        
         if (this.bgCar) {
             // Удаляем предыдущую машину, если она существует
             this.removeBgCar()
         }
         
         const car = new PIXI.Container()
-        const carBack = new PIXI.Sprite(this.bgCarTexture.textures.carBack)
-        const carFront = new PIXI.Sprite(this.bgCarTexture.textures.carFront)
+        const carBack = new PIXI.Sprite(this.resources.bgCarTexture.textures.carBack)
+        const carFront = new PIXI.Sprite(this.resources.bgCarTexture.textures.carFront)
         
         carBack.anchor.set(0.5)
         carFront.anchor.set(0.5)
@@ -136,13 +124,6 @@ export class BgCarManager {
      */
     getBgCar() {
         return this.bgCar
-    }
-    
-    /**
-     * Проверяет, существует ли фоновая машина
-     */
-    hasBgCar() {
-        return this.bgCar !== null
     }
     
     /**

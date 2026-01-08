@@ -6,7 +6,7 @@ import { Layer, Group, Stage } from '@pixi/layers';
 import * as Matter from 'matter-js'
 import skinStore from './skinStore.json'
 import bridge from '@vkontakte/vk-bridge';
-import { Player } from './Player.js'
+import { Player } from './core/Player.js'
 import { getPercent, random, randomRGB } from './utils/GameUtils.js'
 import { GAME_SCALE, DEFAULT_GAME_SPEED, SLOW_GAME_SPEED, BULLET_SPEED, FENCE_CHANCE, BUILDING_CHANCE, GROUND_COLORS, BG_SPEED, initGameConfig } from './core/GameConfig.js'
 import { GameState } from './core/GameState.js'
@@ -29,7 +29,6 @@ import { EventManager } from './core/EventManager.js'
 import { HUDManager } from './ui/HUDManager.js'
 import { CameraManager } from './core/CameraManager.js'
 import { GameManager } from './core/GameManager.js'
-import { PlayerDamageManager } from './core/PlayerDamageManager.js'
 import { ScoreManager } from './core/ScoreManager.js'
 import { CollisionDetector } from './physics/CollisionDetector.js'
 import { EnemyManager } from './entities/Enemy.js'
@@ -166,7 +165,6 @@ let spawnManager // Инициализируется после создания
 let eventManager // Инициализируется после создания canvas
 let hudManager // Инициализируется после создания hud
 let cameraManager // Инициализируется после создания world
-let playerDamageManager // Менеджер урона игроку
 let gameManager // Главный координатор всех систем
 let scoreManager // Менеджер очков и рейтинга
 let collisionDetector // Детектор коллизий
@@ -237,12 +235,12 @@ window.onload = async function () {
     
     // Извлечение ресурсов для обратной совместимости
     const {
-        textures, woods, build1, build2, buildZiplineTexture, club,
+        textures, build1, build2, buildZiplineTexture, club,
         laserBeamTexture, inBuildTexture, inFloorTexture, inClubTexture, bgCarTexture,
         enemiesTexture, dogEnemy, bossGun, bossLauncher, bossVan, bossSmg,
         particles, bigExplode, physParticlesTexture, bounceParticlesTexture,
         bochka, canTexture, windowTexture, doorTexture, puddleTexture, garbageTexture,
-        activeItems, menuButtons, menuIcons, menuPause, menuUI, bg
+        activeItems, menuButtons, menuIcons, menuPause, menuUI
     } = resources
 
     // Удаление загрузочного экрана
@@ -376,16 +374,17 @@ window.onload = async function () {
             gameSpeed: gameSpeed,
             zeroLeft: zeroLeft
         })
-        
-        groundManager = new GroundManager(world, ground, woodsBG, engine, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources, woods)
+
+        // DONE
+        groundManager = new GroundManager(world, ground, woodsBG, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources)
         groundManager.updateState({
             isBuilding: isBuilding,
             zeroLeft: zeroLeft
         })
         groundManager.setSelectGroundColor(selectGroundColor)
-        
-        bgCarManager = new BgCarManager(world, ground, zeroLeft, zeroRight)
-        bgCarManager.setTextures(bgCarTexture)
+
+        // DONE
+        bgCarManager = new BgCarManager(world, ground, zeroLeft, zeroRight, resources)
         
         garbageManager = new GarbageManager(world, isClub, bulletManager.enemyBullets, bulletManager.playerBullets, soundPlayer, (char, particleType) => {
             if (particleManager) {
@@ -460,8 +459,8 @@ window.onload = async function () {
         trapManager.setCallbacks({
             addPoints: addPoints,
             damagePlayer: () => {
-                if (playerDamageManager) {
-                    playerDamageManager.damagePlayer()
+                if (playerInstance) {
+                    playerInstance.damagePlayer()
                 }
             },
             damageEnemy: damageEnemy,
@@ -570,8 +569,6 @@ window.onload = async function () {
         cameraManager = new CameraManager(world, gameState, WORLD_WIDTH)
         cameraManager.setSleepCallback(sleep)
         
-        // Инициализация менеджера урона игроку
-        playerDamageManager = new PlayerDamageManager(playerState, gameState)
         
         // Инициализация менеджера очков
         scoreManager = new ScoreManager(gameState, hudManager, initSpeed)
@@ -639,8 +636,8 @@ window.onload = async function () {
         // Установка колбэков для GrenadeManager (explosionManager будет установлен позже)
         grenadeManager.setCallbacks({
             damagePlayer: () => {
-                if (playerDamageManager) {
-                    playerDamageManager.damagePlayer()
+                if (playerInstance) {
+                    playerInstance.damagePlayer()
                 }
             },
             createExplode: null, // Будет установлен после инициализации explosionManager
@@ -691,8 +688,8 @@ window.onload = async function () {
         // Установка колбэков для DogEnemyManager
         dogEnemyManager.setCallbacks({
             damagePlayer: () => {
-                if (playerDamageManager) {
-                    playerDamageManager.damagePlayer()
+                if (playerInstance) {
+                    playerInstance.damagePlayer()
                 }
             },
             damageEnemy: damageEnemy,
@@ -753,8 +750,8 @@ window.onload = async function () {
         if (grenadeManager) {
             grenadeManager.setCallbacks({
                 damagePlayer: () => {
-                    if (playerDamageManager) {
-                        playerDamageManager.damagePlayer()
+                    if (playerInstance) {
+                        playerInstance.damagePlayer()
                     }
                 },
                 createExplode: (target, offsetX, offsetY, isBig, silence) => {
@@ -775,8 +772,8 @@ window.onload = async function () {
             trapManager.setCallbacks({
                 addPoints: addPoints,
                 damagePlayer: () => {
-                    if (playerDamageManager) {
-                        playerDamageManager.damagePlayer()
+                    if (playerInstance) {
+                        playerInstance.damagePlayer()
                     }
                 },
                 damageEnemy: damageEnemy,
@@ -837,8 +834,8 @@ window.onload = async function () {
         if (meleeKillManager) {
             meleeKillManager.setCallbacks({
                 damagePlayer: () => {
-                    if (playerDamageManager) {
-                        playerDamageManager.damagePlayer()
+                    if (playerInstance) {
+                        playerInstance.damagePlayer()
                     }
                 },
                 damageEnemy: damageEnemy,
@@ -846,16 +843,15 @@ window.onload = async function () {
             })
         }
         
-        // Установка колбэков для PlayerDamageManager
-        if (playerDamageManager) {
-            playerDamageManager.setCallbacks({
+        // Установка колбэков для управления уроном в Player
+        if (playerInstance) {
+            playerInstance.setDamageCallbacks({
                 cameraShake: (intensity, duration) => {
                     if (cameraManager) {
                         cameraManager.cameraShake(intensity, duration)
                     }
                 },
                 soundPlayer: soundPlayer,
-                player: null, // Будет установлен в startGame
                 hud: hud,
                 world: world,
                 createParticles: (char, particleType, floor) => {
@@ -918,8 +914,7 @@ window.onload = async function () {
             explosionManager,
             meleeKillManager,
             menuManager,
-            endScreenManager,
-            playerDamageManager
+            endScreenManager
         })
         gameManager.setGameObjects({
             world,
@@ -941,10 +936,7 @@ window.onload = async function () {
         secondFloor = ground.getLocalBounds().y - 120
         
         // Initialize player instance
-        playerInstance = new Player()
-        playerInstance.initSpeed = 5
-        playerInstance.defaultSpeed = 5
-        playerInstance.speed = 5
+        playerInstance = new Player(gameState)
         
         // Установка алиасов для обратной совместимости
         playerState = playerInstance.playerState
@@ -1007,10 +999,8 @@ window.onload = async function () {
         }
         if (playerInstance) {
             const playerSkin = playerState.currentSkin || skinStore[Number(storage.selectedSkin)].param
-            player = playerInstance.createPlayer(playerSkin, -100, playerPos)
+            player = playerInstance.createPlayer(-100, playerPos)
             world.addChild(player)
-            // Обновление алиаса player
-            player = playerInstance.player
         }
         
         // Обновление ссылки на игрока в GameManager
@@ -1018,12 +1008,6 @@ window.onload = async function () {
             gameManager.setPlayer(player)
         }
         
-        // Обновление ссылки на игрока в PlayerDamageManager
-        if (playerDamageManager) {
-            playerDamageManager.setCallbacks({
-                player: player
-            })
-        }
 
         music = soundPlayer.startMusic()
         
@@ -1223,11 +1207,7 @@ window.onload = async function () {
         }
         // Use the Player module's updatePlayer method
         if (playerInstance) {
-            playerInstance.updatePlayer(delta, gameState.gameEnd, gameState.gameStart, gameSpeed, bulletManager.enemyBullets, world, soundPlayer, () => {
-                if (playerDamageManager) {
-                    playerDamageManager.damagePlayer()
-                }
-            })
+            playerInstance.updatePlayer(gameState.gameStart, gameSpeed, bulletManager.enemyBullets, world, soundPlayer)
         }
         // Обновление фона и пола через менеджеры
         if (backgroundManager) {
@@ -1740,8 +1720,8 @@ window.onload = async function () {
                 if (playerState.invincible) {
                     return
                 }
-                if (playerDamageManager) {
-                    playerDamageManager.damagePlayer()
+                if (playerInstance) {
+                    playerInstance.damagePlayer()
                 }
             }
         })
@@ -2436,8 +2416,8 @@ window.onload = async function () {
             if (player.x + 20 > currentBoss.x) {
                 currentBoss.skip = true
                 playerState.inBossFight = false
-                if (playerDamageManager) {
-                    playerDamageManager.damagePlayer()
+                if (playerInstance) {
+                    playerInstance.damagePlayer()
                 }
             }
         }

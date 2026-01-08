@@ -39,7 +39,6 @@ export class GameManager {
         this.meleeKillManager = null
         this.menuManager = null
         this.endScreenManager = null
-        this.playerDamageManager = null
         // Менеджеры окружения
         this.backgroundManager = null
         this.groundManager = null
@@ -88,7 +87,6 @@ export class GameManager {
         if (managers.meleeKillManager) this.meleeKillManager = managers.meleeKillManager
         if (managers.menuManager) this.menuManager = managers.menuManager
         if (managers.endScreenManager) this.endScreenManager = managers.endScreenManager
-        if (managers.playerDamageManager) this.playerDamageManager = managers.playerDamageManager
         // Менеджеры окружения
         if (managers.backgroundManager) this.backgroundManager = managers.backgroundManager
         if (managers.groundManager) this.groundManager = managers.groundManager
@@ -242,7 +240,6 @@ export class GameManager {
             meleeKillManager: this.meleeKillManager,
             menuManager: this.menuManager,
             endScreenManager: this.endScreenManager,
-            playerDamageManager: this.playerDamageManager,
             backgroundManager: this.backgroundManager,
             groundManager: this.groundManager,
             bgCarManager: this.bgCarManager,

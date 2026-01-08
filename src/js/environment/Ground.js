@@ -21,16 +21,14 @@ import { FENCE_CHANCE, GROUND_COLORS } from '../core/GameConfig.js'
  * Менеджер земли/пола
  */
 export class GroundManager {
-    constructor(world, ground, woodsBG, engine, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources, woods) {
+    constructor(world, ground, woodsBG, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources) {
         this.world = world
         this.ground = ground
         this.woodsBG = woodsBG
-        this.engine = engine
         this.physicsManager = physicsManager
         this.WORLD_WIDTH = WORLD_WIDTH
         this.WORLD_HEIGHT = WORLD_HEIGHT
         this.resources = resources
-        this.woods = woods
         
         // Состояние пола
         this.floorPosition = 0
@@ -46,14 +44,6 @@ export class GroundManager {
         this.createGarbageCallback = null
         this.spawnEntityCallback = null
         this.isBuilding = false
-    }
-    
-    /**
-     * Устанавливает текстуры
-     */
-    setTextures(resources, woods) {
-        if (resources) this.resources = resources
-        if (woods) this.woods = woods
     }
     
     /**
@@ -204,13 +194,8 @@ export class GroundManager {
      * @param {number} posY - позиция Y
      */
     createWood(posX, posY) {
-        if (!this.woods) {
-            console.warn('Woods texture not available')
-            return null
-        }
-        
         const woodType = random(1, 4)
-        const wood = new PIXI.AnimatedSprite(this.woods.animations[`wood${woodType}_part`])
+        const wood = new PIXI.AnimatedSprite(this.resources.woods.animations[`wood${woodType}_part`])
         wood.scale.set(random(0.8, 1.5, true, true))
         wood.anchor.set(0, 1)
         wood.position.set(posX, posY + 60)
@@ -224,34 +209,6 @@ export class GroundManager {
         }
         
         return wood
-    }
-    
-    /**
-     * Получает позицию пола
-     */
-    getFloorPosition() {
-        return this.floorPosition
-    }
-    
-    /**
-     * Получает массив деревянных элементов
-     */
-    getWoodsBGarr() {
-        return this.woodsBGarr
-    }
-    
-    /**
-     * Получает флаг забора
-     */
-    getIsFence() {
-        return this.isFence
-    }
-    
-    /**
-     * Получает выбранный цвет земли
-     */
-    getSelectGroundColor() {
-        return this.selectGroundColor
     }
     
     /**
