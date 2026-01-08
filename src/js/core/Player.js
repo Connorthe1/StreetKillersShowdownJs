@@ -16,10 +16,17 @@ import * as PIXI from 'pixi.js'
  * Класс игрока
  */
 export class Player {
-    constructor(gameState = null) {
+    constructor(world, gameState, resources, storage, WORLD_WIDTH) {
+        // GameState для управления уроном
+        this.world = world
+        this.gameState = gameState
+        this.resources = resources
+        this.storage = storage
+        this.WORLD_WIDTH = WORLD_WIDTH
+
         // Спрайт игрока
         this.sprite = null
-        this.currentSkin = null
+        this.currentSkin = resources.skinStore[Number(storage.selectedSkin)].param
         
         // Состояние игрока
         this.state = ''
@@ -37,33 +44,36 @@ export class Player {
         this.afterRoll = true
         
         // Скорости
+
+        // Обычная скорость в забеге
         this.defaultSpeed = 1
+        // Текущая скорость
         this.speed = 1
+        // Базовая скорость
         this.initSpeed = 1
         
         // Параметры оружия
-        this.gunAmmo = 30
-        this.gunCurrentAmmo = 30
-        this.gunDamage = 10
-        this.gunFireRate = 100
-        this.gunType = 'pistol'
-        this.gunAngle = 0.4
-        this.gunOffsetX = 0
-        this.gunOffsetY = 0
-        this.gunShotTrigger = 0
-        this.gunReloadAnim = 0.2
-        this.gunReloadTime = 1000
-        this.gunNoStop = false
-        this.gunMelee = false
+        this.gun = {
+            ammo: 5,
+            currentAmmo: 5,
+            damage: 10,
+            fireRate: 100,
+            type: 'pistol',
+            angle: 0.4,
+            offsetX: 0,
+            offsetY: 0,
+            shotTrigger: 0,
+            reloadAnim: 0.2,
+            reloadTime: 1000,
+            noStop: false,
+            melee: false
+        }
         
         // UI ближнего боя
         this.meleeKill = null
         
         // Задержка триггера
         this.triggerDelay = false
-        
-        // GameState для управления уроном
-        this.gameState = gameState
         
         // Колбэки для управления уроном
         this.cameraShake = null
@@ -77,6 +87,9 @@ export class Player {
         this.HUDremoveShield = null
         this.getSecondFloor = null
         this.setPlayerSpeed = null
+
+        this.setZeroLeft = null
+        this.setZeroRight = null
     }
     
     /**
@@ -96,31 +109,25 @@ export class Player {
         if (callbacks.getSecondFloor !== undefined) this.getSecondFloor = callbacks.getSecondFloor
         if (callbacks.setPlayerSpeed !== undefined) this.setPlayerSpeed = callbacks.setPlayerSpeed
     }
-    
-    /**
-     * Устанавливает gameState
-     * @param {Object} gameState - состояние игры
-     */
-    setGameState(gameState) {
-        this.gameState = gameState
+
+    setWorldPositionCallbacks(callbacks) {
+        this.setZeroLeft = callbacks.setZeroLeft
+        this.setZeroRight = callbacks.setZeroRight
     }
     
     /**
      * Создает спрайт игрока
      * @param {number} x - позиция X
      * @param {number} y - позиция Y
-     * @param {Object} skin - параметры скина с текстурами и анимациями (опционально)
      * @returns {PIXI.AnimatedSprite} спрайт игрока
      */
-    createPlayer(x = 0, y = 0, skin = null) {
-        const useSkin = skin || this.currentSkin
-        
-        if (!useSkin || !useSkin.animations || !useSkin.animations.run) {
+    createPlayer(x = 0, y = 0) {
+        if (!this.currentSkin) {
             console.error('Player.createPlayer: skin is required and must have animations.run')
             return null
         }
         
-        const playerSprite = new PIXI.AnimatedSprite(useSkin.animations.run)
+        const playerSprite = new PIXI.AnimatedSprite(this.currentSkin.animations.run)
         playerSprite.anchor.set(0.5, 0.7)
         playerSprite.position.set(x, y)
         playerSprite.scale.set(2)
@@ -132,64 +139,40 @@ export class Player {
         playerSprite.shadow = 0x757575
         
         this.sprite = playerSprite
-        this.currentSkin = useSkin
         
         return playerSprite
     }
-    
-    /**
-     * Обновляет игрока
-     * @param {boolean} gameStart - игра началась
-     * @param {number} gameSpeed - скорость игры
-     * @param {Array} enemyBullets - массив пуль врагов
-     * @param {PIXI.Container} world - игровой мир
-     * @param {Object} soundPlayer - проигрыватель звуков
-     * @param {Function} damagePlayer - функция нанесения урона игроку (опционально, используется внутренний метод если не указан)
-     */
-    updatePlayer(gameStart, gameSpeed, enemyBullets, world, soundPlayer, damagePlayer = null) {
-        if (!this.sprite) return
-        
-        if (gameStart) {
-            const speed = this.speed || 1
-            this.sprite.x += (0.5 * speed) * gameSpeed
+
+    updatePlayer(gameSpeed, delta) {
+        // if (this.activePowerUps.length > 0) {
+        //     this.activePowerUps.forEach((powerUp, idx) => {
+        //         if (Date.now() > powerUp.expired) {
+        //             switch (true) {
+        //                 case powerUp.type === 'boostAmmo':
+        //                     gun.ammo = gun.ammo / 2
+        //                     break
+        //                 case powerUp.type === 'boostGun':
+        //                     gun.damage = gun.damage / 2
+        //                     break
+        //             }
+        //             this.activePowerUps.splice(idx, 1)
+        //             if (hudManager) {
+        //                 hudManager.updatePowerUps(playerState)
+        //             }
+        //             console.log('endPW')
+        //         }
+        //     })
+        // }
+        if (this.gameState.gameStart) {
+            const dtX = 1 - Math.exp(-delta / 5)
+            const dtY = 1 - Math.exp(-delta / 20)
+            this.world.pivot.x = ((this.sprite.x - 60) - this.world.pivot.x) * dtX + this.world.pivot.x;
+            this.world.pivot.y = (-this.world.pivot.y) * dtY + this.world.pivot.y;
         }
-        
-        // Используем внутренний метод damagePlayer, если не указан внешний
-        const damageCallback = damagePlayer || (() => this.damagePlayer())
-        
-        if (enemyBullets && Array.isArray(enemyBullets)) {
-            enemyBullets.forEach((bullet, idx) => {
-                if (!bullet || !this.sprite) return
-                
-                const bulletBounds = bullet.getBounds ? bullet.getBounds() : bullet
-                
-                if (this.sprite.x + 40 > bulletBounds.x &&
-                    this.sprite.x < bulletBounds.x &&
-                    this.sprite.y - this.sprite.height / 2 < bulletBounds.y &&
-                    this.sprite.y + this.sprite.height / 2 > bulletBounds.y) {
-                    
-                    if (this.state === 'roll' ||
-                        this.state === 'rollEnd' ||
-                        (this.inCover && this.state !== 'shot')) {
-                        if (soundPlayer && soundPlayer.bulletSkip) {
-                            soundPlayer.bulletSkip()
-                        }
-                        return
-                    }
-                    
-                    if (world && bullet.parent) {
-                        world.removeChild(bullet)
-                    }
-                    enemyBullets.splice(idx, 1)
-                    
-                    if (this.invincible) {
-                        return
-                    }
-                    
-                    damageCallback()
-                }
-            })
-        }
+        this.sprite.x += (0.5 * this.speed) * gameSpeed;
+
+        this.setZeroLeft(this.sprite.x - 100)
+        this.setZeroRight(this.sprite.x + this.WORLD_WIDTH)
     }
     
     /**
@@ -302,9 +285,9 @@ export class Player {
         }
         
         this.sprite.loop = !anim || anim === 'idle'
-        this.sprite.animationSpeed = (anim === 'reload' && this.gunReloadAnim) ? this.gunReloadAnim : 0.2
+        this.sprite.animationSpeed = (anim === 'reload' && this.gun.reloadAnim) ? this.gun.reloadAnim : 0.2
         
-        if (this.gunNoStop && anim === 'shot' && !this.inCover) {
+        if (this.gun.noStop && anim === 'shot' && !this.inCover) {
             if (this.state) {
                 this.updatePlayerState(anim, this.currentSkin.animations.run, this.sprite.color)
             } else {
@@ -360,38 +343,7 @@ export class Player {
         this.sprite.tint = this.sprite.color
         this.sprite.play()
     }
-    
-    /**
-     * Устанавливает скин
-     */
-    setSkin(skin) {
-        this.currentSkin = skin
-    }
-    
-    /**
-     * Возвращает объект оружия
-     */
-    get gun() {
-        return {
-            ammo: this.gunAmmo,
-            currentAmmo: this.gunCurrentAmmo,
-            damage: this.gunDamage,
-            fireRate: this.gunFireRate,
-            type: this.gunType,
-            angle: this.gunAngle,
-            offsetX: this.gunOffsetX,
-            offsetY: this.gunOffsetY,
-            shotTrigger: this.gunShotTrigger,
-            reloadAnim: this.gunReloadAnim,
-            reloadTime: this.gunReloadTime,
-            noStop: this.gunNoStop,
-            melee: this.gunMelee
-        }
-    }
-    
-    /**
-     * Возвращает объект состояния
-     */
+
     get playerState() {
         return {
             state: this.state,
@@ -421,77 +373,68 @@ export class Player {
     get playerDefaultSpeed() {
         return this.defaultSpeed
     }
+
+    updateDefaultSpeedByScore(score) {
+        this.defaultSpeed = this.initSpeed + score
+    }
     
     /**
      * Обновляет параметры оружия из скина и апгрейдов
      */
-    updateGunFromSkin(skinIndex, storage, getPercent, skinStore = null) {
-        if (!storage || !getPercent) {
-            console.warn('updateGunFromSkin: storage or getPercent not provided')
+    updateGunFromSkin() {
+        const skinIndex = this.storage.selectedSkin
+
+        if (!this.storage) {
+            console.warn('updateGunFromSkin: storage not provided')
             return
         }
         
-        // Базовые параметры оружия
-        this.gunCurrentAmmo = 5
-        this.gunAmmo = 5
-        this.gunAngle = 0.4
-        this.gunType = 'pistol'
-        this.gunOffsetX = 0
-        this.gunOffsetY = 0
-        this.gunShotTrigger = 0
-        this.gunReloadAnim = 0.2
-        this.gunReloadTime = 1000
-        this.gunNoStop = false
-        this.gunMelee = false
-        this.gunDamage = 10
-        this.gunFireRate = 100
-        
         // Применение параметров скина
-        if (skinStore && skinStore[skinIndex]) {
-            const skin = skinStore[skinIndex]
+        if (this.resources.skinStore && this.resources.skinStore[skinIndex]) {
+            const skin = this.resources.skinStore[skinIndex]
             
             if (skin.gun) {
-                this.gunType = skin.gun
+                this.gun.type = skin.gun
             }
             
             if (skin.gunAmmo !== undefined) {
-                this.gunAmmo = skin.gunAmmo
-                this.gunCurrentAmmo = skin.gunAmmo
+                this.gun.ammo = skin.gunAmmo
+                this.gun.currentAmmo = skin.gunAmmo
             }
             
             if (skin.gunAngle !== undefined) {
-                this.gunAngle = skin.gunAngle
+                this.gun.angle = skin.gunAngle
             }
             
             if (skin.gunDamage !== undefined) {
-                this.gunDamage = 10 * skin.gunDamage
+                this.gun.damage = 10 * skin.gunDamage
             }
             
             if (skin.gunShotDelay !== undefined) {
-                this.gunShotTrigger = skin.gunShotDelay
+                this.gun.shotTrigger = skin.gunShotDelay
             }
             
             if (skin.offsetX !== undefined) {
-                this.gunOffsetX = skin.offsetX
+                this.gun.offsetX = skin.offsetX
             }
             if (skin.offsetY !== undefined) {
-                this.gunOffsetY = skin.offsetY
+                this.gun.offsetY = skin.offsetY
             }
             
             if (skin.reloadTime !== undefined) {
-                this.gunReloadTime = skin.reloadTime
+                this.gun.reloadTime = skin.reloadTime
             }
             
             if (skin.reloadAnim !== undefined) {
-                this.gunReloadAnim = skin.reloadAnim
+                this.gun.reloadAnim = skin.reloadAnim
             }
             
             if (skin.noStop !== undefined) {
-                this.gunNoStop = skin.noStop
+                this.gun.noStop = skin.noStop
             }
             
             if (skin.melee !== undefined) {
-                this.gunMelee = skin.melee
+                this.gun.melee = skin.melee
             }
             
             if (skin.speedAmp !== undefined) {
@@ -501,22 +444,22 @@ export class Player {
         }
         
         // Применение апгрейдов
-        if (storage.upgrades) {
-            if (storage.upgrades.gunTrigger) {
-                this.gunShotTrigger = (this.gunShotTrigger || 0) + (storage.upgrades.gunTrigger * 50)
+        if (this.storage.upgrades) {
+            if (this.storage.upgrades.gunTrigger) {
+                this.gun.shotTrigger = (this.gun.shotTrigger || 0) + (this.storage.upgrades.gunTrigger * 50)
             }
             
-            if (storage.upgrades.accuracy) {
-                this.gunAngle = Math.max(0.1, this.gunAngle - (storage.upgrades.accuracy * 0.05))
+            if (this.storage.upgrades.accuracy) {
+                this.gun.angle = Math.max(0.1, this.gun.angle - (this.storage.upgrades.accuracy * 0.05))
             }
             
-            if (storage.upgrades.boostGun) {
-                this.gunDamage = this.gunDamage + (storage.upgrades.boostGun * 2)
+            if (this.storage.upgrades.boostGun) {
+                this.gun.damage = this.gun.damage + (this.storage.upgrades.boostGun * 2)
             }
             
-            if (storage.upgrades.boostAmmo) {
-                this.gunAmmo = this.gunAmmo + (storage.upgrades.boostAmmo * 5)
-                this.gunCurrentAmmo = this.gunAmmo
+            if (this.storage.upgrades.boostAmmo) {
+                this.gun.ammo = this.gun.ammo + (this.storage.upgrades.boostAmmo * 5)
+                this.gun.currentAmmo = this.gun.ammo
             }
         }
     }

@@ -57,21 +57,20 @@ export class MenuManager {
         }
         
         // Удаляем старое меню, если оно существует
-        if (this.menu && this.app.stage) {
-            this.app.stage.removeChild(this.menu)
+        if (this.menu) {
+            this.clear()
         }
         
         this.gameState.isMenu = true
         this.gameState.gameStart = false
         this.gameState.gameEnd = false
         
-        const menu = new PIXI.Container()
-        this.app.stage.addChild(menu)
-        this.menu = menu
+        this.menu = new PIXI.Container()
+        this.app.stage.addChild(this.menu)
         
         const main = new PIXI.Container()
         main.name = 'main'
-        menu.addChild(main)
+        this.menu.addChild(main)
         
         // Фон
         let bg = new PIXI.Graphics()
@@ -119,26 +118,21 @@ export class MenuManager {
         // Обработчики событий
         store.on('pointerdown', () => {
             main.visible = false
-            if (!this.storeManager) {
-                // Инициализируем StoreManager при первом открытии магазина
-                this.storeManager = new StoreManager(
-                    menu,
-                    this.storage,
-                    this.gameWidth,
-                    this.gameHeight,
-                    this.textStyles,
-                    this.resources
-                )
-                this.storeManager.setCallbacks({
-                    createMenu: () => {
-                        this.createMenu()
-                    },
-                    storageManager: this.storageManager
-                })
-            }
-            if (this.storeManager) {
-                this.storeManager.createStore()
-            }
+            this.storeManager = new StoreManager(
+                this.menu,
+                this.storage,
+                this.gameWidth,
+                this.gameHeight,
+                this.textStyles,
+                this.resources
+            )
+            this.storeManager.setCallbacks({
+                createMenu: () => {
+                    this.createMenu()
+                },
+                storageManager: this.storageManager
+            })
+            this.storeManager.createStore()
         })
         
         bg.on('pointerdown', (event) => {
@@ -146,7 +140,7 @@ export class MenuManager {
             this.gameState.isMenu = false
             
             const menuLeft = setInterval(() => {
-                menu.x -= 20
+                this.menu.x -= 20
             }, 10)
             
             if (this.sleepCallback) {
@@ -155,13 +149,13 @@ export class MenuManager {
                     if (this.startGameCallback) {
                         this.startGameCallback()
                     }
-                    this.app.stage.removeChild(menu)
+                    this.app.stage.removeChild(this.menu)
                     this.menu = null
                 })
             }
         })
         
-        return menu
+        return this.menu
     }
     
     /**
@@ -219,16 +213,6 @@ export class MenuManager {
     }
     
     /**
-     * Удаляет меню
-     */
-    removeMenu() {
-        if (this.menu && this.app.stage) {
-            this.app.stage.removeChild(this.menu)
-        }
-        this.menu = null
-    }
-    
-    /**
      * Очищает меню
      */
     clear() {
@@ -236,6 +220,9 @@ export class MenuManager {
             this.storeManager.clear()
             this.storeManager = null
         }
-        this.removeMenu()
+        if (this.menu) {
+            this.app.stage.removeChild(this.menu)
+            this.menu = null
+        }
     }
 }

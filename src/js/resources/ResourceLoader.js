@@ -179,22 +179,6 @@ export class ResourceLoader {
     }
     
     /**
-     * Получает загруженные ресурсы
-     * @returns {Object} объект с ресурсами
-     */
-    getResources() {
-        return this.resources
-    }
-    
-    /**
-     * Получает данные загрузочного экрана
-     * @returns {Object} объект с данными загрузочного экрана
-     */
-    getLoaderData() {
-        return this.loaderData
-    }
-    
-    /**
      * Удаляет загрузочный экран
      * @param {PIXI.Application} app - экземпляр приложения PIXI
      */

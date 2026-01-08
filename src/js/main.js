@@ -1,11 +1,8 @@
 import {default as enemyParams} from './enemyParams.js'
-import {default as sounds} from './sounds.js'
 import { soundPlayer } from './playSound.js'
 import * as PIXI from 'pixi.js'
 import { Layer, Group, Stage } from '@pixi/layers';
 import * as Matter from 'matter-js'
-import skinStore from './skinStore.json'
-import bridge from '@vkontakte/vk-bridge';
 import { Player } from './core/Player.js'
 import { getPercent, random, randomRGB } from './utils/GameUtils.js'
 import { GAME_SCALE, DEFAULT_GAME_SPEED, SLOW_GAME_SPEED, BULLET_SPEED, FENCE_CHANCE, BUILDING_CHANCE, GROUND_COLORS, BG_SPEED, initGameConfig } from './core/GameConfig.js'
@@ -26,7 +23,7 @@ import { WallManager } from './entities/Wall.js'
 import { ZipLineManager } from './entities/ZipLine.js'
 import { SpawnManager } from './core/SpawnManager.js'
 import { EventManager } from './core/EventManager.js'
-import { HUDManager } from './ui/HUDManager.js'
+import { HUDManager } from './ui/HUD.js'
 import { CameraManager } from './core/CameraManager.js'
 import { GameManager } from './core/GameManager.js'
 import { ScoreManager } from './core/ScoreManager.js'
@@ -40,7 +37,7 @@ import { PowerUpManager } from './entities/PowerUp.js'
 import { DogEnemyManager } from './entities/DogEnemy.js'
 import { InputHandler } from './core/InputHandler.js'
 import { ExplosionManager } from './entities/ExplosionManager.js'
-import { MeleeKillManager } from './ui/MeleeKillManager.js'
+import { MeleeKillManager } from './ui/MeleeKill.js'
 import { MenuManager } from './ui/Menu.js'
 import { EndScreenManager } from './ui/EndScreen.js'
 
@@ -57,16 +54,6 @@ function setPlayerSpeed(speed) {
         playerSpeed = playerInstance.playerSpeed
     } else {
         playerSpeed = speed
-    }
-}
-
-// Функция для синхронизации playerDefaultSpeed с playerInstance
-function setPlayerDefaultSpeed(speed) {
-    if (playerInstance) {
-        playerInstance.defaultSpeed = speed
-        playerDefaultSpeed = playerInstance.playerDefaultSpeed
-    } else {
-        playerDefaultSpeed = speed
     }
 }
 
@@ -316,16 +303,6 @@ window.onload = async function () {
     if (endScreenManager && menuButtons) {
         endScreenManager.menuButtons = menuButtons
     }
-    
-    // Установка текстур и параметров в менеджер HUD после загрузки ресурсов
-    if (hudManager && activeItems && menuIcons && menuPause && menuUI) {
-        hudManager.setTextures({
-            activeItems: activeItems,
-            menuIcons: menuIcons,
-            menuPause: menuPause,
-            menuUI: menuUI
-        })
-    }
 
     function init() {
         world = new PIXI.Container()
@@ -477,7 +454,7 @@ window.onload = async function () {
         
         zipLineManager = new ZipLineManager(world, zipLines, player, playerState, soundPlayer, (anim) => {
             if (playerInstance) playerInstance.playAnim(anim)
-        }, playerSpeed, skinStore, storage, zeroLeft)
+        }, playerSpeed, resources.skinStore, storage, zeroLeft)
         // Текстуры зиплайнов устанавливаются в BuildingManager при создании зданий
         // ZipLineManager не требует установки текстур, так как управляет уже созданными зиплайнами
         
@@ -563,7 +540,7 @@ window.onload = async function () {
         )
         
         // Инициализация менеджера HUD
-        hudManager = new HUDManager(hud, gameState, gameWidth, gameHeight, textStyles)
+        hudManager = new HUDManager(app, storage, hud, gameState, gameWidth, gameHeight, textStyles, resources)
         
         // Инициализация менеджера камеры
         cameraManager = new CameraManager(world, gameState, WORLD_WIDTH)
@@ -572,9 +549,7 @@ window.onload = async function () {
         
         // Инициализация менеджера очков
         scoreManager = new ScoreManager(gameState, hudManager, initSpeed)
-        scoreManager.setUpdatePlayerSpeedCallback((newSpeed) => {
-            playerDefaultSpeed = newSpeed
-        })
+        scoreManager.setUpdatePlayerSpeedCallback((scoreSpeed) => playerInstance.updateDefaultSpeedByScore(scoreSpeed))
         
         // Инициализация детектора коллизий
         collisionDetector = new CollisionDetector()
@@ -717,16 +692,8 @@ window.onload = async function () {
         // Установка колбэков для PowerUpManager
         powerUpManager.setCallbacks({
             soundPlayer: soundPlayer,
-            HUDupdatePowerUp: () => {
-                if (hudManager) {
-                    hudManager.updatePowerUps(playerState)
-                }
-            },
-            HUDbullets: () => {
-                if (hudManager) {
-                    hudManager.createBulletsDisplay(gun)
-                }
-            },
+            HUDupdatePowerUp: () => hudManager.updatePowerUps(playerState),
+            HUDbullets: () => hudManager.createBulletsDisplay(gun),
             gun: gun
         })
         
@@ -749,11 +716,7 @@ window.onload = async function () {
         // Обновление колбэков для GrenadeManager и TrapManager с ExplosionManager
         if (grenadeManager) {
             grenadeManager.setCallbacks({
-                damagePlayer: () => {
-                    if (playerInstance) {
-                        playerInstance.damagePlayer()
-                    }
-                },
+                damagePlayer: () => playerInstance.damagePlayer(),
                 createExplode: (target, offsetX, offsetY, isBig, silence) => {
                     if (explosionManager) {
                         explosionManager.createExplode(target, offsetX, offsetY, isBig, silence)
@@ -801,7 +764,7 @@ window.onload = async function () {
             gameWidth,
             gameHeight,
             textStyles,
-            null, // menuButtons - будет установлен позже
+            resources,
             storageManager
         )
         
@@ -842,6 +805,9 @@ window.onload = async function () {
                 soundPlayer: soundPlayer
             })
         }
+
+        // Initialize player instance
+        playerInstance = new Player(world, gameState, resources, storage, WORLD_WIDTH)
         
         // Установка колбэков для управления уроном в Player
         if (playerInstance) {
@@ -877,6 +843,11 @@ window.onload = async function () {
                 },
                 getSecondFloor: () => secondFloor,
                 setPlayerSpeed: setPlayerSpeed
+            })
+
+            playerInstance.setWorldPositionCallbacks({
+                setZeroLeft: (value) => zeroLeft = value,
+                setZeroRight: (value) => zeroRight = value
             })
         }
         
@@ -935,9 +906,6 @@ window.onload = async function () {
         playerPos = ground.getLocalBounds().y + 70
         secondFloor = ground.getLocalBounds().y - 120
         
-        // Initialize player instance
-        playerInstance = new Player(gameState)
-        
         // Установка алиасов для обратной совместимости
         playerState = playerInstance.playerState
         gun = playerInstance.gun
@@ -958,7 +926,7 @@ window.onload = async function () {
 
     function startGame() {
         if (playerInstance) {
-            playerInstance.updateGunFromSkin(storage.selectedSkin, storage, getPercent, skinStore)
+            playerInstance.updateGunFromSkin(storage.selectedSkinselectedSkin, storage)
             // Обновление алиасов после изменения оружия
             gun = playerInstance.gun
             playerDefaultSpeed = playerInstance.playerDefaultSpeed
@@ -967,10 +935,10 @@ window.onload = async function () {
 
         if (hudManager) {
             hudManager.createBulletsDisplay(gun)
-            hudManager.createMainHUD(playerState, storage, app)
+            hudManager.createMainHUD(playerState)
             hudManager.createPauseMenu({
                 storage: storage,
-                hasMeleeKill: () => meleeKillManager && meleeKillManager.hasMeleeKill(),
+                hasMeleeKill: () => meleeKillManager.hasMeleeKill(),
                 pauseGame: () => {
                     const allAnimated = world.children.filter(item => item.animationSpeed)
                     allAnimated.forEach(item => item.stop())
@@ -998,7 +966,6 @@ window.onload = async function () {
             })
         }
         if (playerInstance) {
-            const playerSkin = playerState.currentSkin || skinStore[Number(storage.selectedSkin)].param
             player = playerInstance.createPlayer(-100, playerPos)
             world.addChild(player)
         }
@@ -1055,11 +1022,7 @@ window.onload = async function () {
             slowGameSpeed = 0.2
         }
         gameSpeed = defaultGameSpeed
-        if (scoreManager) {
-            scoreManager.startScoreTimer()
-        } else {
-            scoreTimer()
-        }
+        scoreManager.startScoreTimer()
         // Запуск таймера частиц следа через ParticleManager
         if (particleManager) {
             particleManager.setCallbacks({
@@ -1083,30 +1046,12 @@ window.onload = async function () {
         zeroRight = WORLD_WIDTH
         gameSpeed = defaultGameSpeed
 
-        playerState.state = ''
-        playerState.afterRoll = true
-        playerState.inCover = false
-        playerState.invincible = false
-        playerState.inZipLine = false
-        playerState.inBossFight = false
-        playerState.health = 3
-        playerState.activePowerUps.length = 0
-        playerState.stimpack = false
-        playerState.skillCD = false
         gameState.reset()
         player = null
         if (bulletManager) {
             bulletManager.clear()
         }
 
-        if (playerInstance) {
-            playerInstance.initSpeed = 5
-            playerInstance.defaultSpeed = 5
-            playerInstance.speed = 5
-            initSpeed = playerInstance.initSpeed
-            playerDefaultSpeed = playerInstance.playerDefaultSpeed
-            playerSpeed = playerInstance.playerSpeed
-        }
         distance = 0
 
         background = null
@@ -1122,14 +1067,6 @@ window.onload = async function () {
         afterBuilding = 0
         isClub = false
         buildingType = 0
-
-        if (playerInstance) {
-            playerInstance.gun.currentAmmo = 5
-            playerInstance.gun.ammo = 5
-            playerInstance.gun.angle = 0.4
-            playerInstance.gun.type = 'pistol'
-            gun = playerInstance.gun
-        }
 
         walls.length = 0
         if (trapManager) {
@@ -1163,10 +1100,6 @@ window.onload = async function () {
             powerUpManager.clear()
         }
         activePowerUp = null
-
-        gameState.isPause = false
-        gameState.gameStart = false
-        gameState.gameEnd = false
         init()
     }
 
@@ -1207,7 +1140,7 @@ window.onload = async function () {
         }
         // Use the Player module's updatePlayer method
         if (playerInstance) {
-            playerInstance.updatePlayer(gameState.gameStart, gameSpeed, bulletManager.enemyBullets, world, soundPlayer)
+            playerInstance.updatePlayer(gameSpeed, delta)
         }
         // Обновление фона и пола через менеджеры
         if (backgroundManager) {
@@ -3048,7 +2981,7 @@ window.onload = async function () {
     }
 
     // Функции HUDbullets, HUDpoints, HUDupdateSkills, HUDremoveShield, HUDcreateShield, HUDupdatePowerUp
-    // теперь в HUDManager. Оставлены для обратной совместимости, но больше не используются.
+    // теперь в HUD. Оставлены для обратной совместимости, но больше не используются.
 
     function addPoints(points) {
         if (scoreManager) {
@@ -3058,28 +2991,9 @@ window.onload = async function () {
         }
     }
 
-    function scoreTimer() {
-        // Теперь управляется через ScoreManager
-        if (scoreManager) {
-            scoreManager.startScoreTimer()
-        } else {
-            // Fallback на старую логику
-            const interval = setInterval(() => {
-                if (gameState.isPause) return
-                if (gameState.gameEnd || gameState.isMenu) {
-                    clearInterval(interval)
-                    return;
-                }
-                if (gameState.scoreStreak <= 0) return
-                gameState.decreaseStreak()
-                setPlayerDefaultSpeed(initSpeed) + gameState.points / 10000
-            }, 500)
-        }
-    }
-
-    // Функция HUDpause теперь в HUDManager.createPauseMenu(). Оставлена для обратной совместимости, но больше не используется.
+    // Функция HUDpause теперь в HUD.createPauseMenu(). Оставлена для обратной совместимости, но больше не используется.
     
-    // Функция updateScore теперь в ScoreManager.updateScore() и HUDManager.updateScore(). Оставлена для обратной совместимости, но больше не используется.
+    // Функция updateScore теперь в ScoreManager.updateScore() и HUD.updateScore(). Оставлена для обратной совместимости, но больше не используется.
 
     // async function getData() {
     //     return

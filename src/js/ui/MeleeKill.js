@@ -1,5 +1,5 @@
 /**
- * MeleeKillManager.js
+ * MeleeKill.js
  * 
  * Менеджер ближнего боя
  * 
@@ -11,7 +11,6 @@
  */
 
 import * as PIXI from 'pixi.js'
-import { random } from '../utils/GameUtils.js'
 
 /**
  * Менеджер ближнего боя

@@ -50,15 +50,9 @@ export class StoreManager {
      * Создает магазин
      */
     createStore() {
-        if (!this.resources) {
-            console.warn('Store textures not available')
-            return null
-        }
-        
-        const store = new PIXI.Container()
-        store.name = 'store'
-        this.menu.addChild(store)
-        this.store = store
+        this.store = new PIXI.Container()
+        this.store.name = 'store'
+        this.menu.addChild(this.store)
         
         // Фон
         let bg = new PIXI.Graphics()
@@ -66,7 +60,7 @@ export class StoreManager {
         bg.beginFill(0x000)
         bg.alpha = 0.9
         bg.drawRect(0, 0, this.gameWidth, this.gameHeight)
-        store.addChild(bg)
+        this.store.addChild(bg)
         
         // Обновление денег
         this.updateMoney()
@@ -78,7 +72,7 @@ export class StoreManager {
         skinButton.eventMode = 'static'
         skinButton.anchor.set(1, 0)
         skinButton.position.set(this.gameWidth - 20, 20)
-        store.addChild(skinButton)
+        this.store.addChild(skinButton)
         
         const upgrades = new PIXI.Sprite(this.resources.menuUI.textures.upgrade)
         upgrades.width = (this.gameWidth / 2) - 30
@@ -86,7 +80,7 @@ export class StoreManager {
         upgrades.eventMode = 'static'
         upgrades.anchor.set(0, 0)
         upgrades.position.set(20, 20)
-        store.addChild(upgrades)
+        this.store.addChild(upgrades)
         
         // Кнопка выхода
         const exit = new PIXI.Sprite(this.resources.menuUI.textures.back)
@@ -94,7 +88,7 @@ export class StoreManager {
         exit.eventMode = 'static'
         exit.anchor.set(1, 1)
         exit.position.set(this.gameWidth - 20, this.gameHeight - 20)
-        store.addChild(exit)
+        this.store.addChild(exit)
         
         // Прокручиваемый список апгрейдов
         const scrollUpgrades = new Scrollbox({
@@ -207,7 +201,6 @@ export class StoreManager {
         })
         
         exit.on('pointerdown', () => {
-            this.menu.removeChildren(0, this.menu.children.length)
             if (this.createMenuCallback) {
                 this.createMenuCallback()
             }
@@ -216,13 +209,13 @@ export class StoreManager {
             }
         })
         
-        store.addChild(scrollUpgrades)
-        store.addChild(scrollSkins)
+        this.store.addChild(scrollUpgrades)
+        this.store.addChild(scrollSkins)
         
         // Инициализация апгрейдов
         reloadStoreUpgrades()
         
-        return store
+        return this.store
     }
     
     /**

@@ -16,14 +16,14 @@ import * as PIXI from 'pixi.js'
  * Менеджер экрана окончания игры
  */
 export class EndScreenManager {
-    constructor(app, gameState, storage, gameWidth, gameHeight, textStyles, menuButtons, storageManager) {
+    constructor(app, gameState, storage, gameWidth, gameHeight, textStyles, resources, storageManager) {
         this.app = app
         this.gameState = gameState
         this.storage = storage
         this.gameWidth = gameWidth
         this.gameHeight = gameHeight
         this.textStyles = textStyles
-        this.menuButtons = menuButtons
+        this.resources = resources
         this.storageManager = storageManager
         
         // Экран окончания
@@ -51,7 +51,7 @@ export class EndScreenManager {
      * @param {boolean} toRestart - перезапустить игру сразу
      */
     async createEndScreen(toRestart = false) {
-        if (!this.menuButtons) {
+        if (!this.resources) {
             console.warn('End screen textures not available')
             return null
         }
@@ -257,18 +257,14 @@ export class EndScreenManager {
         }
         
         // Кнопка выхода
-        const exit = new PIXI.Sprite(this.menuButtons.textures.exit)
+        const exit = new PIXI.Sprite(this.resources.menuButtons.textures.exit)
         exit.scale.set(0.7, 0.6)
         exit.eventMode = 'static'
         exit.anchor.set(0.5, 0)
         exit.position.set(center, score.y + 80)
         endScreen.addChild(exit)
         
-        exit.on('pointerdown', () => {
-            if (this.restartGameCallback) {
-                this.restartGameCallback()
-            }
-        })
+        exit.on('pointerdown', () => this.restartGameCallback())
         
         return endScreen
     }

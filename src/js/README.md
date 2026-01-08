@@ -39,7 +39,7 @@
 - **Store.js** - Магазин
 - **PauseMenu.js** - Меню паузы
 - **EndScreen.js** - Экран окончания
-- **MeleeKillUI.js** - UI ближнего боя
+- **MeleeKill.js** - Менеджер ближнего боя
 
 ### `/environment` - Окружение
 - **Background.js** - Фон

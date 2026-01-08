@@ -16,10 +16,9 @@
  * Менеджер очков и рейтинга
  */
 export class ScoreManager {
-    constructor(gameState, hudManager, initSpeed) {
+    constructor(gameState, hudManager) {
         this.gameState = gameState
         this.hudManager = hudManager
-        this.initSpeed = initSpeed
         
         // Таймер для уменьшения streak
         this.scoreTimerInterval = null
@@ -101,8 +100,7 @@ export class ScoreManager {
             
             // Обновление скорости игрока на основе очков
             if (this.updatePlayerSpeedCallback) {
-                const newSpeed = this.initSpeed + this.gameState.points / 10000
-                this.updatePlayerSpeedCallback(newSpeed)
+                this.updatePlayerSpeedCallback(this.gameState.points / 10000)
             }
         }, 500)
     }
