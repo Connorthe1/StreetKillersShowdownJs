@@ -14,19 +14,18 @@
  */
 
 import * as PIXI from 'pixi.js'
-import * as Matter from 'matter-js'
 import { random } from '../utils/GameUtils.js'
+import { soundPlayer } from "../playSound";
 
 /**
  * Менеджер для управления всеми типами частиц
  */
 export class ParticleManager {
-    constructor(world, engine, physicsManager, ground, textures = null) {
+    constructor(world, engine, physicsManager, ground, resources) {
         this.world = world
-        this.engine = engine
         this.physicsManager = physicsManager
         this.ground = ground
-        this.textures = textures
+        this.resources = resources
         
         // Массивы частиц
         this.physParticles = []
@@ -42,15 +41,6 @@ export class ParticleManager {
         this.playerState = null
         this.playerSpeed = null
         this.gameState = null
-        this.soundPlayer = null
-    }
-    
-    /**
-     * Устанавливает текстуры частиц
-     * @param {Object} textures - объект с текстурами
-     */
-    setTextures(textures) {
-        this.textures = textures
     }
     
     /**
@@ -62,7 +52,6 @@ export class ParticleManager {
         if (callbacks.playerState !== undefined) this.playerState = callbacks.playerState
         if (callbacks.playerSpeed !== undefined) this.playerSpeed = callbacks.playerSpeed
         if (callbacks.gameState !== undefined) this.gameState = callbacks.gameState
-        if (callbacks.soundPlayer !== undefined) this.soundPlayer = callbacks.soundPlayer
     }
     
     /**
@@ -81,25 +70,19 @@ export class ParticleManager {
      * @param {string} particleType - тип частицы ('blood', 'spark', 'drop', 'bottle')
      * @param {boolean} floor - находится ли на втором этаже
      * @param {number} size - размер частицы
-     * @param {Object} textures - текстуры частиц (опционально, если не переданы, используются сохраненные)
      */
-    createParticle(char, particleType, floor, size, textures = null) {
-        const texturesToUse = textures || this.textures
-        if (!texturesToUse || !texturesToUse.physParticlesTexture) {
-            console.warn('Textures not available for particles')
-            return
-        }
+    createParticle(char, particleType, floor, size) {
         let particle
         
         switch (particleType) {
             case 'blood': {
                 const randomBlood = random(0, 4)
-                particle = new PIXI.Sprite(texturesToUse.physParticlesTexture.textures[`blood-${randomBlood}`])
+                particle = new PIXI.Sprite(this.resources.physParticlesTexture.textures[`blood-${randomBlood}`])
                 particle.scale.set(size || 2)
                 break
             }
             case 'spark': {
-                particle = new PIXI.Sprite(texturesToUse.physParticlesTexture.textures['spark'])
+                particle = new PIXI.Sprite(this.resources.physParticlesTexture.textures['spark'])
                 const particleTint = random(0, 2)
                 switch (particleTint) {
                     case 0:
@@ -292,15 +275,9 @@ export class ParticleManager {
      * @param {Object} char - объект персонажа/врага
      * @param {string} particleType - тип частицы
      * @param {number} tint - цвет частицы (опционально)
-     * @param {Object} textures - текстуры частиц (опционально, если не переданы, используются сохраненные)
      */
-    spawnBounceParticle(char, particleType, tint, textures = null) {
-        const texturesToUse = textures || this.textures
-        if (!texturesToUse || !texturesToUse.bounceParticlesTexture) {
-            console.warn('Textures not available for bounce particles')
-            return
-        }
-        const particle = new PIXI.Sprite(texturesToUse.bounceParticlesTexture.textures[particleType])
+    spawnBounceParticle(char, particleType, tint) {
+        const particle = new PIXI.Sprite(this.resources.bounceParticlesTexture.textures[particleType])
         particle.scale.set(2)
         particle.anchor.set(0.5)
         particle.position.set(char.x, char.y)
@@ -423,8 +400,8 @@ export class ParticleManager {
                 } else {
                     // Звук шагов
                     this.stepSound++
-                    if (this.stepSound > 3 && this.soundPlayer) {
-                        this.soundPlayer.footStep()
+                    if (this.stepSound > 3 && soundPlayer) {
+                        soundPlayer.footStep()
                         this.stepSound = 0
                     }
                 }

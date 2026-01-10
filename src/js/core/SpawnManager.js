@@ -18,7 +18,7 @@ import { BUILDING_CHANCE } from '../core/GameConfig.js'
  * Менеджер спавна сущностей
  */
 export class SpawnManager {
-    constructor(gameState, world, enemies, buildings, currentBoss, currentDogEnemy, activePowerUp, bgCar, currentCan, isBuilding, isClub, afterBuilding, zeroRight, WORLD_WIDTH) {
+    constructor(gameState, world, enemies, buildings, currentBoss, currentDogEnemy, activePowerUp, bgCar, currentCan, isBuilding, isClub, afterBuilding, worldCoords, WORLD_WIDTH) {
         this.gameState = gameState
         this.world = world
         this.enemies = enemies
@@ -31,7 +31,7 @@ export class SpawnManager {
         this.isBuilding = isBuilding
         this.isClub = isClub
         this.afterBuilding = afterBuilding
-        this.zeroRight = zeroRight
+        this.worldCoords = worldCoords
         this.WORLD_WIDTH = WORLD_WIDTH
         
         // Константы

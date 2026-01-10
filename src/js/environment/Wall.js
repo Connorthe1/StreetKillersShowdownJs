@@ -18,24 +18,20 @@ import { random } from '../utils/GameUtils.js'
  * Менеджер стен
  */
 export class WallManager {
-    constructor(world, player, ground, zeroLeft, zeroRight, afterBuilding, textures, inBuildTexture, inFloorTexture, inClubTexture) {
+    constructor(world, player, ground, worldCoords, afterBuilding, resources, garbageManager) {
         this.world = world
         this.player = player
         this.ground = ground
-        this.zeroLeft = zeroLeft
-        this.zeroRight = zeroRight
+        this.worldCoords = worldCoords
         this.afterBuilding = afterBuilding
-        this.textures = textures
-        this.inBuildTexture = inBuildTexture
-        this.inFloorTexture = inFloorTexture
-        this.inClubTexture = inClubTexture
-        
+        this.resources = resources
+        this.garbageManager = garbageManager
+
         // Массив стен
         this.walls = []
         
         // Callbacks
         this.createEnemyCallback = null
-        this.createGarbageCallback = null
     }
     
     /**
@@ -43,16 +39,12 @@ export class WallManager {
      */
     setCallbacks(callbacks) {
         if (callbacks.createEnemy) this.createEnemyCallback = callbacks.createEnemy
-        if (callbacks.createGarbage) this.createGarbageCallback = callbacks.createGarbage
     }
     
     /**
      * Обновляет состояние
      */
     updateState(state) {
-        if (state.player !== undefined) this.player = state.player
-        if (state.zeroLeft !== undefined) this.zeroLeft = state.zeroLeft
-        if (state.zeroRight !== undefined) this.zeroRight = state.zeroRight
         if (state.afterBuilding !== undefined) this.afterBuilding = state.afterBuilding
     }
     
@@ -62,12 +54,7 @@ export class WallManager {
      * @param {boolean} forBoss - для босса
      */
     createWall(pos = null, forBoss = false) {
-        if (!this.textures) {
-            console.warn('Wall textures not available')
-            return null
-        }
-        
-        const randomPos = pos || this.zeroRight + random(100, 250)
+        const randomPos = pos || this.worldCoords.zeroRight + random(100, 250)
         
         // Спавн врага рядом со стеной (если не для босса)
         if (!pos && !forBoss && this.createEnemyCallback) {
@@ -98,13 +85,13 @@ export class WallManager {
         
         if (randomWall < 4) {
             // Стена из мусора
-            wall = new PIXI.Sprite(this.textures.textures.coverTrash)
+            wall = new PIXI.Sprite(this.resources.textures.textures.coverTrash)
             wall.position.set(randomPos, groundY + 36)
             wall.bound = -20
             wall.coverX = randomPos - 28
         } else {
             // Обычная стена
-            wall = new PIXI.Sprite(this.textures.textures.wall)
+            wall = new PIXI.Sprite(this.resources.textures.textures.wall)
             wall.position.set(randomPos, groundY + 36)
             wall.bound = 0
             wall.coverX = randomPos - 20
@@ -139,22 +126,16 @@ export class WallManager {
      * @param {boolean} isRoof - на крыше
      */
     createCoverInBuild(pos, isSecondFloor, isRoof) {
-        console.warn('WallManager.createCoverInBuild() устарел. Используйте BuildingManager.createCoverInBuild()')
-        if (!this.inBuildTexture || !this.inFloorTexture) {
-            console.warn('Cover textures not available')
-            return null
-        }
-        
         let wall
         const groundY = this.ground.getLocalBounds ? this.ground.getLocalBounds().y : 0
         
         if (isRoof) {
             const randomWall = Math.floor(Math.random() * (1 + 1))
-            wall = new PIXI.Sprite(this.inFloorTexture.textures[`Floor-${randomWall}`])
+            wall = new PIXI.Sprite(this.resources.inFloorTexture.textures[`Floor-${randomWall}`])
             wall.coverX = pos - 34
         } else {
             const randomWall = Math.floor(Math.random() * (2 + 1))
-            wall = new PIXI.Sprite(this.inBuildTexture.textures[`inhouse-${randomWall}`])
+            wall = new PIXI.Sprite(this.resources.inBuildTexture.textures[`inhouse-${randomWall}`])
             wall.coverX = pos - 20
         }
         
@@ -186,12 +167,8 @@ export class WallManager {
      */
     createCoverInClub(pos, type, forBoss) {
         console.warn('WallManager.createCoverInClub() устарел. Используйте BuildingManager.createCoverInClub()')
-        if (!this.inClubTexture) {
-            console.warn('Club cover textures not available')
-            return null
-        }
         
-        const wall = new PIXI.Sprite(this.inClubTexture.textures[`inClub-${type}`])
+        const wall = new PIXI.Sprite(this.resources.inClubTexture.textures[`inClub-${type}`])
         const groundY = this.ground.getLocalBounds ? this.ground.getLocalBounds().y : 0
         
         switch (type) {
@@ -235,7 +212,7 @@ export class WallManager {
     updateWall() {
         this.walls.forEach((wall, idx) => {
             const wallX = wall.x || (wall.position ? wall.position.x : 0)
-            if (wallX + 100 < this.zeroLeft) {
+            if (wallX + 100 < this.worldCoords.zeroLeft) {
                 if (this.world) {
                     this.world.removeChild(wall)
                 }

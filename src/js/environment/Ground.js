@@ -21,7 +21,7 @@ import { FENCE_CHANCE, GROUND_COLORS } from '../core/GameConfig.js'
  * Менеджер земли/пола
  */
 export class GroundManager {
-    constructor(world, ground, woodsBG, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources) {
+    constructor(world, ground, woodsBG, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources, garbageManager) {
         this.world = world
         this.ground = ground
         this.woodsBG = woodsBG
@@ -29,7 +29,8 @@ export class GroundManager {
         this.WORLD_WIDTH = WORLD_WIDTH
         this.WORLD_HEIGHT = WORLD_HEIGHT
         this.resources = resources
-        
+        this.garbageManager = garbageManager
+
         // Состояние пола
         this.floorPosition = 0
         this.selectGroundColor = 0
@@ -41,32 +42,17 @@ export class GroundManager {
         this.woodsBGarr = []
         
         // Callbacks
-        this.createGarbageCallback = null
         this.spawnEntityCallback = null
-        this.isBuilding = false
     }
     
     /**
      * Устанавливает колбэки
      */
     setCallbacks(callbacks) {
-        if (callbacks.createGarbage) this.createGarbageCallback = callbacks.createGarbage
         if (callbacks.spawnEntity) this.spawnEntityCallback = callbacks.spawnEntity
     }
-    
-    /**
-     * Обновляет состояние
-     */
-    updateState(state) {
-        if (state.isBuilding !== undefined) this.isBuilding = state.isBuilding
-        if (state.zeroLeft !== undefined) this.zeroLeft = state.zeroLeft
-    }
-    
-    /**
-     * Создает сегмент пола
-     * @param {number} idx - индекс сегмента
-     */
-    createFloor(idx) {
+
+    createFloor(idx, isBuilding = false) {
         const part = new PIXI.Container()
         const floor = new PIXI.Sprite(this.resources.textures.textures.ground)
         floor.anchor.set(0, 1)
@@ -99,18 +85,18 @@ export class GroundManager {
         if (Math.random() > 0.5) {
             this.createWood(floor.x, floor.y - floor.height)
         }
-        
+
         // Создание мусора рядом с полом (если в здании)
-        if (Math.random() > 0.75 && this.isBuilding && this.createGarbageCallback) {
+        if (Math.random() > 0.75 && isBuilding) {
             const posX = random(10, 100)
-            const posY = random(94, 104)
-            this.createGarbageCallback(floor.x + floor.width + posX, floor.y + posY)
+            const posY = random(35, 45)
+            this.garbageManager.createGarbage(floor.x + floor.width + posX, floor.y - floor.height + posY)
         }
-        
-        if (Math.random() > 0.75 && this.isBuilding && this.createGarbageCallback) {
+
+        if (Math.random() > 0.75 && isBuilding) {
             const posX = random(10, 100)
-            const posY = random(65, 75)
-            this.createGarbageCallback(floor.x + floor.width + posX, floor.y + posY)
+            const posY = random(5, 15)
+            this.garbageManager.createGarbage(floor.x + floor.width + posX, floor.y - floor.height + posY)
         }
         
         // Создание физического тела для пола
@@ -127,29 +113,22 @@ export class GroundManager {
         
         part.addChild(floor)
         part.addChild(bgWall)
-        
-        if (this.ground) {
-            this.ground.addChild(part)
-        }
-        
-        if (this.physicsManager && floor.body) {
-            this.physicsManager.addBody(floor.body)
-        }
-        
-        return part
+
+        this.ground.addChild(part)
+        this.physicsManager.addBody(floor.body)
     }
     
     /**
      * Обновляет пол
      */
-    updateFloor() {
+    updateFloor(zeroLeft, isBuilding) {
         if (!this.ground) return
         
         const groundBounds = this.ground.getLocalBounds()
         const groundX = groundBounds.x || 0
         
         // Создание нового сегмента пола при необходимости
-        if (this.zeroLeft - groundX > 192) {
+        if (zeroLeft - groundX > 192) {
             this.floorPosition++
             
             // Удаление старого сегмента
@@ -165,7 +144,7 @@ export class GroundManager {
             }
             
             // Создание нового сегмента
-            this.createFloor(3)
+            this.createFloor(3, isBuilding)
             
             // Спавн сущностей
             if (this.spawnEntityCallback) {

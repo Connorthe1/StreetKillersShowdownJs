@@ -39,13 +39,6 @@ export class BackgroundManager {
     }
     
     /**
-     * Устанавливает текстуру фона
-     */
-    setTexture(resources) {
-        this.resources = resources
-    }
-    
-    /**
      * Обновляет состояние
      */
     updateState(state) {

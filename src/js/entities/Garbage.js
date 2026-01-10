@@ -12,52 +12,29 @@
 
 import * as PIXI from 'pixi.js'
 import { random } from '../utils/GameUtils.js'
+import { soundPlayer } from "../playSound";
 
 /**
  * Менеджер мусора
  */
 export class GarbageManager {
-    constructor(world, zeroLeft, enemyBullets, playerBullets, isClub) {
+    constructor(world, isClub, bulletManager, particleManager, resources) {
         this.world = world
-        this.zeroLeft = zeroLeft
-        this.enemyBullets = enemyBullets
-        this.playerBullets = playerBullets
         this.isClub = isClub
-        
+
+        this.bulletManager = bulletManager
+        this.particleManager = particleManager
+        this.resources = resources
+
         // Массив мусора
         this.garbages = []
-        
-        // Текстуры (устанавливаются позже)
-        this.garbageTexture = null
-        
-        // Callbacks
-        this.soundPlayer = null
-        this.createParticlesCallback = null
     }
-    
-    /**
-     * Устанавливает текстуры
-     */
-    setTextures(garbageTexture) {
-        this.garbageTexture = garbageTexture
-    }
-    
-    /**
-     * Устанавливает колбэки
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.soundPlayer) this.soundPlayer = callbacks.soundPlayer
-        if (callbacks.createParticles) this.createParticlesCallback = callbacks.createParticles
-    }
-    
+
     /**
      * Обновляет состояние
      */
     updateState(state) {
-        if (state.zeroLeft !== undefined) this.zeroLeft = state.zeroLeft
         if (state.isClub !== undefined) this.isClub = state.isClub
-        if (state.enemyBullets !== undefined) this.enemyBullets = state.enemyBullets
-        if (state.playerBullets !== undefined) this.playerBullets = state.playerBullets
     }
     
     /**
@@ -66,35 +43,29 @@ export class GarbageManager {
      * @param {number} posY - позиция Y
      * @param {number} type - тип мусора (1-10, опционально)
      */
-    createGarbage(posX, posY, type = null) {
+    createGarbage(posX, posY, type = 0) {
         if (this.isClub) return null
-        
-        if (!this.garbageTexture) {
-            console.warn('Garbage texture not available')
-            return null
-        }
+        console.log('createGarbage')
         
         const rand = type || random(1, 10)
-        const garbage = new PIXI.Sprite(this.garbageTexture.textures[`trash${rand}`])
+        const garbage = new PIXI.Sprite(this.resources.garbageTexture.textures[`trash${rand}`])
         garbage.type = rand
         garbage.anchor.set(0, 1)
         garbage.position.set(posX, posY)
-        
-        if (this.world) {
-            this.world.addChild(garbage)
-        }
-        
+
+        this.world.addChild(garbage)
         this.garbages.push(garbage)
-        return garbage
     }
     
     /**
      * Обновляет мусор
      */
-    updateGarbage() {
+    updateGarbage(zeroLeft) {
+        const getBullets = this.bulletManager.getBulletArrays()
+
         this.garbages.forEach((garbage, idx) => {
             // Удаление за левой границей
-            if (garbage.x + garbage.width < this.zeroLeft) {
+            if (garbage.x + garbage.width < zeroLeft) {
                 if (this.world) {
                     this.world.removeChild(garbage)
                 }
@@ -105,8 +76,8 @@ export class GarbageManager {
             // Обработка бутылок (типы 3 и 4) - могут быть разбиты пулями
             if (garbage.type === 3 || garbage.type === 4) {
                 // Проверка коллизии с пулями врагов
-                if (this.enemyBullets) {
-                    this.enemyBullets.forEach((bullet, bulletIdx) => {
+                if (getBullets.enemyBullets) {
+                    getBullets.enemyBullets.forEach(bullet => {
                         if (this.checkBulletCollision(bullet, garbage)) {
                             this.breakBottle(garbage, idx)
                             return
@@ -115,8 +86,8 @@ export class GarbageManager {
                 }
                 
                 // Проверка коллизии с пулями игрока
-                if (this.playerBullets) {
-                    this.playerBullets.forEach((bullet, bulletIdx) => {
+                if (getBullets.playerBullets) {
+                    getBullets.playerBullets.forEach(bullet => {
                         if (this.checkBulletCollision(bullet, garbage)) {
                             this.breakBottle(garbage, idx)
                             return
@@ -145,15 +116,13 @@ export class GarbageManager {
      */
     breakBottle(garbage, idx) {
         // Звук разбития стекла
-        if (this.soundPlayer) {
-            this.soundPlayer.glassBreak()
+        if (soundPlayer) {
+            soundPlayer.glassBreak()
         }
         
         // Создание частиц
-        if (this.createParticlesCallback) {
-            for (let i = 0; i <= 8; i++) {
-                this.createParticlesCallback(garbage, 'bottle')
-            }
+        for (let i = 0; i <= 8; i++) {
+            this.particleManager(garbage, 'bottle')
         }
         
         // Удаление мусора
@@ -161,13 +130,6 @@ export class GarbageManager {
             this.world.removeChild(garbage)
         }
         this.garbages.splice(idx, 1)
-    }
-    
-    /**
-     * Получает массив мусора
-     */
-    getGarbages() {
-        return this.garbages
     }
     
     /**
