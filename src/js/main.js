@@ -134,9 +134,6 @@ let walls = []
 let traps = []
 let enemies = []
 // Массивы частиц теперь управляются через ParticleManager
-let physParticles = []
-let bounceParticles = []
-let trails = []
 let moneyDrop = []
 // Массивы окружения теперь управляются через отдельные менеджеры
 let buildings = []
@@ -192,7 +189,7 @@ window.onload = async function () {
         resolution: window.devicePixelRatio,
         useContextAlpha: false,
         antialias: false
-})
+    })
     globalThis.__PIXI_APP__ = app;
     app.stage = new Stage();
     document.body.appendChild(app.view)
@@ -230,50 +227,6 @@ window.onload = async function () {
     // Удаление загрузочного экрана
     resourceLoader.removeLoaderScreen(app)
     init()
-    
-    // Установка текстур и параметров в менеджер гранат после загрузки ресурсов
-    if (grenadeManager && activeItems && bounceParticlesTexture && particles) {
-        grenadeManager.activeItems = activeItems
-        grenadeManager.bounceParticlesTexture = bounceParticlesTexture
-        grenadeManager.particles = particles
-    }
-    
-    // Установка текстур и параметров в менеджер ловушек после загрузки ресурсов
-    if (trapManager && bochka && windowTexture && doorTexture) {
-        trapManager.setTextures({
-            bochka: bochka,
-            windowTexture: windowTexture,
-            doorTexture: doorTexture
-        })
-    }
-    
-    // Установка текстур и параметров в менеджер денег после загрузки ресурсов
-    if (moneyManager && menuIcons) {
-        moneyManager.menuIcons = menuIcons
-    }
-    
-    // Установка текстур и параметров в менеджер пауэр-апов после загрузки ресурсов
-    if (powerUpManager && menuIcons) {
-        powerUpManager.menuIcons = menuIcons
-    }
-    
-    // Установка текстур и параметров в менеджер собаки-врага после загрузки ресурсов
-    if (dogEnemyManager && dogEnemy && enemyParams) {
-        dogEnemyManager.setTextures(dogEnemy, enemyParams)
-    }
-    
-    // Установка текстур и параметров в менеджер взрывов после загрузки ресурсов
-    if (explosionManager && bigExplode && bochka) {
-        explosionManager.setTextures({
-            bigExplode: bigExplode,
-            bochka: bochka
-        })
-    }
-    
-    // Установка текстур и параметров в менеджер экрана окончания после загрузки ресурсов
-    if (endScreenManager && menuButtons) {
-        endScreenManager.menuButtons = menuButtons
-    }
 
     function init() {
         world = new PIXI.Container()
@@ -300,17 +253,10 @@ window.onload = async function () {
         world.addChild(ground)
         
         // Инициализация менеджера частиц
-        // Текстуры будут установлены после загрузки ресурсов
-        particleManager = new ParticleManager(world, engine, physicsManager, ground, resources)
-        // Обновление ссылок на массивы для обратной совместимости
-        const particleArrays = particleManager.getParticleArrays()
-        physParticles = particleArrays.physParticles
-        bounceParticles = particleArrays.bounceParticles
-        trails = particleArrays.trails
+        particleManager = new ParticleManager(world, engine, physicsManager, ground, resources, gameState)
         
         // Инициализация менеджера пуль
-        bulletManager = new BulletManager(world, gameState, particleManager)
-        // shotsArr будет обновляться в BulletManager, но ссылка остается для Player.js
+        bulletManager = new BulletManager(world, gameState, particleManager, resources)
         
         // Инициализация менеджеров окружения и сущностей
         backgroundManager = new BackgroundManager(world, WORLD_WIDTH, WORLD_HEIGHT, gameHeight, resources)
@@ -318,9 +264,10 @@ window.onload = async function () {
 
         garbageManager = new GarbageManager(world, isClub, bulletManager, particleManager, resources)
         // DONE
+
+        // GROUND MANAGER
         groundManager = new GroundManager(world, ground, woodsBackgroundContainer, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources, garbageManager)
-        selectGroundColor = random(0,groundColor.length - 1)
-        groundManager.setSelectGroundColor(selectGroundColor)
+        groundManager.refreshGroundColor()
 
         for (let i = 0; i <= 3; i++) {
             groundManager.createFloor(i)
@@ -328,6 +275,9 @@ window.onload = async function () {
 
         playerPos = ground.getLocalBounds().y + 70
         secondFloor = ground.getLocalBounds().y - 120
+
+        // Initialize player instance
+        playerInstance = new Player(world, gameState, resources, storage, WORLD_WIDTH)
 
         // DONE
         bgCarManager = new BgCarManager(world, ground, worldCoords.zeroLeft, worldCoords.zeroRight, resources)
@@ -753,9 +703,6 @@ window.onload = async function () {
                 soundPlayer: soundPlayer
             })
         }
-
-        // Initialize player instance
-        playerInstance = new Player(world, gameState, resources, storage, WORLD_WIDTH)
         
         // Установка колбэков для управления уроном в Player
         if (playerInstance) {
@@ -964,16 +911,7 @@ window.onload = async function () {
         gameSpeed = defaultGameSpeed
         scoreManager.startScoreTimer()
         // Запуск таймера частиц следа через ParticleManager
-        if (particleManager) {
-            particleManager.setCallbacks({
-                player: player,
-                playerState: playerState,
-                playerSpeed: playerSpeed,
-                gameState: gameState,
-                soundPlayer: soundPlayer
-            })
-            particleManager.startTrailTimer()
-        }
+        particleManager.startTrailTimer(playerInstance)
     }
 
     function restartGame() {
@@ -1109,17 +1047,9 @@ window.onload = async function () {
             })
             trapManager.updateTraps()
         }
-        if (particleManager) {
-            particleManager.updateParticles(worldCoords.zeroLeft)
-            particleManager.updateBounceParticles()
-            particleManager.updateTrailParticles(worldCoords.zeroLeft)
-            // Обновление состояния для trailTimer
-            particleManager.updateTrailState({
-                playerSpeed: playerSpeed,
-                player: player,
-                playerState: playerState
-            })
-        }
+
+        particleManager.updateAllParticles(worldCoords.zeroLeft)
+
         // Обновление денег через MoneyManager
         if (moneyManager) {
             moneyManager.updateState({
@@ -2597,45 +2527,14 @@ window.onload = async function () {
 
     function shot(char, offsetX, offsetY, eventGun, friendly) {
         if (bulletManager) {
-            const textures = { particles }
             bulletManager.shot(
                 char,
                 offsetX,
                 offsetY,
                 eventGun,
                 friendly,
-                textures,
-                friendly ? gun : null,
-                friendly ? playerState : null,
-                soundPlayer,
-                spawnBounceParticle,
                 sleep
             )
-        }
-    }
-
-    function spawnBullet(x, y, char) {
-        if (bulletManager) {
-            const textures = { particles }
-            const isPlayer = !char
-            return bulletManager.spawnBullet(
-                x,
-                y,
-                char,
-                isPlayer ? gun : null,
-                isPlayer,
-                textures,
-                isPlayer ? playerState.activePowerUps : []
-            )
-        }
-        return null
-    }
-
-    function updateBullets() {
-        // Обновление пуль теперь в BulletManager.updateBullets()
-        // Функция оставлена для обратной совместимости
-        if (bulletManager) {
-            bulletManager.updateBullets(worldCoords.zeroLeft, worldCoords.zeroRight, WORLD_WIDTH, gameSpeed)
         }
     }
 
@@ -2783,10 +2682,10 @@ window.onload = async function () {
                         hudManager.removeBullet()
                     }
                     playAnim('shot')
-                    shot(player, gun.offsetX, gun.offsetY, gun.type, true)
+                    shot(playerInstance, gun.offsetX, gun.offsetY, gun.type, true)
                     if (playerState.stimpack) {
                         sleep(100).then(() => {
-                            shot(player, gun.offsetX, gun.offsetY, gun.type, true)
+                            shot(playerInstance, gun.offsetX, gun.offsetY, gun.type, true)
                         })
                     }
                     if (!gun.noStop) {

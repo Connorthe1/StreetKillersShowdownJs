@@ -11,6 +11,7 @@
  */
 
 import * as PIXI from 'pixi.js'
+import { soundPlayer } from "../playSound";
 
 /**
  * Класс игрока
@@ -77,7 +78,6 @@ export class Player {
         
         // Колбэки для управления уроном
         this.cameraShake = null
-        this.soundPlayer = null
         this.hud = null
         this.world = null
         this.createParticles = null
@@ -98,7 +98,6 @@ export class Player {
      */
     setDamageCallbacks(callbacks) {
         if (callbacks.cameraShake !== undefined) this.cameraShake = callbacks.cameraShake
-        if (callbacks.soundPlayer !== undefined) this.soundPlayer = callbacks.soundPlayer
         if (callbacks.hud !== undefined) this.hud = callbacks.hud
         if (callbacks.world !== undefined) this.world = callbacks.world
         if (callbacks.createParticles !== undefined) this.createParticles = callbacks.createParticles
@@ -191,9 +190,7 @@ export class Player {
         
         // Проверка наличия щита (boostShield)
         if (this.activePowerUps.some(item => item.type === 'boostShield')) {
-            if (this.soundPlayer) {
-                this.soundPlayer.damageMetal()
-            }
+            soundPlayer.damageMetal()
             this.sprite.tint = 16777021
             const shieldIndex = this.activePowerUps.findIndex(item => item.type === 'boostShield')
             if (shieldIndex !== -1) {
@@ -205,9 +202,7 @@ export class Player {
         } else {
             // Проверка наличия стимпака
             if (this.stimpack) {
-                if (this.soundPlayer) {
-                    this.soundPlayer.damageMetal()
-                }
+                soundPlayer.damageMetal()
                 this.sprite.tint = 16777021
                 this.stimpack = false
                 if (this.HUDremoveShield) {

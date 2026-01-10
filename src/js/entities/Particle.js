@@ -21,12 +21,13 @@ import { soundPlayer } from "../playSound";
  * Менеджер для управления всеми типами частиц
  */
 export class ParticleManager {
-    constructor(world, engine, physicsManager, ground, resources) {
+    constructor(world, engine, physicsManager, ground, resources, gameState) {
         this.world = world
         this.physicsManager = physicsManager
         this.ground = ground
         this.resources = resources
-        
+        this.gameState = gameState
+
         // Массивы частиц
         this.physParticles = []
         this.bounceParticles = []
@@ -35,43 +36,9 @@ export class ParticleManager {
         // Таймер следа
         this.trailTimerInterval = null
         this.stepSound = 0
-        
-        // Колбэки
-        this.player = null
-        this.playerState = null
-        this.playerSpeed = null
-        this.gameState = null
     }
-    
-    /**
-     * Устанавливает колбэки для trailTimer
-     * @param {Object} callbacks - объект с колбэками
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.player !== undefined) this.player = callbacks.player
-        if (callbacks.playerState !== undefined) this.playerState = callbacks.playerState
-        if (callbacks.playerSpeed !== undefined) this.playerSpeed = callbacks.playerSpeed
-        if (callbacks.gameState !== undefined) this.gameState = callbacks.gameState
-    }
-    
-    /**
-     * Обновляет состояние для trailTimer
-     * @param {Object} state - объект с состоянием
-     */
-    updateTrailState(state) {
-        if (state.playerSpeed !== undefined) this.playerSpeed = state.playerSpeed
-        if (state.player !== undefined) this.player = state.player
-        if (state.playerState !== undefined) this.playerState = state.playerState
-    }
-    
-    /**
-     * Создает физическую частицу
-     * @param {Object} char - объект персонажа/врага
-     * @param {string} particleType - тип частицы ('blood', 'spark', 'drop', 'bottle')
-     * @param {boolean} floor - находится ли на втором этаже
-     * @param {number} size - размер частицы
-     */
-    createParticle(char, particleType, floor, size) {
+
+    createParticle(coords, particleType, floor, size) {
         let particle
         
         switch (particleType) {
@@ -135,7 +102,7 @@ export class ParticleManager {
             particle.edge = random(this.ground.getLocalBounds().y + 75, this.ground.getLocalBounds().y + 110)
         }
         particle.anchor.set(0.5)
-        particle.position.set(char.x, char.y)
+        particle.position.set(coords.x, coords.y)
         
         // Создание физического тела
         particle.body = this.physicsManager.createDynamicBody(particle.x, particle.y, 1, 1, { isSensor: true })
@@ -269,18 +236,12 @@ export class ParticleManager {
             item.x -= item.scaleSize
         })
     }
-    
-    /**
-     * Создает отскакивающую частицу
-     * @param {Object} char - объект персонажа/врага
-     * @param {string} particleType - тип частицы
-     * @param {number} tint - цвет частицы (опционально)
-     */
-    spawnBounceParticle(char, particleType, tint) {
+
+    spawnBounceParticle(coords, particleType, tint) {
         const particle = new PIXI.Sprite(this.resources.bounceParticlesTexture.textures[particleType])
         particle.scale.set(2)
         particle.anchor.set(0.5)
-        particle.position.set(char.x, char.y)
+        particle.position.set(coords.x, coords.y)
         particle.lifeTime = 500
         
         if (tint) {
@@ -360,13 +321,13 @@ export class ParticleManager {
     /**
      * Запускает таймер частиц следа
      */
-    startTrailTimer() {
+    startTrailTimer(playerInstance) {
         // Останавливаем предыдущий таймер, если он существует
         this.stopTrailTimer()
         
         this.stepSound = 0
         this.trailTimerInterval = setInterval(() => {
-            if (!this.gameState || !this.player) {
+            if (!this.gameState || !playerInstance.sprite) {
                 this.stepSound = 0
                 this.stopTrailTimer()
                 return
@@ -380,23 +341,23 @@ export class ParticleManager {
             }
             
             // Частицы следа для stimpack
-            if (this.playerState && this.playerState.stimpack) {
-                this.spawnTrailParticle({x: this.player.x, y: this.player.y}, '#ffdd00')
-                this.spawnTrailParticle({x: this.player.x, y: this.player.y - 10}, '#ffdd00')
-                this.spawnTrailParticle({x: this.player.x, y: this.player.y - 20}, '#ffdd00')
-                this.spawnTrailParticle({x: this.player.x, y: this.player.y - 30}, '#ffdd00')
-                this.spawnTrailParticle({x: this.player.x, y: this.player.y - 40}, '#ffdd00')
+            if (playerInstance.stimpack) {
+                this.spawnTrailParticle({x: playerInstance.sprite.x, y: playerInstance.sprite.y}, '#ffdd00')
+                this.spawnTrailParticle({x: playerInstance.sprite.x, y: playerInstance.sprite.y - 10}, '#ffdd00')
+                this.spawnTrailParticle({x: playerInstance.sprite.x, y: playerInstance.sprite.y - 20}, '#ffdd00')
+                this.spawnTrailParticle({x: playerInstance.sprite.x, y: playerInstance.sprite.y - 30}, '#ffdd00')
+                this.spawnTrailParticle({x: playerInstance.sprite.x, y: playerInstance.sprite.y - 40}, '#ffdd00')
             }
             
             // Частицы следа при движении
-            if (this.playerSpeed > 0 && !this.gameState.isPause) {
-                this.spawnTrailParticle(this.player)
+            if (playerInstance.speed > 0 && !this.gameState.isPause) {
+                this.spawnTrailParticle(playerInstance.sprite)
                 
                 // Дополнительные частицы при качении
-                if (this.playerState && (this.playerState.state === 'roll' || this.playerState.state === 'rollEnd')) {
-                    this.spawnTrailParticle(this.player)
-                    this.spawnTrailParticle(this.player)
-                    this.spawnTrailParticle(this.player)
+                if ((playerInstance.state === 'roll' || playerInstance.state === 'rollEnd')) {
+                    this.spawnTrailParticle(playerInstance.sprite)
+                    this.spawnTrailParticle(playerInstance.sprite)
+                    this.spawnTrailParticle(playerInstance.sprite)
                 } else {
                     // Звук шагов
                     this.stepSound++
@@ -419,15 +380,10 @@ export class ParticleManager {
         }
         this.stepSound = 0
     }
-    
-    /**
-     * Получает массивы частиц (для обратной совместимости)
-     */
-    getParticleArrays() {
-        return {
-            physParticles: this.physParticles,
-            bounceParticles: this.bounceParticles,
-            trails: this.trails
-        }
+
+    updateAllParticles(zeroLeft) {
+        this.updateParticles(zeroLeft)
+        this.updateBounceParticles()
+        this.updateTrailParticles(zeroLeft)
     }
 }

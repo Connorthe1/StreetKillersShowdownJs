@@ -16,16 +16,18 @@
 import * as PIXI from 'pixi.js'
 import { getPercent } from '../utils/GameUtils.js'
 import { BULLET_SPEED } from '../core/GameConfig.js'
+import {soundPlayer} from "../playSound";
 
 /**
  * Менеджер для управления пулями
  */
 export class BulletManager {
-    constructor(world, gameState, particleManager) {
+    constructor(world, gameState, particleManager, resources) {
         this.world = world
         this.gameState = gameState
         this.particleManager = particleManager
-        
+        this.resources = resources
+
         // Массивы пуль
         this.playerBullets = []
         this.enemyBullets = []
@@ -33,44 +35,29 @@ export class BulletManager {
         
         this.bulletSpeed = BULLET_SPEED
     }
-    
-    /**
-     * Создает пулю
-     * @param {number} x - позиция X
-     * @param {number} y - позиция Y
-     * @param {Object} char - объект стреляющего (для врагов)
-     * @param {Object} gun - параметры оружия (для игрока)
-     * @param {boolean} isPlayer - пуля игрока или врага
-     * @param {Object} textures - текстуры (particles)
-     * @param {Array} activePowerUps - активные пауэр-апы игрока
-     * @returns {PIXI.Sprite} созданная пуля
-     */
-    spawnBullet(x, y, char = null, gun = null, isPlayer = true, textures = null, activePowerUps = []) {
-        if (!textures || !textures.particles) {
-            console.warn('Textures not available for bullets')
-            return null
-        }
-        
-        const bullet = new PIXI.Sprite(textures.particles.textures.bullet)
+
+    spawnBullet(x, y, char, isFriendly) {
+        const bullet = new PIXI.Sprite(this.resources.particles.textures.bullet)
+
         bullet.anchor.set(0.5)
         bullet.zIndex = 11
         bullet.scale.x = 1.5
         bullet.scale.y = 2
-        bullet.position.set(char ? x - 14 : x + 14, y)
-        
+        bullet.position.set(!isFriendly ? x - 14 : x + 14, y)
+
         // Применение эффекта пауэр-апа
-        if (isPlayer && activePowerUps.some(item => item.type === 'boostGun')) {
+        if (isFriendly && char.activePowerUps.some(item => item.type === 'boostGun')) {
             bullet.tint = 16731469
         }
         
         // Угол полета пули
-        let rotate = Math.random() * (char ? char.params.angle : (gun ? gun.angle : 0.4))
+        let rotate = Math.random() * (char.gun.angle ?? 0.4)
         rotate *= Math.round(Math.random()) ? 1 : -1
         bullet.rotation = rotate
         
         this.world.addChild(bullet)
         
-        if (isPlayer) {
+        if (isFriendly) {
             this.playerBullets.push(bullet)
         } else {
             this.enemyBullets.push(bullet)
@@ -86,21 +73,14 @@ export class BulletManager {
      * @param {number} offsetY - смещение Y
      * @param {string} eventGun - тип оружия
      * @param {boolean} friendly - дружественная пуля (игрок)
-     * @param {Object} textures - текстуры
      * @param {Object} gun - параметры оружия (для игрока)
      * @param {Object} playerState - состояние игрока
-     * @param {Object} soundPlayer - проигрыватель звуков
      * @param {Function} spawnBounceParticle - функция создания отскакивающих частиц
      * @param {Function} sleep - функция задержки
      * @returns {Array} массив созданных пуль
      */
-    shot(char, offsetX, offsetY, eventGun, friendly, textures, gun = null, playerState = null, soundPlayer = null, spawnBounceParticle = null, sleep = null) {
-        if (!textures || !textures.particles) {
-            console.warn('Textures not available for shot')
-            return []
-        }
-        
-        const shot = new PIXI.AnimatedSprite(textures.particles.animations.gunShot)
+    shot(char, offsetX, offsetY, eventGun, friendly, sleep = null) {
+        const shot = new PIXI.AnimatedSprite(this.resources.particles.animations.gunShot)
         shot.anchor.set(0.5)
         shot.scale.x = 1.2
         shot.scale.y = 1.2
@@ -115,12 +95,12 @@ export class BulletManager {
         
         if (friendly) {
             // Пули игрока
-            if (playerState && playerState.activePowerUps && playerState.activePowerUps.some(item => item.type === 'boostGun')) {
+            if (char.activePowerUps.some(item => item.type === 'boostGun')) {
                 shot.tint = 16757683
             }
-            shot.position.set(char.x + offsetX, char.y - offsetY)
+            shot.position.set(char.sprite.x + offsetX, char.sprite.y - offsetY)
             
-            if (gun && gun.noStop) {
+            if (char.gun && char.gun.noStop) {
                 this.shotsArr.push(shot)
                 if (sleep) {
                     sleep(150).then(() => {
@@ -135,11 +115,8 @@ export class BulletManager {
                 const bullet = this.spawnBullet(
                     shot.x - 10,
                     shot.y,
-                    null,
-                    gun,
-                    true,
-                    textures,
-                    playerState ? playerState.activePowerUps : []
+                    char,
+                    friendly
                 )
                 if (bullet) createdBullets.push(bullet)
             }
@@ -153,17 +130,15 @@ export class BulletManager {
                     shot.x + 10,
                     shot.y,
                     char,
-                    null,
-                    false,
-                    textures
+                    friendly,
                 )
                 if (bullet) createdBullets.push(bullet)
             }
         }
         
         // Создание отскакивающей частицы (гильза)
-        if (eventGun !== 'shotgun' && eventGun !== 'revolver' && spawnBounceParticle) {
-            spawnBounceParticle(char, 'shell')
+        if (eventGun !== 'shotgun' && eventGun !== 'revolver') {
+            this.particleManager.spawnBounceParticle(char.sprite, 'shell')
         }
         
         this.world.addChild(shot)
@@ -174,7 +149,7 @@ export class BulletManager {
                 this.world.removeChild(shot)
             })
         }
-        
+
         return createdBullets
     }
     

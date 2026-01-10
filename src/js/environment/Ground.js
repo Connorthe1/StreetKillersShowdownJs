@@ -193,8 +193,8 @@ export class GroundManager {
     /**
      * Устанавливает выбранный цвет земли
      */
-    setSelectGroundColor(color) {
-        this.selectGroundColor = color
+    refreshGroundColor() {
+        this.selectGroundColor = random(0,GROUND_COLORS.length - 1)
     }
     
     /**
