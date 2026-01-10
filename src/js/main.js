@@ -15,7 +15,7 @@ import { BulletManager } from './entities/Bullet.js'
 import { BackgroundManager } from './environment/Background.js'
 import { GroundManager } from './environment/Ground.js'
 import { BgCarManager } from './environment/BgCar.js'
-import { GarbageManager } from './entities/Garbage.js'
+import { GarbageManager } from './entities/Classes/Garbage.js'
 import { PuddleManager } from './environment/Puddle.js'
 import { CanManager } from './environment/Can.js'
 import { BuildingManager } from './environment/Building.js'
@@ -40,6 +40,7 @@ import { ExplosionManager } from './entities/ExplosionManager.js'
 import { MeleeKillManager } from './ui/MeleeKill.js'
 import { MenuManager } from './ui/Menu.js'
 import { EndScreenManager } from './ui/EndScreen.js'
+import { EventBus } from './utils/EventBus.js'
 
 // Экземпляр игрока
 let playerInstance = null
@@ -161,7 +162,6 @@ let meleeKillManager // Менеджер ближнего боя
 let menuManager // Менеджер меню
 let endScreenManager // Менеджер экрана окончания
 let currentBoss = null
-let bgCar = null
 let currentDogEnemy = null
 let currentCan = null
 let activePowerUp = null
@@ -169,6 +169,7 @@ let activeGrenade = null
 
 // Инициализация менеджера физики
 const physicsManager = new PhysicsManager()
+const eventBus = new EventBus()
 let engine // Для обратной совместимости
 let fg
 let hudLayer
@@ -256,11 +257,10 @@ window.onload = async function () {
         particleManager = new ParticleManager(world, engine, physicsManager, ground, resources, gameState)
         
         // Инициализация менеджера пуль
-        bulletManager = new BulletManager(world, gameState, particleManager, resources)
+        bulletManager = new BulletManager(world, gameState, particleManager, resources, eventBus)
         
         // Инициализация менеджеров окружения и сущностей
         backgroundManager = new BackgroundManager(world, WORLD_WIDTH, WORLD_HEIGHT, gameHeight, resources)
-        background = backgroundManager.createBg()
 
         garbageManager = new GarbageManager(world, isClub, bulletManager, particleManager, resources)
         // DONE
@@ -277,10 +277,10 @@ window.onload = async function () {
         secondFloor = ground.getLocalBounds().y - 120
 
         // Initialize player instance
-        playerInstance = new Player(world, gameState, resources, storage, WORLD_WIDTH)
+        playerInstance = new Player(world, gameState, resources, storage, WORLD_WIDTH, worldCoords)
 
         // DONE
-        bgCarManager = new BgCarManager(world, ground, worldCoords.zeroLeft, worldCoords.zeroRight, resources)
+        bgCarManager = new BgCarManager(world, ground, worldCoords, resources)
         
         puddleManager = new PuddleManager(world, gameState, player, playerState, buildings, soundPlayer, (points) => {
             if (scoreManager) scoreManager.addPoints(points)
@@ -424,17 +424,11 @@ window.onload = async function () {
             gameState,
             world,
             enemies,
-            buildings,
-            currentBoss,
-            currentDogEnemy,
-            activePowerUp,
-            bgCar,
-            currentCan,
-            isBuilding,
-            isClub,
-            afterBuilding,
+            buildingManager,
+            bgCarManager,
             worldCoords,
-            WORLD_WIDTH
+            WORLD_WIDTH,
+            resources
         )
         
         // Инициализация менеджера HUD
@@ -712,7 +706,6 @@ window.onload = async function () {
                         cameraManager.cameraShake(intensity, duration)
                     }
                 },
-                soundPlayer: soundPlayer,
                 hud: hud,
                 world: world,
                 createParticles: (char, particleType, floor) => {
@@ -738,11 +731,6 @@ window.onload = async function () {
                 },
                 getSecondFloor: () => secondFloor,
                 setPlayerSpeed: setPlayerSpeed
-            })
-
-            playerInstance.setWorldPositionCallbacks({
-                setZeroLeft: (value) => worldCoords.zeroLeft = value,
-                setZeroRight: (value) => worldCoords.zeroRight = value
             })
         }
         
@@ -966,7 +954,6 @@ window.onload = async function () {
         puddles.length = 0
         garbages.length = 0
         currentBoss = null
-        bgCar = null
         if (dogEnemyManager) {
             dogEnemyManager.clear()
         }
@@ -1133,14 +1120,8 @@ window.onload = async function () {
             activeGrenade = grenadeManager.getActiveGrenade()
         }
         // Обновление фоновой машины через BgCarManager
-        if (bgCarManager) {
-            bgCarManager.updateState({
-                zeroLeft: worldCoords.zeroLeft,
-                zeroRight: worldCoords.zeroRight
-            })
-            bgCarManager.updateBgCar()
-            bgCar = bgCarManager.getBgCar()
-        }
+        bgCarManager.updateBgCar()
+
         if (currentBoss) {
             updateBoss()
         }

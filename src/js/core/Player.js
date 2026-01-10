@@ -17,7 +17,7 @@ import { soundPlayer } from "../playSound";
  * Класс игрока
  */
 export class Player {
-    constructor(world, gameState, resources, storage, WORLD_WIDTH) {
+    constructor(world, gameState, resources, storage, WORLD_WIDTH, worldCoords) {
         // GameState для управления уроном
         this.world = world
         this.gameState = gameState
@@ -88,8 +88,7 @@ export class Player {
         this.getSecondFloor = null
         this.setPlayerSpeed = null
 
-        this.setZeroLeft = null
-        this.setZeroRight = null
+        this.worldCoords = worldCoords
     }
     
     /**
@@ -107,11 +106,6 @@ export class Player {
         if (callbacks.HUDremoveShield !== undefined) this.HUDremoveShield = callbacks.HUDremoveShield
         if (callbacks.getSecondFloor !== undefined) this.getSecondFloor = callbacks.getSecondFloor
         if (callbacks.setPlayerSpeed !== undefined) this.setPlayerSpeed = callbacks.setPlayerSpeed
-    }
-
-    setWorldPositionCallbacks(callbacks) {
-        this.setZeroLeft = callbacks.setZeroLeft
-        this.setZeroRight = callbacks.setZeroRight
     }
     
     /**
@@ -170,8 +164,8 @@ export class Player {
         }
         this.sprite.x += (0.5 * this.speed) * gameSpeed;
 
-        this.setZeroLeft(this.sprite.x - 100)
-        this.setZeroRight(this.sprite.x + this.WORLD_WIDTH)
+        this.worldCoords.zeroLeft = (this.sprite.x - 100)
+        this.worldCoords.zeroRight = (this.sprite.x + this.WORLD_WIDTH)
     }
     
     /**

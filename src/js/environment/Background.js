@@ -36,6 +36,8 @@ export class BackgroundManager {
         this.playerSpeed = null
         this.gameSpeed = null
         this.zeroLeft = null
+
+        this.createBg()
     }
     
     /**

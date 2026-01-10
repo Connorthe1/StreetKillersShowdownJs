@@ -11,13 +11,13 @@
  */
 
 import * as PIXI from 'pixi.js'
-import { random } from '../utils/GameUtils.js'
-import { soundPlayer } from "../playSound";
+import { random } from '../../utils/GameUtils.js'
+import { soundPlayer } from "../../playSound";
 
 /**
  * Менеджер мусора
  */
-export class GarbageManager {
+export class Garbage {
     constructor(world, isClub, bulletManager, particleManager, resources) {
         this.world = world
         this.isClub = isClub

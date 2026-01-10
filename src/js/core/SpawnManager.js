@@ -12,28 +12,30 @@
  */
 
 import { random } from '../utils/GameUtils.js'
-import { BUILDING_CHANCE } from '../core/GameConfig.js'
+import { BUILDING_CHANCE } from './GameConfig'
 
 /**
  * Менеджер спавна сущностей
  */
 export class SpawnManager {
-    constructor(gameState, world, enemies, buildings, currentBoss, currentDogEnemy, activePowerUp, bgCar, currentCan, isBuilding, isClub, afterBuilding, worldCoords, WORLD_WIDTH) {
+    constructor(gameState, world, enemies, buildingManager, bgCarManager, worldCoords, WORLD_WIDTH, resources) {
         this.gameState = gameState
         this.world = world
         this.enemies = enemies
-        this.buildings = buildings
-        this.currentBoss = currentBoss
-        this.currentDogEnemy = currentDogEnemy
-        this.activePowerUp = activePowerUp
-        this.bgCar = bgCar
-        this.currentCan = currentCan
-        this.isBuilding = isBuilding
-        this.isClub = isClub
-        this.afterBuilding = afterBuilding
+        this.buildingManager = buildingManager
+        this.bgCarManager = bgCarManager
         this.worldCoords = worldCoords
         this.WORLD_WIDTH = WORLD_WIDTH
-        
+        this.resources = resources
+
+        this.currentBoss = null
+        this.currentDogEnemy = null
+        this.activePowerUp = null
+        this.currentCan = null
+        this.isBuilding = false
+        this.isClub = false
+        this.afterBuilding = null
+
         // Константы
         this.buildingChance = BUILDING_CHANCE
         

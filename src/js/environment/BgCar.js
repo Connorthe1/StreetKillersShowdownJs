@@ -17,23 +17,14 @@ import { random, randomRGB } from '../utils/GameUtils.js'
  * Менеджер фоновых машин
  */
 export class BgCarManager {
-    constructor(world, ground, zeroLeft, zeroRight, resources) {
+    constructor(world, ground, worldCoords, resources) {
         this.world = world
-        this.zeroLeft = zeroLeft
-        this.zeroRight = zeroRight
+        this.worldCoords = worldCoords
         this.ground = ground
         this.resources = resources
         
         // Текущая фоновая машина
         this.bgCar = null
-    }
-    
-    /**
-     * Обновляет состояние
-     */
-    updateState(state) {
-        if (state.zeroLeft !== undefined) this.zeroLeft = state.zeroLeft
-        if (state.zeroRight !== undefined) this.zeroRight = state.zeroRight
     }
     
     /**
@@ -58,14 +49,14 @@ export class BgCarManager {
             // Движение справа налево
             car.side = 1
             const groundY = this.ground.getLocalBounds ? this.ground.getLocalBounds().y : 0
-            car.position.set(this.zeroRight, groundY + 56)
+            car.position.set(this.worldCoords.zeroRight, groundY + 56)
         } else {
             // Движение слева направо (зеркальное отображение)
             carBack.scale.set(-1, 1)
             carFront.scale.set(-1, 1)
             car.side = -1
             const groundY = this.ground.getLocalBounds ? this.ground.getLocalBounds().y : 0
-            car.position.set(this.zeroLeft - 100, groundY + 56)
+            car.position.set(this.worldCoords.zeroLeft - 100, groundY + 56)
         }
         
         // Случайная скорость
@@ -100,7 +91,7 @@ export class BgCarManager {
         } else {
             // Движение слева направо
             this.bgCar.x += this.bgCar.speed
-            if (b.x > this.zeroRight) {
+            if (b.x > this.worldCoords.zeroRight) {
                 this.removeBgCar()
             }
         }

@@ -22,11 +22,12 @@ import {soundPlayer} from "../playSound";
  * Менеджер для управления пулями
  */
 export class BulletManager {
-    constructor(world, gameState, particleManager, resources) {
+    constructor(world, gameState, particleManager, resources, eventBus) {
         this.world = world
         this.gameState = gameState
         this.particleManager = particleManager
         this.resources = resources
+        this.eventBus = eventBus
 
         // Массивы пуль
         this.playerBullets = []
@@ -73,9 +74,6 @@ export class BulletManager {
      * @param {number} offsetY - смещение Y
      * @param {string} eventGun - тип оружия
      * @param {boolean} friendly - дружественная пуля (игрок)
-     * @param {Object} gun - параметры оружия (для игрока)
-     * @param {Object} playerState - состояние игрока
-     * @param {Function} spawnBounceParticle - функция создания отскакивающих частиц
      * @param {Function} sleep - функция задержки
      * @returns {Array} массив созданных пуль
      */
