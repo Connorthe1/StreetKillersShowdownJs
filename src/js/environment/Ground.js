@@ -21,7 +21,7 @@ import { FENCE_CHANCE, GROUND_COLORS } from '../core/GameConfig.js'
  * Менеджер земли/пола
  */
 export class GroundManager {
-    constructor(world, ground, woodsBG, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources, garbageManager) {
+    constructor(world, ground, woodsBG, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources, eventBus) {
         this.world = world
         this.ground = ground
         this.woodsBG = woodsBG
@@ -29,27 +29,21 @@ export class GroundManager {
         this.WORLD_WIDTH = WORLD_WIDTH
         this.WORLD_HEIGHT = WORLD_HEIGHT
         this.resources = resources
-        this.garbageManager = garbageManager
+        this.eventBus = eventBus
 
         // Состояние пола
         this.floorPosition = 0
         this.selectGroundColor = 0
         this.isFence = false
-        this.fenceChance = FENCE_CHANCE
-        this.groundColor = GROUND_COLORS
         
         // Массив деревянных элементов
         this.woodsBGarr = []
-        
-        // Callbacks
-        this.spawnEntityCallback = null
-    }
-    
-    /**
-     * Устанавливает колбэки
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.spawnEntity) this.spawnEntityCallback = callbacks.spawnEntity
+
+        this.refreshGroundColor()
+
+        for (let i = 0; i <= 3; i++) {
+            this.createFloor(i)
+        }
     }
 
     createFloor(idx, isBuilding = false) {
@@ -57,13 +51,13 @@ export class GroundManager {
         const floor = new PIXI.Sprite(this.resources.textures.textures.ground)
         floor.anchor.set(0, 1)
         floor.position.set((this.floorPosition + idx) * floor.width, this.WORLD_HEIGHT)
-        floor.tint = this.groundColor[this.selectGroundColor]
+        floor.tint = GROUND_COLORS[this.selectGroundColor]
         
         // Создание фоновой стены/забора
         let bgWall
         const randomWall = Math.floor(Math.random() * (10 - 1 + 1) + 1)
         
-        if (randomWall < this.fenceChance) {
+        if (randomWall < FENCE_CHANCE) {
             // Забор
             if (!this.isFence) {
                 bgWall = new PIXI.Sprite(this.resources.textures.textures.groundFenceStart)
@@ -90,13 +84,13 @@ export class GroundManager {
         if (Math.random() > 0.75 && isBuilding) {
             const posX = random(10, 100)
             const posY = random(35, 45)
-            this.garbageManager.createGarbage(floor.x + floor.width + posX, floor.y - floor.height + posY)
+            this.eventBus.emit('garbage:create', {x: floor.x + floor.width + posX, y: floor.y - floor.height + posY})
         }
 
         if (Math.random() > 0.75 && isBuilding) {
             const posX = random(10, 100)
             const posY = random(5, 15)
-            this.garbageManager.createGarbage(floor.x + floor.width + posX, floor.y - floor.height + posY)
+            this.eventBus.emit('garbage:create', {x: floor.x + floor.width + posX, y: floor.y - floor.height + posY})
         }
         
         // Создание физического тела для пола
@@ -182,10 +176,8 @@ export class GroundManager {
         wood.play()
         
         this.woodsBGarr.push(wood)
-        
-        if (this.woodsBG) {
-            this.woodsBG.addChild(wood)
-        }
+
+        this.woodsBG.addChild(wood)
         
         return wood
     }

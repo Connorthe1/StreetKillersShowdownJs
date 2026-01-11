@@ -15,7 +15,7 @@ import { BulletManager } from './entities/Bullet.js'
 import { BackgroundManager } from './environment/Background.js'
 import { GroundManager } from './environment/Ground.js'
 import { BgCarManager } from './environment/BgCar.js'
-import { GarbageManager } from './entities/Classes/Garbage.js'
+import { GarbageManager } from './entities/managers/GarbageManager.js'
 import { PuddleManager } from './environment/Puddle.js'
 import { CanManager } from './environment/Can.js'
 import { BuildingManager } from './environment/Building.js'
@@ -262,16 +262,11 @@ window.onload = async function () {
         // Инициализация менеджеров окружения и сущностей
         backgroundManager = new BackgroundManager(world, WORLD_WIDTH, WORLD_HEIGHT, gameHeight, resources)
 
-        garbageManager = new GarbageManager(world, isClub, bulletManager, particleManager, resources)
+        garbageManager = new GarbageManager(world, resources, eventBus)
         // DONE
 
         // GROUND MANAGER
-        groundManager = new GroundManager(world, ground, woodsBackgroundContainer, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources, garbageManager)
-        groundManager.refreshGroundColor()
-
-        for (let i = 0; i <= 3; i++) {
-            groundManager.createFloor(i)
-        }
+        groundManager = new GroundManager(world, ground, woodsBackgroundContainer, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources, eventBus)
 
         playerPos = ground.getLocalBounds().y + 70
         secondFloor = ground.getLocalBounds().y - 120
@@ -371,9 +366,9 @@ window.onload = async function () {
         // ZipLineManager не требует установки текстур, так как управляет уже созданными зиплайнами
         
         // Установка колбэков после инициализации всех менеджеров
-        groundManager.setCallbacks({
-            spawnEntity: () => spawnManager.spawnEntity()
-        })
+        // groundManager.setCallbacks({
+        //     spawnEntity: () => spawnManager.spawnEntity()
+        // })
         
         wallManager.setCallbacks({
             createEnemy: (pos, onSecondFloor) => {
@@ -420,16 +415,16 @@ window.onload = async function () {
         // puddles и garbages управляются через менеджеры
         
         // Инициализация менеджера спавна
-        spawnManager = new SpawnManager(
-            gameState,
-            world,
-            enemies,
-            buildingManager,
-            bgCarManager,
-            worldCoords,
-            WORLD_WIDTH,
-            resources
-        )
+        // spawnManager = new SpawnManager(
+        //     gameState,
+        //     world,
+        //     enemies,
+        //     buildingManager,
+        //     bgCarManager,
+        //     worldCoords,
+        //     WORLD_WIDTH,
+        //     resources
+        // )
         
         // Инициализация менеджера HUD
         hudManager = new HUDManager(app, storage, hud, gameState, gameWidth, gameHeight, textStyles, resources)
