@@ -13,8 +13,7 @@ import { PhysicsManager } from './physics/PhysicsManager.js'
 import { ParticleManager } from './entities/Particle.js'
 import { BulletManager } from './entities/Bullet.js'
 import { BackgroundManager } from './environment/Background.js'
-import { GroundManager } from './environment/Ground.js'
-import { BgCarManager } from './environment/BgCar.js'
+import { GroundManager } from './environment/managers/GroundManager.js'
 import { GarbageManager } from './entities/managers/GarbageManager.js'
 import { PuddleManager } from './environment/Puddle.js'
 import { CanManager } from './environment/Can.js'
@@ -116,7 +115,6 @@ let buildingType = 0
 // Менеджеры окружения и сущностей
 let backgroundManager // Инициализируется после создания world
 let groundManager // Инициализируется после создания world
-let bgCarManager // Инициализируется после создания world
 let garbageManager // Инициализируется после создания world
 let puddleManager // Инициализируется после создания world
 let canManager // Инициализируется после создания world
@@ -254,28 +252,21 @@ window.onload = async function () {
         world.addChild(ground)
         
         // Инициализация менеджера частиц
-        particleManager = new ParticleManager(world, engine, physicsManager, ground, resources, gameState)
-        
-        // Инициализация менеджера пуль
+        particleManager = new ParticleManager(world, engine, physicsManager, ground, resources, gameState, eventBus)
+
         bulletManager = new BulletManager(world, gameState, particleManager, resources, eventBus)
-        
-        // Инициализация менеджеров окружения и сущностей
-        backgroundManager = new BackgroundManager(world, WORLD_WIDTH, WORLD_HEIGHT, gameHeight, resources)
+
+        backgroundManager = new BackgroundManager(world, WORLD_WIDTH, WORLD_HEIGHT, gameHeight, resources, gameState)
 
         garbageManager = new GarbageManager(world, resources, eventBus)
-        // DONE
 
-        // GROUND MANAGER
-        groundManager = new GroundManager(world, ground, woodsBackgroundContainer, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources, eventBus)
+        groundManager = new GroundManager(world, ground, woodsBackgroundContainer, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources, worldCoords, eventBus)
 
         playerPos = ground.getLocalBounds().y + 70
         secondFloor = ground.getLocalBounds().y - 120
 
         // Initialize player instance
         playerInstance = new Player(world, gameState, resources, storage, WORLD_WIDTH, worldCoords)
-
-        // DONE
-        bgCarManager = new BgCarManager(world, ground, worldCoords, resources)
         
         puddleManager = new PuddleManager(world, gameState, player, playerState, buildings, soundPlayer, (points) => {
             if (scoreManager) scoreManager.addPoints(points)
@@ -366,9 +357,6 @@ window.onload = async function () {
         // ZipLineManager не требует установки текстур, так как управляет уже созданными зиплайнами
         
         // Установка колбэков после инициализации всех менеджеров
-        // groundManager.setCallbacks({
-        //     spawnEntity: () => spawnManager.spawnEntity()
-        // })
         
         wallManager.setCallbacks({
             createEnemy: (pos, onSecondFloor) => {
@@ -420,7 +408,6 @@ window.onload = async function () {
         //     world,
         //     enemies,
         //     buildingManager,
-        //     bgCarManager,
         //     worldCoords,
         //     WORLD_WIDTH,
         //     resources
@@ -739,7 +726,6 @@ window.onload = async function () {
             // environmentManager удален, используем отдельные менеджеры
             backgroundManager,
             groundManager,
-            bgCarManager,
             garbageManager,
             puddleManager,
             canManager,
@@ -893,8 +879,6 @@ window.onload = async function () {
         }
         gameSpeed = defaultGameSpeed
         scoreManager.startScoreTimer()
-        // Запуск таймера частиц следа через ParticleManager
-        particleManager.startTrailTimer(playerInstance)
     }
 
     function restartGame() {
@@ -935,7 +919,6 @@ window.onload = async function () {
         traps = trapManager ? trapManager.getTraps() : []
         enemies.length = 0
         if (particleManager) {
-            particleManager.stopTrailTimer()
             particleManager.clear()
         }
         buildings.length = 0
@@ -1002,13 +985,7 @@ window.onload = async function () {
         }
         // Обновление фона и пола через менеджеры
         if (backgroundManager) {
-            backgroundManager.updateState({
-                gameStart: gameState.gameStart,
-                playerSpeed: playerSpeed,
-                gameSpeed: gameSpeed,
-                zeroLeft: worldCoords.zeroLeft
-            })
-            backgroundManager.updateBg()
+            backgroundManager.updateBg(worldCoords.zeroLeft, playerInstance.speed)
         }
         if (groundManager) {
             groundManager.updateFloor(worldCoords.zeroLeft, isBuilding)
@@ -1030,7 +1007,7 @@ window.onload = async function () {
             trapManager.updateTraps()
         }
 
-        particleManager.updateAllParticles(worldCoords.zeroLeft)
+        particleManager.updateAllParticles(worldCoords.zeroLeft, playerInstance)
 
         // Обновление денег через MoneyManager
         if (moneyManager) {
@@ -1114,8 +1091,6 @@ window.onload = async function () {
             // Синхронизация activeGrenade для обратной совместимости
             activeGrenade = grenadeManager.getActiveGrenade()
         }
-        // Обновление фоновой машины через BgCarManager
-        bgCarManager.updateBgCar()
 
         if (currentBoss) {
             updateBoss()

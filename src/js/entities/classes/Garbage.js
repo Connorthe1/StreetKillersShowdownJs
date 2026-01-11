@@ -3,10 +3,11 @@ import { random } from '../../utils/GameUtils.js'
 import { soundPlayer } from "../../playSound";
 
 export class Garbage {
-    constructor(posX, posY, type, resources) {
+    constructor(posX, posY, type, resources, eventBus) {
         this.resources = resources
         this.body = null
         this.alive = true
+        this.eventBus = eventBus
 
         this.create(posX, posY, type)
     }
@@ -21,7 +22,7 @@ export class Garbage {
         this.body = garbage
     }
 
-    breakBottle(garbage) {
+    breakBottle() {
         // Звук разбития стекла
         if (soundPlayer) {
             soundPlayer.glassBreak()
@@ -29,7 +30,7 @@ export class Garbage {
         
         // Создание частиц
         for (let i = 0; i <= 8; i++) {
-            this.particleManager(garbage, 'bottle')
+            this.eventBus.emit('particle:default', {coords: this.body, type: 'bottle'})
         }
 
         this.alive = false

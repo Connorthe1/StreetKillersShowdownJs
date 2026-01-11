@@ -21,20 +21,32 @@ import { soundPlayer } from "../playSound";
  * Менеджер для управления всеми типами частиц
  */
 export class ParticleManager {
-    constructor(world, engine, physicsManager, ground, resources, gameState) {
+    constructor(world, engine, physicsManager, ground, resources, gameState, eventBus) {
         this.world = world
         this.physicsManager = physicsManager
         this.ground = ground
         this.resources = resources
         this.gameState = gameState
+        this.eventBus = eventBus
 
         // Массивы частиц
         this.physParticles = []
         this.bounceParticles = []
         this.trails = []
+
+        eventBus.on('particle:default', data => {
+            this.createParticle(data.coords, data.type, data.floor, data.size);
+        })
+
+        eventBus.on('particle:bounce', data => {
+            this.spawnBounceParticle(data.coords, data.type, data.tint);
+        })
+
+        eventBus.on('particle:trail', data => {
+            this.spawnTrailParticle(data.coords, data.tint, data.zipLine);
+        })
         
         // Таймер следа
-        this.trailTimerInterval = null
         this.stepSound = 0
     }
 
@@ -288,7 +300,49 @@ export class ParticleManager {
             }
         })
     }
-    
+
+    updateStepParticles(playerInstance) {
+        if (!this.gameState || !playerInstance.sprite || this.gameState.gameEnd) {
+            this.stepSound = 0
+            return
+        }
+
+        // Частицы следа для stimpack
+        if (playerInstance.stimpack) {
+            this.spawnTrailParticle({x: playerInstance.sprite.x, y: playerInstance.sprite.y}, '#ffdd00')
+            this.spawnTrailParticle({x: playerInstance.sprite.x, y: playerInstance.sprite.y - 10}, '#ffdd00')
+            this.spawnTrailParticle({x: playerInstance.sprite.x, y: playerInstance.sprite.y - 20}, '#ffdd00')
+            this.spawnTrailParticle({x: playerInstance.sprite.x, y: playerInstance.sprite.y - 30}, '#ffdd00')
+            this.spawnTrailParticle({x: playerInstance.sprite.x, y: playerInstance.sprite.y - 40}, '#ffdd00')
+        }
+
+        // Частицы следа при движении
+        if (playerInstance.speed > 0 && !this.gameState.isPause) {
+
+            // Дополнительные частицы при качении
+            if ((playerInstance.state === 'roll' || playerInstance.state === 'rollEnd')) {
+                this.spawnTrailParticle(playerInstance.sprite)
+                this.spawnTrailParticle(playerInstance.sprite)
+                this.spawnTrailParticle(playerInstance.sprite)
+            } else {
+                // Звук шагов
+                this.stepSound++
+                if (this.stepSound > 20 && soundPlayer) {
+                    this.spawnTrailParticle(playerInstance.sprite)
+                    soundPlayer.footStep()
+                    this.stepSound = 0
+                }
+            }
+        }
+    }
+
+    updateAllParticles(zeroLeft, playerInstance) {
+        this.updateParticles(zeroLeft)
+        this.updateBounceParticles()
+        this.updateTrailParticles(zeroLeft)
+        this.updateStepParticles(playerInstance)
+    }
+
     /**
      * Очищает все частицы
      */
@@ -301,7 +355,7 @@ export class ParticleManager {
             }
         })
         this.physParticles = []
-        
+
         // Очистка отскакивающих частиц
         this.bounceParticles.forEach(particle => {
             this.world.removeChild(particle)
@@ -310,80 +364,11 @@ export class ParticleManager {
             }
         })
         this.bounceParticles = []
-        
+
         // Очистка частиц следа
         this.trails.forEach(particle => {
             this.world.removeChild(particle)
         })
         this.trails = []
-    }
-    
-    /**
-     * Запускает таймер частиц следа
-     */
-    startTrailTimer(playerInstance) {
-        // Останавливаем предыдущий таймер, если он существует
-        this.stopTrailTimer()
-        
-        this.stepSound = 0
-        this.trailTimerInterval = setInterval(() => {
-            if (!this.gameState || !playerInstance.sprite) {
-                this.stepSound = 0
-                this.stopTrailTimer()
-                return
-            }
-            
-            // Проверка на окончание игры
-            if (this.gameState.gameEnd) {
-                this.stepSound = 0
-                this.stopTrailTimer()
-                return
-            }
-            
-            // Частицы следа для stimpack
-            if (playerInstance.stimpack) {
-                this.spawnTrailParticle({x: playerInstance.sprite.x, y: playerInstance.sprite.y}, '#ffdd00')
-                this.spawnTrailParticle({x: playerInstance.sprite.x, y: playerInstance.sprite.y - 10}, '#ffdd00')
-                this.spawnTrailParticle({x: playerInstance.sprite.x, y: playerInstance.sprite.y - 20}, '#ffdd00')
-                this.spawnTrailParticle({x: playerInstance.sprite.x, y: playerInstance.sprite.y - 30}, '#ffdd00')
-                this.spawnTrailParticle({x: playerInstance.sprite.x, y: playerInstance.sprite.y - 40}, '#ffdd00')
-            }
-            
-            // Частицы следа при движении
-            if (playerInstance.speed > 0 && !this.gameState.isPause) {
-                this.spawnTrailParticle(playerInstance.sprite)
-                
-                // Дополнительные частицы при качении
-                if ((playerInstance.state === 'roll' || playerInstance.state === 'rollEnd')) {
-                    this.spawnTrailParticle(playerInstance.sprite)
-                    this.spawnTrailParticle(playerInstance.sprite)
-                    this.spawnTrailParticle(playerInstance.sprite)
-                } else {
-                    // Звук шагов
-                    this.stepSound++
-                    if (this.stepSound > 3 && soundPlayer) {
-                        soundPlayer.footStep()
-                        this.stepSound = 0
-                    }
-                }
-            }
-        }, 100)
-    }
-    
-    /**
-     * Останавливает таймер частиц следа
-     */
-    stopTrailTimer() {
-        if (this.trailTimerInterval) {
-            clearInterval(this.trailTimerInterval)
-            this.trailTimerInterval = null
-        }
-        this.stepSound = 0
-    }
-
-    updateAllParticles(zeroLeft) {
-        this.updateParticles(zeroLeft)
-        this.updateBounceParticles()
-        this.updateTrailParticles(zeroLeft)
     }
 }

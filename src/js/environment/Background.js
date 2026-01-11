@@ -11,43 +11,29 @@
  */
 
 import * as PIXI from 'pixi.js'
-import { BG_SPEED } from '../core/GameConfig.js'
+import {BG_SPEED, DEFAULT_GAME_SPEED} from '../core/GameConfig.js'
 
 /**
  * Менеджер фона
  */
 export class BackgroundManager {
-    constructor(world, WORLD_WIDTH, WORLD_HEIGHT, gameHeight, resources) {
+    constructor(world, WORLD_WIDTH, WORLD_HEIGHT, gameHeight, resources, gameState) {
         this.world = world
         this.WORLD_WIDTH = WORLD_WIDTH
         this.WORLD_HEIGHT = WORLD_HEIGHT
         this.gameHeight = gameHeight
         this.resources = resources
-        
+        this.gameState = gameState
+        this.gameSpeed = DEFAULT_GAME_SPEED
+
         // Фон
         this.background = null
         
         // Состояние прокрутки
         this.bgPosition = 0
         this.bgSpeed = BG_SPEED
-        
-        // Callbacks
-        this.gameStart = false
-        this.playerSpeed = null
-        this.gameSpeed = null
-        this.zeroLeft = null
 
         this.createBg()
-    }
-    
-    /**
-     * Обновляет состояние
-     */
-    updateState(state) {
-        if (state.gameStart !== undefined) this.gameStart = state.gameStart
-        if (state.playerSpeed !== undefined) this.playerSpeed = state.playerSpeed
-        if (state.gameSpeed !== undefined) this.gameSpeed = state.gameSpeed
-        if (state.zeroLeft !== undefined) this.zeroLeft = state.zeroLeft
     }
     
     /**
@@ -72,17 +58,17 @@ export class BackgroundManager {
     /**
      * Обновляет фон
      */
-    updateBg() {
+    updateBg(zeroLeft, playerSpeed) {
         if (!this.background) return
         
-        if (this.gameStart) {
+        if (this.gameState.gameStart) {
             // Прокрутка фона
             let speed = 1
-            if (this.playerSpeed !== null && this.playerSpeed !== undefined) {
-                if (typeof this.playerSpeed === 'object' && this.playerSpeed.value !== undefined) {
-                    speed = this.playerSpeed.value
-                } else if (typeof this.playerSpeed === 'number') {
-                    speed = this.playerSpeed
+            if (playerSpeed !== null && playerSpeed !== undefined) {
+                if (typeof playerSpeed === 'object' && playerSpeed.value !== undefined) {
+                    speed = playerSpeed.value
+                } else if (typeof playerSpeed === 'number') {
+                    speed = playerSpeed
                 }
             }
             const gameSpeed = this.gameSpeed !== null && this.gameSpeed !== undefined ? 
@@ -91,8 +77,8 @@ export class BackgroundManager {
             this.bgPosition -= (this.bgSpeed * speed) * gameSpeed
             
             // Обновление позиции фона
-            if (this.zeroLeft !== null && this.zeroLeft !== undefined) {
-                this.background.x = this.zeroLeft + this.WORLD_WIDTH / 2
+            if (zeroLeft !== null && zeroLeft !== undefined) {
+                this.background.x = zeroLeft + this.WORLD_WIDTH / 2
             }
             this.background.tilePosition.x = this.bgPosition
         }

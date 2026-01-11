@@ -1,10 +1,11 @@
-import { Garbage } from "../Classes/Garbage";
+import { Garbage } from "../classes/Garbage";
 import { EventBus } from "../../utils/EventBus";
 
 export class GarbageManager {
     constructor(world, resources, eventBus) {
         this.world = world
         this.resources = resources
+        this.eventBus = eventBus
 
         // Массив мусора
         this.garbages = []
@@ -16,7 +17,7 @@ export class GarbageManager {
     }
 
     createGarbage(posX, posY, type = 0) {
-        const garbage = new Garbage(posX, posY, type, this.resources)
+        const garbage = new Garbage(posX, posY, type, this.resources, this.eventBus)
 
         this.world.addChild(garbage.body)
         this.garbages.push(garbage)

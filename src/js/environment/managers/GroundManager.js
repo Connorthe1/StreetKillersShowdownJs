@@ -1,27 +1,14 @@
-/**
- * Ground.js
- * 
- * Менеджер земли/пола
- * 
- * Содержит:
- * - Создание пола (createFloor)
- * - Обновление пола (updateFloor)
- * - Создание деревянных элементов (createWood)
- * - Логика генерации бесконечного пола
- * - Управление физическими телами пола
- * - Управление заборами (fence)
- */
-
-import * as PIXI from 'pixi.js'
-import * as Matter from 'matter-js'
-import { random } from '../utils/GameUtils.js'
-import { FENCE_CHANCE, GROUND_COLORS } from '../core/GameConfig.js'
+import { FloorSegment } from "../classes/Floor";
+import { WoodBG } from "../classes/WoodBG";
+import { random } from '../../utils/GameUtils.js';
+import { GROUND_COLORS, FENCE_CHANCE } from '../../core/GameConfig.js';
+import {CarBG} from "../classes/CarBG";
 
 /**
- * Менеджер земли/пола
+ * Менеджер земли/пола (новая версия)
  */
 export class GroundManager {
-    constructor(world, ground, woodsBG, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources, eventBus) {
+    constructor(world, ground, woodsBG, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources, worldCoords, eventBus) {
         this.world = world
         this.ground = ground
         this.woodsBG = woodsBG
@@ -30,6 +17,7 @@ export class GroundManager {
         this.WORLD_HEIGHT = WORLD_HEIGHT
         this.resources = resources
         this.eventBus = eventBus
+        this.worldCoords = worldCoords
 
         // Состояние пола
         this.floorPosition = 0
@@ -38,6 +26,7 @@ export class GroundManager {
         
         // Массив деревянных элементов
         this.woodsBGarr = []
+        this.currentCar = null
 
         this.refreshGroundColor()
 
@@ -47,69 +36,47 @@ export class GroundManager {
     }
 
     createFloor(idx, isBuilding = false) {
-        const part = new PIXI.Container()
-        const floor = new PIXI.Sprite(this.resources.textures.textures.ground)
-        floor.anchor.set(0, 1)
-        floor.position.set((this.floorPosition + idx) * floor.width, this.WORLD_HEIGHT)
-        floor.tint = GROUND_COLORS[this.selectGroundColor]
-        
-        // Создание фоновой стены/забора
-        let bgWall
-        const randomWall = Math.floor(Math.random() * (10 - 1 + 1) + 1)
-        
-        if (randomWall < FENCE_CHANCE) {
-            // Забор
-            if (!this.isFence) {
-                bgWall = new PIXI.Sprite(this.resources.textures.textures.groundFenceStart)
-            } else {
-                bgWall = new PIXI.Sprite(this.resources.textures.textures.groundFenceMiddle)
-            }
-            this.isFence = true
-        } else {
-            // Обычная стена
-            if (this.isFence) {
-                bgWall = new PIXI.Sprite(this.resources.textures.textures.groundFenceEnd)
-            } else {
-                bgWall = new PIXI.Sprite(this.resources.textures.textures.groundWall)
-            }
-            this.isFence = false
-        }
-        
+        const changeWall = random(1, 10) < FENCE_CHANCE
+
+        const floorSegment = new FloorSegment(
+            { ...this.resources, WORLD_HEIGHT: this.WORLD_HEIGHT },
+            this.physicsManager,
+            this.floorPosition,
+            idx,
+            this.selectGroundColor,
+            this.isFence,
+            changeWall
+        )
+
+        this.isFence = changeWall
+
+        this.ground.addChild(floorSegment.getPart())
+        this.physicsManager.addBody(floorSegment.getBody())
+
         // Создание деревянных элементов
         if (Math.random() > 0.5) {
-            this.createWood(floor.x, floor.y - floor.height)
+            this.createWood(floorSegment.getFloor().x, floorSegment.getFloor().y - floorSegment.getFloor().height)
         }
 
         // Создание мусора рядом с полом (если в здании)
-        if (Math.random() > 0.75 && isBuilding) {
+        if (Math.random() > 0.75 && !isBuilding) {
             const posX = random(10, 100)
             const posY = random(35, 45)
-            this.eventBus.emit('garbage:create', {x: floor.x + floor.width + posX, y: floor.y - floor.height + posY})
+            this.eventBus.emit('garbage:create', {x: floorSegment.getFloor().x + floorSegment.getFloor().width + posX, y: floorSegment.getFloor().y - floorSegment.getFloor().height + posY})
         }
 
-        if (Math.random() > 0.75 && isBuilding) {
+        if (Math.random() > 0.75 && !isBuilding) {
             const posX = random(10, 100)
             const posY = random(5, 15)
-            this.eventBus.emit('garbage:create', {x: floor.x + floor.width + posX, y: floor.y - floor.height + posY})
+            this.eventBus.emit('garbage:create', {x: floorSegment.getFloor().x + floorSegment.getFloor().width + posX, y: floorSegment.getFloor().y - floorSegment.getFloor().height + posY})
         }
-        
-        // Создание физического тела для пола
-        floor.body = Matter.Bodies.rectangle(
-            floor.x,
-            floor.y - floor.height + 44,
-            floor.width + 20,
-            40,
-            { isStatic: true }
-        )
-        
-        bgWall.anchor.set(0, 1)
-        bgWall.position.set((this.floorPosition + idx) * bgWall.width, floor.y - floor.height)
-        
-        part.addChild(floor)
-        part.addChild(bgWall)
 
-        this.ground.addChild(part)
-        this.physicsManager.addBody(floor.body)
+        if (Math.random() > 0.5) {
+            if (!this.currentCar) {
+                this.currentCar = new CarBG(this.resources, this.worldCoords, floorSegment.getFloor().y - floorSegment.getFloor().height)
+                this.world.addChild(this.currentCar.body)
+            }
+        }
     }
     
     /**
@@ -141,9 +108,9 @@ export class GroundManager {
             this.createFloor(3, isBuilding)
             
             // Спавн сущностей
-            if (this.spawnEntityCallback) {
-                this.spawnEntityCallback()
-            }
+            // if (this.spawnEntityCallback) {
+            //     this.spawnEntityCallback()
+            // }
         }
         
         // Обновление деревянных элементов
@@ -159,6 +126,25 @@ export class GroundManager {
                 this.woodsBGarr.splice(idx, 1)
             }
         })
+
+        if (this.currentCar) {
+            const carBounds = this.currentCar.body.getBounds ? this.currentCar.body.getBounds() : this.currentCar.body
+            this.currentCar.update()
+
+            if (this.currentCar.side > 0) {
+                // Движение справа налево
+                if (carBounds.x + carBounds.width < 0) {
+                    this.world.removeChild(this.currentCar.body)
+                    this.currentCar = null
+                }
+            } else {
+                // Движение слева направо
+                if (carBounds.x > this.worldCoords.zeroRight) {
+                    this.world.removeChild(this.currentCar.body)
+                    this.currentCar = null
+                }
+            }
+        }
     }
     
     /**
@@ -167,17 +153,10 @@ export class GroundManager {
      * @param {number} posY - позиция Y
      */
     createWood(posX, posY) {
-        const woodType = random(1, 4)
-        const wood = new PIXI.AnimatedSprite(this.resources.woods.animations[`wood${woodType}_part`])
-        wood.scale.set(random(0.8, 1.5, true, true))
-        wood.anchor.set(0, 1)
-        wood.position.set(posX, posY + 60)
-        wood.animationSpeed = 0.1
-        wood.play()
+        const wood = new WoodBG(posX, posY, this.resources)
         
-        this.woodsBGarr.push(wood)
-
-        this.woodsBG.addChild(wood)
+        this.woodsBGarr.push(wood.body)
+        this.woodsBG.addChild(wood.body)
         
         return wood
     }
@@ -186,7 +165,7 @@ export class GroundManager {
      * Устанавливает выбранный цвет земли
      */
     refreshGroundColor() {
-        this.selectGroundColor = random(0,GROUND_COLORS.length - 1)
+        this.selectGroundColor = random(0, GROUND_COLORS.length - 1)
     }
     
     /**
