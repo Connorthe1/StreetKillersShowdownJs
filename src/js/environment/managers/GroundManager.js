@@ -108,9 +108,7 @@ export class GroundManager {
             this.createFloor(3, isBuilding)
             
             // Спавн сущностей
-            // if (this.spawnEntityCallback) {
-            //     this.spawnEntityCallback()
-            // }
+            this.eventBus.emit('spawn:entity')
         }
         
         // Обновление деревянных элементов

@@ -24,7 +24,7 @@ export const BASE_STORAGE = {
     muteSound: false,
     muteMusic: false,
     lastUpdate: 0,
-    selectedSkin: 2,
+    selectedSkin: 1,
     ownedSkins: [0],
     activeItems: {
         stimpack: 0,

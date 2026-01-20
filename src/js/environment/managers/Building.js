@@ -14,136 +14,93 @@
 
 import * as PIXI from 'pixi.js'
 import * as Matter from 'matter-js'
-import { random, randomRGB } from '../utils/GameUtils.js'
+import { random, randomRGB } from '../../utils/GameUtils.js'
+import {BUILDING_CHANCE} from "../../core/GameConfig";
 
 /**
  * Менеджер зданий
  */
 export class BuildingManager {
-    constructor(world, engine, physicsManager, ground, secondFloor, walls, buildings, zipLines, traps, player, playerState, zeroLeft, zeroRight, WORLD_WIDTH, WORLD_HEIGHT, fg) {
+    constructor(world, physicsManager, ground, worldCoords, gameConfig, fg, resources, eventBus) {
         this.world = world
-        this.engine = engine
         this.physicsManager = physicsManager
         this.ground = ground
-        this.secondFloor = secondFloor
-        this.walls = walls
-        this.buildings = buildings
-        this.zipLines = zipLines
-        this.traps = traps
-        this.player = player
-        this.playerState = playerState
-        this.zeroLeft = zeroLeft
-        this.zeroRight = zeroRight
-        this.WORLD_WIDTH = WORLD_WIDTH
-        this.WORLD_HEIGHT = WORLD_HEIGHT
+
+        this.worldCoords = worldCoords
         this.fg = fg
-        
+        this.eventBus = eventBus
+        this.resources = resources
+        this.gameConfig = gameConfig
+
         // Состояние
+        this.buildingChance = BUILDING_CHANCE
+        this.buildings = []
         this.buildingType = 0
         this.afterBuilding = 0
-        
-        // Текстуры (устанавливаются позже)
-        this.build1 = null
-        this.build2 = null
-        this.buildZiplineTexture = null
-        this.club = null
-        this.inBuildTexture = null
-        this.inFloorTexture = null
-        this.inClubTexture = null
-        this.windowTexture = null
-        this.doorTexture = null
-        this.laserBeamTexture = null
-        
-        // Callbacks
-        this.createBossCallback = null
-        this.soundPlayer = null
-        this.playAnimCallback = null
-        this.storage = null
-        this.skinStore = null
-        this.playerSpeed = null
+        this.isBuilding = false
+        this.isClub = false
     }
-    
-    /**
-     * Устанавливает текстуры
-     */
-    setTextures(textures) {
-        if (textures.build1) this.build1 = textures.build1
-        if (textures.build2) this.build2 = textures.build2
-        if (textures.buildZiplineTexture) this.buildZiplineTexture = textures.buildZiplineTexture
-        if (textures.club) this.club = textures.club
-        if (textures.inBuildTexture) this.inBuildTexture = textures.inBuildTexture
-        if (textures.inFloorTexture) this.inFloorTexture = textures.inFloorTexture
-        if (textures.inClubTexture) this.inClubTexture = textures.inClubTexture
-        if (textures.windowTexture) this.windowTexture = textures.windowTexture
-        if (textures.doorTexture) this.doorTexture = textures.doorTexture
-        if (textures.laserBeamTexture) this.laserBeamTexture = textures.laserBeamTexture
+
+    createBuildingChance() {
+        if (!this.isClub) {
+            const randomBuild = random(1, 10)
+
+            const lastBuilding = this.buildings[this.buildings.length - 1] || null
+
+            switch (true) {
+                case randomBuild <= this.buildingChance:
+                    if (this.isBuilding) {
+                        this.spawnBuilding('continue', lastBuilding)
+                    } else {
+                        if (this.buildings.length === 0) {
+                            const testClub = random(1, 10)
+                            this.isBuilding = true
+                            if (testClub === 1) {
+                                this.isClub = true
+                                this.buildings.push(this.createClub())
+                                return
+                            }
+                            this.spawnBuilding('start', lastBuilding)
+                        }
+                    }
+                    break
+                default:
+                    if (this.isBuilding) {
+                        this.isBuilding = false
+                        this.spawnBuilding('end', lastBuilding)
+                    }
+                    break
+            }
+        }
     }
-    
-    /**
-     * Устанавливает колбэки
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.createBoss) this.createBossCallback = callbacks.createBoss
-        if (callbacks.soundPlayer) this.soundPlayer = callbacks.soundPlayer
-        if (callbacks.playAnim) this.playAnimCallback = callbacks.playAnim
-        if (callbacks.storage) this.storage = callbacks.storage
-        if (callbacks.skinStore) this.skinStore = callbacks.skinStore
-        if (callbacks.playerSpeed) this.playerSpeed = callbacks.playerSpeed
-    }
-    
-    /**
-     * Обновляет состояние
-     */
-    updateState(state) {
-        if (state.player !== undefined) this.player = state.player
-        if (state.playerState !== undefined) this.playerState = state.playerState
-        if (state.zeroLeft !== undefined) this.zeroLeft = state.zeroLeft
-        if (state.zeroRight !== undefined) this.zeroRight = state.zeroRight
-        if (state.afterBuilding !== undefined) this.afterBuilding = state.afterBuilding
-    }
-    
-    /**
-     * Спавн здания
-     * @param {string} type - 'start', 'continue', 'end'
-     */
-    spawnBuilding(type) {
-        const randBuild = this.buildingType > 0 ? this.buildingType : Math.floor(Math.random() * (2 - 1 + 1) + 1)
+
+    spawnBuilding(type, lastBuilding) {
+        const randBuild = this.buildingType > 0 ? this.buildingType : random(1, 1)
         switch (randBuild) {
             case 1:
                 this.buildingType = 1
-                this.createBuildingZipline(type)
+                this.createBuildingZipline(type, lastBuilding)
                 break
             case 2:
                 this.buildingType = 2
-                this.createBuilding(type)
+                this.createBuilding(type, lastBuilding)
                 break
         }
         if (type === 'end') {
             this.buildingType = 0
         }
     }
-    
-    /**
-     * Создает здание с зиплайном
-     * @param {string} type - 'start', 'continue', 'end'
-     */
-    createBuildingZipline(type) {
-        if (!this.build2 || !this.buildZiplineTexture) {
-            console.warn('Building textures not available')
-            return
-        }
-        
+
+    createBuildingZipline(type, lastBuilding) {
+        console.log('createBuildingZipline', type)
         const buildContainer = new PIXI.Container()
         buildContainer.secondFloor = true
         let buildBack
         let buildFront
         let buildConnect
-        let buildZipline
-        let position = this.zeroRight + 300
-        let lastBuilding
+        let position = this.worldCoords.zeroRight + 300
         
-        if (this.buildings.length > 0 && type !== 'start') {
-            lastBuilding = this.buildings[this.buildings.length - 1]
+        if (lastBuilding && type !== 'start') {
             const LBbounds = lastBuilding.getLocalBounds()
             position = LBbounds.x + LBbounds.width
         }
@@ -151,17 +108,13 @@ export class BuildingManager {
         this.deleteWallsAroundBuilding(position)
         
         if (type === 'start') {
-            buildBack = new PIXI.Sprite(this.build2.textures.Build2FOne)
-            buildFront = new PIXI.Sprite(this.build2.textures.Build2FOneClose)
+            buildBack = new PIXI.Sprite(this.resources.build2.textures.Build2FOne)
+            buildFront = new PIXI.Sprite(this.resources.build2.textures.Build2FOneClose)
             buildBack.anchor.set(0.5)
             buildBack.position.set(position + buildBack.width / 2, this.ground.getLocalBounds().y - 118)
-            buildZipline = new PIXI.Sprite(this.buildZiplineTexture.textures.Zipline2FStart)
-            buildZipline.position.set((position - buildZipline.width) + 40, buildBack.y - buildBack.height / 2)
-            buildZipline.zIndex = 1
-            if (this.world) {
-                this.world.addChild(buildZipline)
-            }
-            this.zipLines.push(buildZipline)
+
+            this.eventBus.emit('zipline:create', {pos: {x: position, y: buildBack.y - buildBack.height / 2}, type: 1})
+
             this.createWindow(position + 11)
             if (Math.random() < 0.5) {
                 this.createDoor(position + buildBack.width - 72, true)
@@ -173,9 +126,9 @@ export class BuildingManager {
             const rand = Math.random()
             if (!lastBuilding.outroof) {
                 if (rand < 0.5) {
-                    buildConnect = new PIXI.Sprite(this.build2.textures.Build2fOneConnect)
-                    buildBack = new PIXI.Sprite(this.build2.textures.Build2FTwo)
-                    buildFront = new PIXI.Sprite(this.build2.textures.Build2FTwoClose)
+                    buildConnect = new PIXI.Sprite(this.resources.build2.textures.Build2fOneConnect)
+                    buildBack = new PIXI.Sprite(this.resources.build2.textures.Build2FTwo)
+                    buildFront = new PIXI.Sprite(this.resources.build2.textures.Build2FTwoClose)
                     buildBack.anchor.set(0.5)
                     buildBack.position.set(position + buildBack.width / 2, this.ground.getLocalBounds().y - 118)
                     if (Math.random() < 0.5) {
@@ -189,10 +142,10 @@ export class BuildingManager {
                         }
                     }
                 } else {
-                    buildBack = new PIXI.Sprite(this.build2.textures.Build2Outroof)
+                    buildBack = new PIXI.Sprite(this.resources.build2.textures.Build2Outroof)
                     buildContainer.outroof = true
                     buildBack.anchor.set(0.5)
-                    buildBack.position.set(position + buildBack.width / 2, this.ground.getLocalBounds().y - 3)
+                    buildBack.position.set(position + buildBack.width / 2, this.ground.getLocalBounds().y - 2)
                     if (Math.random() < 0.5) {
                         this.createCoverInBuild(position + buildBack.width - 250, true, true)
                     }
@@ -202,10 +155,10 @@ export class BuildingManager {
                 }
             } else {
                 if (rand < 0.5) {
-                    buildBack = new PIXI.Sprite(this.build2.textures.Build2FThree)
-                    buildFront = new PIXI.Sprite(this.build2.textures.Build2FThreeClose)
+                    buildBack = new PIXI.Sprite(this.resources.build2.textures.Build2FThree)
+                    buildFront = new PIXI.Sprite(this.resources.build2.textures.Build2FThreeClose)
                     buildBack.anchor.set(0.5)
-                    buildBack.position.set(position + buildBack.width / 2 - 120, this.ground.getLocalBounds().y - 119)
+                    buildBack.position.set(position + buildBack.width / 2 - 104, this.ground.getLocalBounds().y - 118)
                     if (Math.random() < 0.5) {
                         this.createCoverInBuild(position + buildBack.width - 360, true)
                     }
@@ -221,11 +174,11 @@ export class BuildingManager {
                         this.createWindow(position + buildBack.width - 212)
                     }
                 } else {
-                    buildBack = new PIXI.Sprite(this.build2.textures.Build2Outroof)
-                    buildConnect = new PIXI.Sprite(this.build2.textures.Build2fOneConnect)
+                    buildBack = new PIXI.Sprite(this.resources.build2.textures.Build2Outroof)
+                    buildConnect = new PIXI.Sprite(this.resources.build2.textures.Build2fOneConnect)
                     buildContainer.outroof = true
                     buildBack.anchor.set(0.5)
-                    buildBack.position.set(position + buildBack.width / 2, this.ground.getLocalBounds().y - 3)
+                    buildBack.position.set(position + buildBack.width / 2, this.ground.getLocalBounds().y - 2)
                     if (Math.random() < 0.5) {
                         this.createCoverInBuild(position + buildBack.width - 250, true, true)
                     }
@@ -238,32 +191,27 @@ export class BuildingManager {
         
         if (type === 'end') {
             if (buildContainer.outroof) {
-                buildZipline = new PIXI.Sprite(this.buildZiplineTexture.textures.Zipline1FEnd)
-                buildZipline.position.set(buildBack.x + buildBack.width / 2 - 96, buildBack.y - buildBack.height / 2 - 74)
-                buildZipline.end = true
+                this.eventBus.emit('zipline:create', {pos: {x: buildBack.x + buildBack.width / 2 - 96, y: buildBack.y - buildBack.height / 2 - 74}, type: 2})
             } else {
-                buildZipline = new PIXI.Sprite(this.buildZiplineTexture.textures.Zipline2FEnd)
-                buildZipline.position.set(buildBack.x + buildBack.width / 2 - 96, buildBack.y - buildBack.height / 2 - 74)
-                buildZipline.end = true
+                this.eventBus.emit('zipline:create', {pos: {x: buildBack.x + buildBack.width / 2, y: buildBack.y - buildBack.height / 2}, type: 3})
             }
-            buildZipline.zIndex = 1
-            if (this.world) {
-                this.world.addChild(buildZipline)
-            }
-            this.zipLines.push(buildZipline)
+            this.afterBuilding = buildBack.x + buildBack.width / 2
         }
-        
+
         if (buildFront) {
             buildFront.anchor.set(0.5)
+            buildFront.position.set(buildBack.x, buildBack.y)
             buildFront.parentGroup = this.fg
             buildFront.zOrder = 10
-            buildFront.position.set(position + buildFront.width / 2, buildBack.y)
             buildContainer.addChild(buildFront)
         }
-        
+
         if (buildConnect) {
-            buildConnect.anchor.set(0.5)
-            buildConnect.position.set(position + buildConnect.width / 2, buildBack.y)
+            if (buildContainer.outroof) {
+                buildConnect.position.set(buildBack.x - buildBack.width - 54 , buildBack.y - buildBack.height / 2 - 42)
+            } else {
+                buildConnect.position.set((buildBack.x - buildBack.width * 1.5) - 4, buildBack.y - buildBack.height / 2)
+            }
             buildContainer.addChild(buildConnect)
         }
         
@@ -280,7 +228,7 @@ export class BuildingManager {
             }
         ]
         buildContainer.resetSpawnZones = resetSpawnZones
-        buildContainer.body = Matter.Bodies.rectangle(buildBack.x, this.secondFloor + 50, buildBack.width + 20, 40, { isStatic: true })
+        buildContainer.body = Matter.Bodies.rectangle(buildBack.x, this.worldCoords.secondFloor + 50, buildBack.width + 20, 40, { isStatic: true })
         if (this.physicsManager) {
             this.physicsManager.addBody(buildContainer.body)
         }
@@ -289,91 +237,61 @@ export class BuildingManager {
         }
         this.buildings.push(buildContainer)
     }
-    
-    /**
-     * Создает обычное здание
-     * @param {string} type - 'start', 'continue', 'end'
-     */
-    createBuilding(type) {
-        if (!this.build1) {
-            console.warn('Building textures not available')
-            return
-        }
-        
+
+    createBuilding(type, lastBuilding) {
+        console.log('createBuilding', type)
         const buildContainer = new PIXI.Container()
         let buildBack
         let buildFront
         let buildConnect
-        let position = this.zeroRight + 300
-        let lastBuilding
-        
-        if (this.buildings.length > 0 && type !== 'start') {
-            lastBuilding = this.buildings[this.buildings.length - 1]
+        let position = this.worldCoords.zeroRight + 300
+
+        if (lastBuilding && type !== 'start') {
             const LBbounds = lastBuilding.getLocalBounds()
             position = LBbounds.x + LBbounds.width
         }
         
         this.deleteWallsAroundBuilding(position)
-        const rand = Math.random()
-        
+
         if (type === 'start') {
-            if (rand < 0.5) {
-                buildBack = new PIXI.Sprite(this.build1.textures.Build1FTwo)
-                buildFront = new PIXI.Sprite(this.build1.textures.Build1FTwoClose)
-                if (Math.random() < 0.5) {
-                    this.createCoverInBuild(position + buildBack.width - 150)
-                }
-                if (Math.random() < 0.5) {
-                    this.createDoor(position + buildBack.width - 72)
-                }
-            } else {
-                buildBack = new PIXI.Sprite(this.build1.textures.Build1FThree)
-                buildFront = new PIXI.Sprite(this.build1.textures.Build1FThreeClose)
-                if (Math.random() < 0.5) {
-                    this.createCoverInBuild(position + buildBack.width - 150)
-                }
-                if (Math.random() < 0.5) {
-                    this.createCoverInBuild(position + buildBack.width - 340)
-                }
-                if (Math.random() < 0.5) {
-                    this.createDoor(position + buildBack.width - 72)
-                }
-            }
-            if (type !== 'end') {
-                if (rand < 0.5) {
-                    buildConnect = new PIXI.Sprite(this.build1.textures.Build1FTwoConnection)
-                } else {
-                    buildConnect = new PIXI.Sprite(this.build1.textures.Build1FThreeConnection)
-                }
-            }
+            buildBack = new PIXI.Sprite(this.resources.build1.textures.Build1FOne)
+            buildFront = new PIXI.Sprite(this.resources.build1.textures.Build1FOneClose)
+            // if (trapManager) trapManager.createDoor(position + 32)
+            // if (Math.random() < 0.5) {
+            //     if (trapManager) trapManager.createDoor(position + buildBack.width - 72)
+            // }
+            // if (Math.random() < 0.5) {
+            //     createCoverInBuild(position + buildBack.width / 2)
+            // }
         } else {
+            const rand = Math.random()
             if (rand < 0.5) {
-                buildBack = new PIXI.Sprite(this.build1.textures.Build1FTwo)
-                buildFront = new PIXI.Sprite(this.build1.textures.Build1FTwoClose)
-                if (Math.random() < 0.5) {
-                    this.createCoverInBuild(position + buildBack.width - 150)
-                }
-                if (Math.random() < 0.5) {
-                    this.createDoor(position + buildBack.width - 72)
-                }
+                buildBack = new PIXI.Sprite(this.resources.build1.textures.Build1FTwo)
+                buildFront = new PIXI.Sprite(this.resources.build1.textures.Build1FTwoClose)
+                // if (Math.random() < 0.5) {
+                //     createCoverInBuild(position + buildBack.width - 150)
+                // }
+                // if (Math.random() < 0.5) {
+                //     if (trapManager) trapManager.createDoor(position + buildBack.width - 72)
+                // }
             } else {
-                buildBack = new PIXI.Sprite(this.build1.textures.Build1FThree)
-                buildFront = new PIXI.Sprite(this.build1.textures.Build1FThreeClose)
-                if (Math.random() < 0.5) {
-                    this.createCoverInBuild(position + buildBack.width - 150)
-                }
-                if (Math.random() < 0.5) {
-                    this.createCoverInBuild(position + buildBack.width - 340)
-                }
-                if (Math.random() < 0.5) {
-                    this.createDoor(position + buildBack.width - 72)
-                }
+                buildBack = new PIXI.Sprite(this.resources.build1.textures.Build1FThree)
+                buildFront = new PIXI.Sprite(this.resources.build1.textures.Build1FThreeClose)
+                // if (Math.random() < 0.5) {
+                //     createCoverInBuild(position + buildBack.width - 150)
+                // }
+                // if (Math.random() < 0.5) {
+                //     createCoverInBuild(position + buildBack.width - 340)
+                // }
+                // if (Math.random() < 0.5) {
+                //     if (trapManager) trapManager.createDoor(position + buildBack.width - 72)
+                // }
             }
             if (type !== 'end') {
                 if (rand < 0.5) {
-                    buildConnect = new PIXI.Sprite(this.build1.textures.Build1FTwoConnection)
+                    buildConnect = new PIXI.Sprite(this.resources.build1.textures.Build1FTwoConnection)
                 } else {
-                    buildConnect = new PIXI.Sprite(this.build1.textures.Build1FThreeConnection)
+                    buildConnect = new PIXI.Sprite(this.resources.build1.textures.Build1FThreeConnection)
                 }
             }
         }
@@ -409,13 +327,10 @@ export class BuildingManager {
             }
         ]
         buildContainer.resetSpawnZones = resetSpawnZones
-        buildContainer.body = Matter.Bodies.rectangle(buildBack.x, this.secondFloor + 50, buildBack.width + 20, 40, { isStatic: true })
-        if (this.physicsManager) {
-            this.physicsManager.addBody(buildContainer.body)
-        }
-        if (this.world) {
-            this.world.addChild(buildContainer)
-        }
+        buildContainer.body = Matter.Bodies.rectangle(buildBack.x, this.worldCoords.secondFloor + 50, buildBack.width + 20, 40, { isStatic: true })
+
+        this.physicsManager.addBody(buildContainer.body)
+        this.world.addChild(buildContainer)
         this.buildings.push(buildContainer)
     }
     
@@ -423,22 +338,17 @@ export class BuildingManager {
      * Создает клуб
      */
     createClub() {
-        if (!this.club || !this.laserBeamTexture || !this.inClubTexture) {
-            console.warn('Club textures not available')
-            return
-        }
-        
-        let position = this.zeroRight + 300
+        let position = this.worldCoords.zeroRight + 300
         const clubContainer = new PIXI.Container()
-        const clubBack = new PIXI.Sprite(this.club.textures.clubBack)
-        const clubFront = new PIXI.Sprite(this.club.textures.clubFront)
+        const clubBack = new PIXI.Sprite(this.resources.club.textures.clubBack)
+        const clubFront = new PIXI.Sprite(this.resources.club.textures.clubFront)
         
         this.deleteWallsAroundBuilding(position + clubBack.width / 2)
         
         for (let i = 1; i <= 17; i++) {
             const rand = Math.floor(Math.random() * (9 - 1 + 1) + 1)
-            const laserBeam = new PIXI.AnimatedSprite(this.laserBeamTexture.animations[`render${rand}`])
-            laserBeam.position.set(position + 526 + (i * 44), this.WORLD_HEIGHT - 434)
+            const laserBeam = new PIXI.AnimatedSprite(this.resources.laserBeamTexture.animations[`render${rand}`])
+            laserBeam.position.set(position + 526 + (i * 44), this.gameConfig.WORLD_HEIGHT - 434)
             laserBeam.tint = randomRGB()
             laserBeam.scale.y = `1.0${rand}`
             laserBeam.parentGroup = this.fg
@@ -507,14 +417,14 @@ export class BuildingManager {
             }
         ]
         clubContainer.resetSpawnZones = resetSpawnZones
-        clubContainer.body = Matter.Bodies.rectangle(clubBack.x, this.secondFloor + 50, clubBack.width + 20, 40, { isStatic: true })
+        clubContainer.body = Matter.Bodies.rectangle(clubBack.x, this.worldCoords.secondFloor + 50, clubBack.width + 20, 40, { isStatic: true })
         if (this.physicsManager) {
             this.physicsManager.addBody(clubContainer.body)
         }
         if (this.world) {
             this.world.addChild(clubContainer)
         }
-        this.buildings.push(clubContainer)
+        return clubContainer
     }
     
     /**
@@ -524,19 +434,15 @@ export class BuildingManager {
      * @param {boolean} isRoof - на крыше
      */
     createCoverInBuild(pos, isSecondFloor, isRoof) {
-        if (!this.inBuildTexture || !this.inFloorTexture) {
-            console.warn('Cover textures not available')
-            return
-        }
-        
+        return
         let wall
         if (isRoof) {
             const randomWall = Math.floor(Math.random() * (1 + 1))
-            wall = new PIXI.Sprite(this.inFloorTexture.textures[`Floor-${randomWall}`])
+            wall = new PIXI.Sprite(this.resources.inFloorTexture.textures[`Floor-${randomWall}`])
             wall.coverX = pos - 34
         } else {
             const randomWall = Math.floor(Math.random() * (2 + 1))
-            wall = new PIXI.Sprite(this.inBuildTexture.textures[`inhouse-${randomWall}`])
+            wall = new PIXI.Sprite(this.resources.inBuildTexture.textures[`inhouse-${randomWall}`])
             wall.coverX = pos - 20
         }
         wall.bound = 0
@@ -566,7 +472,7 @@ export class BuildingManager {
             return
         }
         
-        const wall = new PIXI.Sprite(this.inClubTexture.textures[`inClub-${type}`])
+        const wall = new PIXI.Sprite(this.resources.inClubTexture.textures[`inClub-${type}`])
         switch (type) {
             case 0:
                 wall.bound = 50
@@ -669,30 +575,6 @@ export class BuildingManager {
     }
     
     /**
-     * Обновляет здания
-     * @param {Function} setIsClubCallback - колбэк для установки isClub
-     * @param {Function} setIsBuildingCallback - колбэк для установки isBuilding
-     */
-    updateBuildings(setIsClubCallback, setIsBuildingCallback) {
-        this.buildings.forEach((build, idx) => {
-            const b = build.getBounds ? build.getBounds() : build
-            if (b.x + b.width < 0) {
-                if (build.club) {
-                    if (setIsClubCallback) setIsClubCallback(false)
-                    if (setIsBuildingCallback) setIsBuildingCallback(false)
-                }
-                if (this.world) {
-                    this.world.removeChild(build)
-                }
-                if (build.body && this.physicsManager) {
-                    this.physicsManager.removeBody(build.body)
-                }
-                this.buildings.splice(idx, 1)
-            }
-        })
-    }
-    
-    /**
      * Обновляет зиплайны
      * @deprecated Используйте ZipLineManager.updateZiplines() вместо этого
      * Метод оставлен для обратной совместимости, но будет удален в будущем
@@ -702,52 +584,20 @@ export class BuildingManager {
         // Оставлен для обратной совместимости
         console.warn('BuildingManager.updateZiplines() устарел. Используйте ZipLineManager.updateZiplines()')
     }
-    
-    /**
-     * Получает тип здания
-     */
-    getBuildingType() {
-        return this.buildingType
+
+    getBuildings() {
+        return this.buildings
     }
-    
-    /**
-     * Получает позицию после здания
-     */
+
+    getIsBuilding() {
+        return this.isBuilding
+    }
+
     getAfterBuilding() {
         return this.afterBuilding
     }
     
-    /**
-     * Очищает все здания
-     */
-    clear() {
-        this.buildings.forEach(build => {
-            if (this.world) {
-                this.world.removeChild(build)
-            }
-            if (build.body && this.physicsManager) {
-                this.physicsManager.removeBody(build.body)
-            }
-        })
-        this.buildings = []
-        
-        this.zipLines.forEach(zipLine => {
-            if (this.world) {
-                this.world.removeChild(zipLine)
-            }
-        })
-        this.zipLines = []
-        
-        this.buildingType = 0
-        this.afterBuilding = 0
-    }
-    
-    /**
-     * Возвращает массивы данных для обратной совместимости
-     */
-    getArrays() {
-        return {
-            buildings: this.buildings
-        };
+    clear(build) {
+        this.physicsManager.removeBody(build.body)
     }
 }

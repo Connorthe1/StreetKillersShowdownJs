@@ -22,10 +22,9 @@ import {soundPlayer} from "../playSound";
  * Менеджер для управления пулями
  */
 export class BulletManager {
-    constructor(world, gameState, particleManager, resources, eventBus) {
+    constructor(world, gameState, resources, eventBus) {
         this.world = world
         this.gameState = gameState
-        this.particleManager = particleManager
         this.resources = resources
         this.eventBus = eventBus
 
@@ -136,9 +135,9 @@ export class BulletManager {
         
         // Создание отскакивающей частицы (гильза)
         if (eventGun !== 'shotgun' && eventGun !== 'revolver') {
-            this.particleManager.spawnBounceParticle(char.sprite, 'shell')
+            this.eventBus.emit('particle:bounce', { coords: char.sprite, type: 'shell' })
         }
-        
+
         this.world.addChild(shot)
         shot.play()
         
@@ -166,10 +165,8 @@ export class BulletManager {
             
             if (b.position.x < zeroLeft + 50 || b.position.x > zeroRight + 100) {
                 // Создание частиц при исчезновении
-                if (this.particleManager && this.particleManager.createParticle) {
-                    for (let i = 0; i <= 3; i++) {
-                        this.particleManager.createParticle(b, 'spark', undefined, 1)
-                    }
+                for (let i = 0; i <= 3; i++) {
+                    this.eventBus.emit('particle:default', { coords: b, type: 'spark', floor: undefined, size: 1 })
                 }
                 this.world.removeChild(b)
                 this.enemyBullets.splice(idx, 1)
@@ -185,10 +182,8 @@ export class BulletManager {
                 this.world.removeChild(b)
                 this.gameState.decreaseStreakBy(0.5)
                 // Создание частиц при исчезновении
-                if (this.particleManager && this.particleManager.createParticle) {
-                    for (let i = 0; i <= 3; i++) {
-                        this.particleManager.createParticle(b, 'spark', undefined, 1)
-                    }
+                for (let i = 0; i <= 3; i++) {
+                    this.eventBus.emit('particle:default', { coords: b, type: 'spark', floor: undefined, size: 1 })
                 }
                 this.playerBullets.splice(idx, 1)
             }

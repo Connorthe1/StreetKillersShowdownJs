@@ -12,40 +12,21 @@
  */
 
 import * as PIXI from 'pixi.js'
-import { random } from '../utils/GameUtils.js'
+import { random } from '../../utils/GameUtils.js'
 
 /**
  * Менеджер стен
  */
 export class WallManager {
-    constructor(world, player, ground, worldCoords, afterBuilding, resources, garbageManager) {
+    constructor(world, ground, worldCoords, resources, eventBus) {
         this.world = world
-        this.player = player
         this.ground = ground
         this.worldCoords = worldCoords
-        this.afterBuilding = afterBuilding
         this.resources = resources
-        this.garbageManager = garbageManager
+        this.eventBus = eventBus
 
         // Массив стен
         this.walls = []
-        
-        // Callbacks
-        this.createEnemyCallback = null
-    }
-    
-    /**
-     * Устанавливает колбэки
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.createEnemy) this.createEnemyCallback = callbacks.createEnemy
-    }
-    
-    /**
-     * Обновляет состояние
-     */
-    updateState(state) {
-        if (state.afterBuilding !== undefined) this.afterBuilding = state.afterBuilding
     }
     
     /**
@@ -53,19 +34,19 @@ export class WallManager {
      * @param {number} pos - позиция X (опционально)
      * @param {boolean} forBoss - для босса
      */
-    createWall(pos = null, forBoss = false) {
+    createWall(pos = null, forBoss = false, afterBuilding = 0) {
         const randomPos = pos || this.worldCoords.zeroRight + random(100, 250)
         
         // Спавн врага рядом со стеной (если не для босса)
-        if (!pos && !forBoss && this.createEnemyCallback) {
-            const rand = random(1, 10)
-            if (rand > 5) {
-                this.createEnemyCallback(randomPos + 60, true)
-            }
-        }
+        // if (!pos && !forBoss && this.createEnemyCallback) {
+        //     const rand = random(1, 10)
+        //     if (rand > 5) {
+        //         this.createEnemyCallback(randomPos + 60, true)
+        //     }
+        // }
         
         // Проверка на здания
-        if (this.afterBuilding > randomPos - 100) {
+        if (afterBuilding > randomPos - 100) {
             return null
         }
         
@@ -108,9 +89,9 @@ export class WallManager {
         }
         
         // Создание мусора рядом со стеной из мусора
-        if (Math.random() < 0.5 && randomWall < 4 && this.createGarbageCallback) {
+        if (Math.random() < 0.5 && randomWall < 4) {
             const pos = random(10, wall.width / 2)
-            this.createGarbageCallback(wall.x - wall.width / 2 + pos, wall.y, 4)
+            this.eventBus.emit('garbage:create', {x: wall.x - wall.width / 2 + pos, y: wall.y, type: 4})
         }
         
         this.walls.push(wall)
@@ -241,13 +222,6 @@ export class WallManager {
             }
             return false
         }) || null
-    }
-    
-    /**
-     * Получает массив стен
-     */
-    getWalls() {
-        return this.walls
     }
     
     /**

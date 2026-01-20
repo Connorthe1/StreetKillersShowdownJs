@@ -12,82 +12,33 @@
  */
 
 import * as PIXI from 'pixi.js'
-import { random } from '../utils/GameUtils.js'
+import { random } from '../../utils/GameUtils.js'
 
 /**
  * Менеджер ловушек
  */
 export class TrapManager {
-    constructor(world, player, playerState, gameState, enemies, currentDogEnemy, playerBullets, zeroRight, afterBuilding, ground, fg, bochka) {
+    constructor(world, gameState, worldCoords, ground, fg, resources, eventBus) {
         this.world = world
-        this.player = player
-        this.playerState = playerState
         this.gameState = gameState
-        this.enemies = enemies
-        this.currentDogEnemy = currentDogEnemy
-        this.playerBullets = playerBullets
-        this.zeroRight = zeroRight
-        this.afterBuilding = afterBuilding
         this.ground = ground
         this.fg = fg
-        this.bochka = bochka
-        
+        this.worldCoords = worldCoords
+        this.resources = resources
+        this.eventBus = eventBus
+
         // Массив ловушек
         this.traps = []
-        
-        // Callbacks
-        this.addPointsCallback = null
-        this.damagePlayerCallback = null
-        this.damageEnemyCallback = null
-        this.soundPlayer = null
-        this.createParticlesCallback = null
-        this.createExplodeCallback = null
-        this.sleepCallback = null
-        this.gun = null
-        
-        // Текстуры (устанавливаются позже)
-        this.windowTexture = null
-        this.doorTexture = null
-    }
-    
-    /**
-     * Устанавливает колбэки
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.addPoints) this.addPointsCallback = callbacks.addPoints
-        if (callbacks.damagePlayer) this.damagePlayerCallback = callbacks.damagePlayer
-        if (callbacks.damageEnemy) this.damageEnemyCallback = callbacks.damageEnemy
-        if (callbacks.soundPlayer) this.soundPlayer = callbacks.soundPlayer
-        if (callbacks.createParticles) this.createParticlesCallback = callbacks.createParticles
-        if (callbacks.createExplode) this.createExplodeCallback = callbacks.createExplode
-        if (callbacks.sleep) this.sleepCallback = callbacks.sleep
-        if (callbacks.gun) this.gun = callbacks.gun
-    }
-    
-    /**
-     * Обновляет состояние
-     */
-    updateState(state) {
-        if (state.player !== undefined) this.player = state.player
-        if (state.playerState !== undefined) this.playerState = state.playerState
-        if (state.zeroRight !== undefined) this.zeroRight = state.zeroRight
-        if (state.afterBuilding !== undefined) this.afterBuilding = state.afterBuilding
-        if (state.currentDogEnemy !== undefined) this.currentDogEnemy = state.currentDogEnemy
     }
     
     /**
      * Создает бочку
      */
-    createBarrel() {
-        if (!this.bochka) {
-            console.warn('Barrel texture not available')
-            return null
-        }
-        
-        const randomPos = Math.floor(this.zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50))
+    createBarrel(afterBuilding) {
+        const randomPos = Math.floor(this.worldCoords.zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50))
         
         // Проверка на здания
-        if (this.afterBuilding > randomPos - 100) {
+        if (afterBuilding > randomPos - 100) {
             return null
         }
         
@@ -104,8 +55,8 @@ export class TrapManager {
         
         // Создание бочки
         const bochkaContainer = new PIXI.Container()
-        const bochkaTop = new PIXI.AnimatedSprite(this.bochka.animations.bochkaTop)
-        const bochkaDown = new PIXI.AnimatedSprite(this.bochka.animations.bochkaDown)
+        const bochkaTop = new PIXI.AnimatedSprite(this.resources.bochka.animations.bochkaTop)
+        const bochkaDown = new PIXI.AnimatedSprite(this.resources.bochka.animations.bochkaDown)
         
         bochkaTop.scale.set(2)
         bochkaDown.scale.set(2)
@@ -314,8 +265,8 @@ export class TrapManager {
         
         // Анимация взрыва бочки
         if (barrel.children && barrel.children.length >= 2) {
-            barrel.children[0].textures = this.bochka.animations.bochkaTopDead
-            barrel.children[1].textures = this.bochka.animations.bochkaDownDead
+            barrel.children[0].textures = this.resources.bochka.animations.bochkaTopDead
+            barrel.children[1].textures = this.resources.bochka.animations.bochkaDownDead
             barrel.children[0].play()
             barrel.children[1].play()
         }
@@ -344,7 +295,7 @@ export class TrapManager {
             return null
         }
         
-        const window = new PIXI.AnimatedSprite(this.windowTexture.animations.window)
+        const window = new PIXI.AnimatedSprite(this.resources.windowTexture.animations.window)
         window.loop = false
         window.animationSpeed = 0.6
         window.anchor.set(0.5)
@@ -369,12 +320,7 @@ export class TrapManager {
      * @param {boolean} secondFloor - на втором этаже
      */
     createDoor(pos, secondFloor) {
-        if (!this.doorTexture || !this.ground) {
-            console.warn('Door texture or ground not available')
-            return null
-        }
-        
-        const door = new PIXI.AnimatedSprite(this.doorTexture.animations.door)
+        const door = new PIXI.AnimatedSprite(this.resources.doorTexture.animations.door)
         door.loop = false
         door.animationSpeed = 0.6
         door.anchor.set(0.5)
@@ -391,15 +337,6 @@ export class TrapManager {
         
         this.traps.push(door)
         return door
-    }
-    
-    /**
-     * Устанавливает текстуры
-     */
-    setTextures(textures) {
-        if (textures.windowTexture) this.windowTexture = textures.windowTexture
-        if (textures.doorTexture) this.doorTexture = textures.doorTexture
-        if (textures.bochka) this.bochka = textures.bochka
     }
     
     /**

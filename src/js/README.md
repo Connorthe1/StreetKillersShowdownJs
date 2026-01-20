@@ -30,7 +30,7 @@
 - **Money.js** - Деньги
 - **Garbage.js** - Мусор
 - **Puddle.js** - Лужи
-- **ZipLine.js** - Зиплайны
+- **ZipLineManager.js** - Зиплайны
 - **CarBG.js** - Фоновые машины
 
 ### `/ui` - Интерфейс

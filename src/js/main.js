@@ -15,11 +15,8 @@ import { BulletManager } from './entities/Bullet.js'
 import { BackgroundManager } from './environment/Background.js'
 import { GroundManager } from './environment/managers/GroundManager.js'
 import { GarbageManager } from './entities/managers/GarbageManager.js'
-import { PuddleManager } from './environment/Puddle.js'
 import { CanManager } from './environment/Can.js'
-import { BuildingManager } from './environment/Building.js'
-import { WallManager } from './environment/Wall.js'
-import { ZipLineManager } from './environment/ZipLine.js'
+import { ZipLineManager } from './environment/managers/ZipLineManager.js'
 import { SpawnManager } from './core/SpawnManager.js'
 import { EventManager } from './core/EventManager.js'
 import { HUDManager } from './ui/HUD.js'
@@ -30,7 +27,7 @@ import { CollisionDetector } from './physics/CollisionDetector.js'
 import { EnemyManager } from './entities/Enemy.js'
 import { BossManager } from './entities/Boss.js'
 import { GrenadeManager } from './entities/Grenade.js'
-import { TrapManager } from './environment/Trap.js'
+import { TrapManager } from './environment/managers/Trap.js'
 import { MoneyManager } from './entities/Money.js'
 import { PowerUpManager } from './entities/PowerUp.js'
 import { DogEnemyManager } from './entities/DogEnemy.js'
@@ -80,7 +77,11 @@ let slowGameSpeed = SLOW_GAME_SPEED
 let gameSpeed = DEFAULT_GAME_SPEED
 const worldCoords = {
     zeroLeft: 0,
-    zeroRight: WORLD_WIDTH
+    zeroRight: WORLD_WIDTH,
+    firstFloor: WORLD_HEIGHT - 230,
+    secondFloor: WORLD_HEIGHT - 420,
+    worldWidth: WORLD_WIDTH,
+    worldHeight: WORLD_HEIGHT,
 }
 
 let distance = 0
@@ -116,10 +117,7 @@ let buildingType = 0
 let backgroundManager // Инициализируется после создания world
 let groundManager // Инициализируется после создания world
 let garbageManager // Инициализируется после создания world
-let puddleManager // Инициализируется после создания world
 let canManager // Инициализируется после создания world
-let buildingManager // Инициализируется после создания world
-let wallManager // Инициализируется после создания world
 let zipLineManager // Инициализируется после создания world
 
 // shotsArr импортируется из Player.js, но также управляется через BulletManager
@@ -136,7 +134,6 @@ let enemies = []
 let moneyDrop = []
 // Массивы окружения теперь управляются через отдельные менеджеры
 let buildings = []
-let zipLines = []
 let grenades = []
 let puddles = []
 let garbages = []
@@ -254,7 +251,7 @@ window.onload = async function () {
         // Инициализация менеджера частиц
         particleManager = new ParticleManager(world, engine, physicsManager, ground, resources, gameState, eventBus)
 
-        bulletManager = new BulletManager(world, gameState, particleManager, resources, eventBus)
+        bulletManager = new BulletManager(world, gameState, resources, eventBus)
 
         backgroundManager = new BackgroundManager(world, WORLD_WIDTH, WORLD_HEIGHT, gameHeight, resources, gameState)
 
@@ -264,20 +261,24 @@ window.onload = async function () {
 
         playerPos = ground.getLocalBounds().y + 70
         secondFloor = ground.getLocalBounds().y - 120
+        worldCoords.firstFloor = ground.getLocalBounds().y + 70
+        worldCoords.secondFloor = ground.getLocalBounds().y - 120
 
         // Initialize player instance
         playerInstance = new Player(world, gameState, resources, storage, WORLD_WIDTH, worldCoords)
-        
-        puddleManager = new PuddleManager(world, gameState, player, playerState, buildings, soundPlayer, (points) => {
-            if (scoreManager) scoreManager.addPoints(points)
-        }, (pos, type) => {
-            if (particleManager) {
-                particleManager.createParticle(pos, type, null, null)
-            }
-        }, (ms) => {
-            return new Promise(resolve => setTimeout(resolve, ms))
-        }, worldCoords.zeroRight, playerPos)
-        puddleManager.setTextures(puddleTexture)
+          // Инициализация менеджера спавна
+        spawnManager = new SpawnManager(
+            gameState,
+            physicsManager,
+            ground,
+            fg,
+            world,
+            worldCoords,
+            resources,
+            sleep,
+            gameConfig,
+            eventBus,
+        )
         
         canManager = new CanManager(world, engine, physicsManager, gameState, player, playerState, enemies, currentDogEnemy, currentBoss, traps, soundPlayer, (points) => {
             if (scoreManager) scoreManager.addPoints(points)
@@ -292,27 +293,6 @@ window.onload = async function () {
             trapManager.barrelDead(barrel)
         }, WORLD_HEIGHT)
         canManager.setTextures(canTexture)
-        buildingManager = new BuildingManager(world, engine, physicsManager, ground, secondFloor, walls, buildings, zipLines, traps, player, playerState, worldCoords.zeroLeft, worldCoords.zeroRight, WORLD_WIDTH, WORLD_HEIGHT, fg)
-        
-        buildingManager.setTextures({
-            build1,
-            build2,
-            buildZiplineTexture,
-            club,
-            inBuildTexture,
-            inFloorTexture,
-            inClubTexture,
-            windowTexture,
-            doorTexture,
-            laserBeamTexture
-        })
-        buildingManager.setCallbacks({
-            createBoss: (type, pos) => {
-                if (bossManager) bossManager.createBoss(type, pos)
-            }
-        })
-        
-        wallManager = new WallManager(world, player, ground, worldCoords, afterBuilding, resources, garbageManager)
         
         // Инициализация менеджера ловушек (текстуры будут установлены после загрузки ресурсов)
         trapManager = new TrapManager(
@@ -330,88 +310,10 @@ window.onload = async function () {
             null // bochka - будет установлен позже
         )
         
-        // Установка колбэков для TrapManager
-        trapManager.setCallbacks({
-            addPoints: addPoints,
-            damagePlayer: () => {
-                if (playerInstance) {
-                    playerInstance.damagePlayer()
-                }
-            },
-            damageEnemy: damageEnemy,
-            soundPlayer: soundPlayer,
-            createParticles: (char, particleType) => {
-                if (particleManager) {
-                    particleManager.createParticle(char, particleType, null, null)
-                }
-            },
-            createExplode: null, // Будет установлен после инициализации explosionManager
-            sleep: sleep,
-            gun: gun
-        })
-        
-        zipLineManager = new ZipLineManager(world, zipLines, player, playerState, soundPlayer, (anim) => {
-            if (playerInstance) playerInstance.playAnim(anim)
-        }, playerSpeed, resources.skinStore, storage, worldCoords.zeroLeft)
-        // Текстуры зиплайнов устанавливаются в BuildingManager при создании зданий
-        // ZipLineManager не требует установки текстур, так как управляет уже созданными зиплайнами
-        
-        // Установка колбэков после инициализации всех менеджеров
-        
-        wallManager.setCallbacks({
-            createEnemy: (pos, onSecondFloor) => {
-                if (enemyManager) {
-                    enemyManager.createEnemy(pos, onSecondFloor)
-                }
-            },
-        })
-        
-        // Установка колбэков для ZipLineManager
-        if (zipLineManager) {
-            zipLineManager.setCallbacks({
-                playAnim: (anim) => {
-                    if (playerInstance) playerInstance.playAnim(anim)
-                },
-                playerSpeed: setPlayerSpeed
-            })
-        }
-        
-        // Установка колбэков для PuddleManager
-        if (puddleManager) {
-            puddleManager.setCallbacks({
-                addPoints: (points) => {
-                    if (scoreManager) scoreManager.addPoints(points)
-                },
-                soundPlayer: soundPlayer,
-                createParticles: (pos, type) => {
-                    if (particleManager) {
-                        particleManager.createParticle(pos, type, null, null)
-                    }
-                },
-                sleep: sleep,
-                playerSpeed: setPlayerSpeed,
-                playerDefaultSpeed: typeof playerDefaultSpeed === 'number' ? { value: playerDefaultSpeed } : playerDefaultSpeed
-            })
-        }
-        
-        // Обновление ссылок на массивы для обратной совместимости
-        if (buildingManager && buildingManager.getArrays) {
-            buildings = buildingManager.getArrays().buildings
-        }
-        zipLines = zipLineManager.getZipLines ? zipLineManager.getZipLines() : zipLines
+        zipLineManager = new ZipLineManager(world, worldCoords, resources, eventBus)
+
         traps = trapManager ? trapManager.getTraps() : traps
         // puddles и garbages управляются через менеджеры
-        
-        // Инициализация менеджера спавна
-        // spawnManager = new SpawnManager(
-        //     gameState,
-        //     world,
-        //     enemies,
-        //     buildingManager,
-        //     worldCoords,
-        //     WORLD_WIDTH,
-        //     resources
-        // )
         
         // Инициализация менеджера HUD
         hudManager = new HUDManager(app, storage, hud, gameState, gameWidth, gameHeight, textStyles, resources)
@@ -605,31 +507,6 @@ window.onload = async function () {
             })
         }
         
-        if (trapManager) {
-            trapManager.setCallbacks({
-                addPoints: addPoints,
-                damagePlayer: () => {
-                    if (playerInstance) {
-                        playerInstance.damagePlayer()
-                    }
-                },
-                damageEnemy: damageEnemy,
-                soundPlayer: soundPlayer,
-                createParticles: (char, particleType) => {
-                    if (particleManager) {
-                        particleManager.createParticle(char, particleType, null, null)
-                    }
-                },
-                createExplode: (target, offsetX, offsetY, isBig, silence) => {
-                    if (explosionManager) {
-                        explosionManager.createExplode(target, offsetX, offsetY, isBig, silence)
-                    }
-                },
-                sleep: sleep,
-                gun: gun
-            })
-        }
-        
         // Инициализация менеджера экрана окончания (текстуры будут установлены после загрузки ресурсов)
         endScreenManager = new EndScreenManager(
             app,
@@ -727,10 +604,7 @@ window.onload = async function () {
             backgroundManager,
             groundManager,
             garbageManager,
-            puddleManager,
             canManager,
-            buildingManager,
-            wallManager,
             zipLineManager,
             spawnManager,
             eventManager: null, // Будет установлен позже
@@ -922,7 +796,7 @@ window.onload = async function () {
             particleManager.clear()
         }
         buildings.length = 0
-        zipLines.length = 0
+        zipLineManager.clear()
         if (grenadeManager) {
             grenadeManager.clear()
         }
@@ -995,17 +869,6 @@ window.onload = async function () {
         }
         updateWall()
         updateEnemies()
-        // Обновление ловушек через TrapManager
-        if (trapManager) {
-            trapManager.updateState({
-                player: player,
-                playerState: playerState,
-                zeroRight: worldCoords.zeroRight,
-                afterBuilding: afterBuilding,
-                currentDogEnemy: currentDogEnemy
-            })
-            trapManager.updateTraps()
-        }
 
         particleManager.updateAllParticles(worldCoords.zeroLeft, playerInstance)
 
@@ -1016,25 +879,6 @@ window.onload = async function () {
                 zeroLeft: worldCoords.zeroLeft
             })
             moneyManager.updateDropMoney()
-        }
-        updateBuildings()
-        // Обновление зиплайнов через ZipLineManager
-        if (zipLineManager) {
-            zipLineManager.updateState({
-                player: player,
-                playerState: playerState,
-                zeroLeft: worldCoords.zeroLeft
-            })
-            zipLineManager.updateZiplines()
-        }
-        // Обновление луж через PuddleManager
-        if (puddleManager) {
-            puddleManager.updateState({
-                player: player,
-                playerState: playerState,
-                zeroLeft: worldCoords.zeroLeft
-            })
-            puddleManager.updatePuddles()
         }
         if (grenadeManager && grenadeManager.getActiveGrenade()) {
             grenadeManager.updateGrenade()
@@ -1145,8 +989,6 @@ window.onload = async function () {
         }
     }
 
-
-
     function spawnEntity() {
         if (Math.random() < 0.05 && powerUpManager && !powerUpManager.hasActivePowerUp()) {
             powerUpManager.createPowerUp()
@@ -1156,16 +998,6 @@ window.onload = async function () {
         }
         if (Math.random() < 0.5 && !bgCar) {
             createBgCar()
-        }
-        if (Math.random() < 0.2) {
-            // Создание лужи через PuddleManager
-            if (puddleManager) {
-                puddleManager.updateState({
-                    zeroRight: worldCoords.zeroRight,
-                    playerPos: playerPos
-                })
-                puddleManager.createPuddle()
-            }
         }
         if (!isClub && !currentBoss) {
             const randomBuild = Math.floor(Math.random() * (10 - 1 + 1) + 1)
@@ -1475,7 +1307,6 @@ window.onload = async function () {
             buildZipline.position.set((position - buildZipline.width) + 40, buildBack.y - buildBack.height / 2 )
             buildZipline.zIndex = 1
             world.addChild(buildZipline)
-            zipLines.push(buildZipline)
             if (trapManager) trapManager.createWindow(position + 11)
             if (Math.random() < 0.5) {
                 if (trapManager) trapManager.createDoor(position + buildBack.width - 72, true)
@@ -1561,7 +1392,6 @@ window.onload = async function () {
             }
             buildZipline.zIndex = 1
             world.addChild(buildZipline)
-            zipLines.push(buildZipline)
             afterBuilding = buildBack.x + buildBack.width / 2
         }
         if (buildFront) {
@@ -1596,25 +1426,6 @@ window.onload = async function () {
         Matter.World.add(engine.world, buildContainer.body);
         world.addChild(buildContainer)
         buildings.push(buildContainer)
-    }
-
-    function updateZiplines() {
-        zipLines.forEach((b, idx) => {
-            if (b.position.x + b.width < worldCoords.zeroLeft) {
-                world.removeChild(b)
-                zipLines.splice(idx, 1)
-                return;
-            }
-            if (playerState.inZipLine || b.used) return
-            if (b.position.x + (b.end ? b.width - 20 : -10) < player.x && b.position.x + (b.end ? b.width : 0) > player.x) {
-                b.used = true
-                soundPlayer.zipLine()
-                playerState.inZipLine = b.end ? "bot" : "top"
-                setPlayerSpeed(0)
-                playAnim('zipLine')
-                player.rotation = skinStore[Number(storage.selectedSkin)].noRotate ? 0 : 4.8
-            }
-        })
     }
 
     function createBuilding(type) {
@@ -1726,6 +1537,7 @@ window.onload = async function () {
     }
 
     function updateBuildings() {
+        return
         buildings.forEach((build, idx) => {
             const b = build.getBounds()
             if (b.x + b.width < 0) {

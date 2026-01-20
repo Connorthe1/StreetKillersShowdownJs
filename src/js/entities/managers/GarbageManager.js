@@ -11,7 +11,6 @@ export class GarbageManager {
         this.garbages = []
 
         eventBus.on('garbage:create', data => {
-            console.log('garbage:create')
             this.createGarbage(data.x, data.y, data.type);
         });
     }

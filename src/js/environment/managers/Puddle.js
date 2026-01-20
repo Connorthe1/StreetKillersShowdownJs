@@ -11,74 +11,41 @@
  */
 
 import * as PIXI from 'pixi.js'
-import { random } from '../utils/GameUtils.js'
+import { random } from '../../utils/GameUtils.js'
+import {soundPlayer} from "../../playSound";
 
 /**
  * Менеджер луж
  */
 export class PuddleManager {
-    constructor(world, player, playerState, gameState, zeroLeft, zeroRight, playerPos, buildings, puddleTexture) {
+    constructor(gameState, world, worldCoords, resources, eventBus, sleep) {
         this.world = world
-        this.player = player
-        this.playerState = playerState
         this.gameState = gameState
-        this.zeroLeft = zeroLeft
-        this.zeroRight = zeroRight
-        this.playerPos = playerPos
-        this.buildings = buildings
-        this.puddleTexture = puddleTexture
-        
+        this.worldCoords = worldCoords
+        this.resources = resources
+        this.eventBus = eventBus
+        this.sleep = sleep
+
         // Массив луж
         this.puddles = []
-        
-        // Callbacks
-        this.addPointsCallback = null
-        this.soundPlayer = null
-        this.createParticlesCallback = null
-        this.sleepCallback = null
-        this.playerSpeed = null
-        this.playerDefaultSpeed = null
-    }
-    
-    /**
-     * Устанавливает колбэки
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.addPoints) this.addPointsCallback = callbacks.addPoints
-        if (callbacks.soundPlayer) this.soundPlayer = callbacks.soundPlayer
-        if (callbacks.createParticles) this.createParticlesCallback = callbacks.createParticles
-        if (callbacks.sleep) this.sleepCallback = callbacks.sleep
-        if (callbacks.playerSpeed) this.playerSpeed = callbacks.playerSpeed
-        if (callbacks.playerDefaultSpeed) this.playerDefaultSpeed = callbacks.playerDefaultSpeed
-    }
-    
-    /**
-     * Обновляет состояние
-     */
-    updateState(state) {
-        if (state.player !== undefined) this.player = state.player
-        if (state.playerState !== undefined) this.playerState = state.playerState
-        if (state.zeroLeft !== undefined) this.zeroLeft = state.zeroLeft
-        if (state.zeroRight !== undefined) this.zeroRight = state.zeroRight
+
+        eventBus.on('puddle:create', data => {
+            this.createPuddle(data.buildings)
+        })
     }
     
     /**
      * Создает лужу
      */
-    createPuddle() {
-        if (!this.puddleTexture) {
-            console.warn('Puddle texture not available')
-            return null
-        }
-        
+    createPuddle(buildings) {
         // Проверка на здания (не создавать лужи на втором этаже или в клубе)
-        if (this.buildings && this.buildings.length > 0) {
-            const activeBuilding = this.buildings[0]
-            const lastBuilding = this.buildings[this.buildings.length - 1]
+        if (buildings && buildings.length > 0) {
+            const activeBuilding = buildings[0]
+            const lastBuilding = buildings[buildings.length - 1]
             const lastBuildingBounds = lastBuilding.getLocalBounds ? lastBuilding.getLocalBounds() : lastBuilding
             
-            if ((lastBuildingBounds.x + lastBuildingBounds.width > this.zeroRight &&
-                 activeBuilding.getLocalBounds().x < this.zeroRight) &&
+            if ((lastBuildingBounds.x + lastBuildingBounds.width > this.worldCoords.zeroRight &&
+                 activeBuilding.getLocalBounds().x < this.worldCoords.zeroRight) &&
                 (activeBuilding.secondFloor || activeBuilding.club)) {
                 return null
             }
@@ -86,9 +53,9 @@ export class PuddleManager {
         
         // Случайный тип лужи (1 или 2)
         const rand = random(1, 2)
-        const puddle = new PIXI.Sprite(this.puddleTexture.textures[`puddle${rand}`])
+        const puddle = new PIXI.Sprite(this.resources.puddleTexture.textures[`puddle${rand}`])
         puddle.anchor.set(0.5)
-        puddle.position.set(this.zeroRight + puddle.width, this.playerPos + 24)
+        puddle.position.set(this.worldCoords.zeroRight + puddle.width, this.worldCoords.firstFloor + 24)
         puddle.dead = false
         
         if (this.world) {
@@ -98,14 +65,14 @@ export class PuddleManager {
         this.puddles.push(puddle)
         return puddle
     }
-    
+
     /**
      * Обновляет лужи
      */
     updatePuddles() {
         this.puddles.forEach((puddle, idx) => {
             // Удаление за левой границей
-            if (puddle.x + puddle.width < this.zeroLeft) {
+            if (puddle.x + puddle.width < this.worldCoords.zeroLeft) {
                 if (this.world) {
                     this.world.removeChild(puddle)
                 }
@@ -117,12 +84,12 @@ export class PuddleManager {
             if (puddle.dead) return
             
             // Коллизия с игроком
-            if (this.player && this.playerState) {
-                if (this.player.x + 40 > puddle.x + 20 &&
-                    puddle.x + puddle.width > this.player.x) {
-                    this.handlePuddleCollision(puddle)
-                }
-            }
+            // if (this.player && this.playerState) {
+            //     if (this.player.x + 40 > puddle.x + 20 &&
+            //         puddle.x + puddle.width > this.player.x) {
+            //         this.handlePuddleCollision(puddle)
+            //     }
+            // }
         })
     }
     
@@ -159,49 +126,29 @@ export class PuddleManager {
             }
             
             // Звук и частицы
-            if (this.soundPlayer) {
-                this.soundPlayer.waterStep()
-            }
-            
-            if (this.createParticlesCallback) {
-                for (let i = 0; i <= 20; i++) {
-                    this.createParticlesCallback({ x: puddle.x, y: puddle.y - 10 }, 'drop')
-                }
+            soundPlayer.waterStep()
+
+            for (let i = 0; i <= 20; i++) {
+                this.eventBus.emit('particle:default', { coords: { x: puddle.x, y: puddle.y - 10 }, type: 'drop' })
             }
         } else {
             // Обычное прохождение через лужу
-            if (this.soundPlayer) {
-                this.soundPlayer.waterStep()
-            }
-            
-            if (this.createParticlesCallback) {
-                // Первая волна частиц
-                for (let i = 0; i <= 14; i++) {
-                    this.createParticlesCallback({ x: puddle.x - 20, y: puddle.y - 10 }, 'drop')
-                }
+            soundPlayer.waterStep()
+
+            for (let i = 0; i <= 14; i++) {
+                this.eventBus.emit('particle:default', { coords: { x: puddle.x - 20, y: puddle.y - 10 }, type: 'drop' })
             }
             
             // Вторая волна частиц с задержкой
-            if (this.sleepCallback) {
-                this.sleepCallback(250).then(() => {
-                    if (this.soundPlayer) {
-                        this.soundPlayer.waterStep()
-                    }
-                    if (this.createParticlesCallback) {
-                        for (let i = 0; i <= 14; i++) {
-                            this.createParticlesCallback({ x: puddle.x + 20, y: puddle.y - 10 }, 'drop')
-                        }
+            if (this.sleep) {
+                this.sleep(250).then(() => {
+                    soundPlayer.waterStep()
+                    for (let i = 0; i <= 14; i++) {
+                        this.eventBus.emit('particle:default', { coords: { x: puddle.x - 20, y: puddle.y - 10 }, type: 'drop' })
                     }
                 })
             }
         }
-    }
-    
-    /**
-     * Получает массив луж
-     */
-    getPuddles() {
-        return this.puddles
     }
     
     /**
@@ -214,9 +161,5 @@ export class PuddleManager {
             }
         })
         this.puddles = []
-    }
-
-    setTextures(puddleTexture) {
-        this.puddleTexture = puddleTexture
     }
 }

@@ -21,15 +21,7 @@ export function getPercent(value, percent) {
     return (value / 100) * percent
 }
 
-/**
- * Генерирует случайное число в диапазоне
- * @param {number} min - минимальное значение
- * @param {number} max - максимальное значение
- * @param {boolean} noFloor - не округлять результат (вернуть float)
- * @param {boolean} noMin - не добавлять 1 к диапазону
- * @returns {number} случайное число
- */
-export function random(min, max, noFloor, noMin) {
+export function random(min, max, noFloor = false, noMin = false) {
     const res = Math.random() * (max - min + (noMin ? 0 : 1)) + min
     if (noFloor) {
         return res

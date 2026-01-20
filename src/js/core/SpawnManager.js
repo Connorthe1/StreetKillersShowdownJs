@@ -1,92 +1,76 @@
-/**
- * SpawnManager.js
- * 
- * Менеджер спавна игровых сущностей
- * 
- * Содержит:
- * - Управление спавном врагов (createEnemy, createDogEnemy, createBoss)
- * - Управление спавном пауэр-апов (createPowerUp)
- * - Управление спавном объектов окружения
- * - Логика определения типа врага на основе очков
- * - Функция spawnEntity() - главная функция спавна
- */
-
 import { random } from '../utils/GameUtils.js'
-import { BUILDING_CHANCE } from './GameConfig'
+import {BuildingManager} from "../environment/managers/Building";
+import {PuddleManager} from "../environment/managers/Puddle";
+import {WallManager} from "../environment/managers/Wall";
+import {TrapManager} from "../environment/managers/Trap";
 
 /**
  * Менеджер спавна сущностей
  */
 export class SpawnManager {
-    constructor(gameState, world, enemies, buildingManager, bgCarManager, worldCoords, WORLD_WIDTH, resources) {
+    constructor(gameState, physicsManager, ground, fg, world, worldCoords, resources, sleep, gameConfig, eventBus) {
         this.gameState = gameState
         this.world = world
-        this.enemies = enemies
-        this.buildingManager = buildingManager
-        this.bgCarManager = bgCarManager
         this.worldCoords = worldCoords
-        this.WORLD_WIDTH = WORLD_WIDTH
         this.resources = resources
+        this.eventBus = eventBus
+        this.sleep = sleep
+        this.gameConfig = gameConfig
+        this.physicsManager = physicsManager
+        this.ground = ground
+        this.fg = fg
+
+        this.buildingManager = new BuildingManager(world, physicsManager, ground, worldCoords, gameConfig, fg, resources, eventBus)
+        this.puddleManager = new PuddleManager(gameState, world, worldCoords, resources, eventBus, sleep)
+        this.wallManager = new WallManager(world, ground, worldCoords, resources, eventBus)
+        this.trapManager = new TrapManager(world, gameState, worldCoords, ground, fg, resources, eventBus)
 
         this.currentBoss = null
         this.currentDogEnemy = null
         this.activePowerUp = null
         this.currentCan = null
-        this.isBuilding = false
-        this.isClub = false
-        this.afterBuilding = null
 
-        // Константы
-        this.buildingChance = BUILDING_CHANCE
-        
-        // Callbacks для создания объектов
-        this.createPowerUpCallback = null
-        this.createDogEnemyCallback = null
-        this.createBgCarCallback = null
-        this.createPuddleCallback = null
-        this.spawnBuildingCallback = null
-        this.createClubCallback = null
-        this.createEnemyCallback = null
-        this.createCanCallback = null
-        this.createBossCallback = null
-        this.createBarrelCallback = null
-    }
-    
-    /**
-     * Устанавливает колбэки для создания объектов
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.createPowerUp) this.createPowerUpCallback = callbacks.createPowerUp
-        if (callbacks.createDogEnemy) this.createDogEnemyCallback = callbacks.createDogEnemy
-        if (callbacks.createBgCar) this.createBgCarCallback = callbacks.createBgCar
-        if (callbacks.createPuddle) this.createPuddleCallback = callbacks.createPuddle
-        if (callbacks.spawnBuilding) this.spawnBuildingCallback = callbacks.spawnBuilding
-        if (callbacks.createClub) this.createClubCallback = callbacks.createClub
-        if (callbacks.createEnemy) this.createEnemyCallback = callbacks.createEnemy
-        if (callbacks.createCan) this.createCanCallback = callbacks.createCan
-        if (callbacks.createBoss) this.createBossCallback = callbacks.createBoss
-        if (callbacks.createBarrel) this.createBarrelCallback = callbacks.createBarrel
-    }
-    
-    /**
-     * Обновляет состояние для спавна
-     */
-    updateState(state) {
-        if (state.currentBoss !== undefined) this.currentBoss = state.currentBoss
-        if (state.currentDogEnemy !== undefined) this.currentDogEnemy = state.currentDogEnemy
-        if (state.activePowerUp !== undefined) this.activePowerUp = state.activePowerUp
-        if (state.bgCar !== undefined) this.bgCar = state.bgCar
-        if (state.currentCan !== undefined) this.currentCan = state.currentCan
-        if (state.isBuilding !== undefined) this.isBuilding = state.isBuilding
-        if (state.isClub !== undefined) this.isClub = state.isClub
-        if (state.afterBuilding !== undefined) this.afterBuilding = state.afterBuilding
-        if (state.zeroRight !== undefined) this.zeroRight = state.zeroRight
+        eventBus.on('spawn:entity', data => {
+            this.spawnEntity()
+        })
     }
     
     /**
      * Главная функция спавна сущностей
      */
     spawnEntity() {
+        // Спавн лужи
+        if (Math.random() < 0.2) {
+            this.puddleManager.createPuddle(this.buildingManager.getBuildings())
+        }
+
+        // Спавн зданий
+        if (!this.currentBoss) {
+            this.buildingManager.createBuildingChance()
+        }
+
+        // Спавн босса или бочки
+        if (!this.buildingManager.getIsBuilding() && !this.currentBoss && (this.buildingManager.getAfterBuilding() < this.worldCoords.zeroRight - this.worldCoords.worldWidth / 2)) {
+            // if (Math.random() < Math.min(this.gameState.points / 40000, 0.1) && this.gameState.points > 2000) {
+            //     if (this.createBossCallback) {
+            //         this.createBossCallback(random(1, 3))
+            //     }
+            //     return
+            // }
+            if (Math.random() < 0.3) {
+                console.log('trap')
+                this.trapManager.createBarrel(this.buildingManager.getAfterBuilding())
+                return
+            }
+            if (Math.random() < 0.5) {
+                console.log('wall')
+                this.wallManager.createWall(null, false, this.buildingManager.getAfterBuilding())
+                return
+            }
+        }
+
+        return;
+
         // Спавн пауэр-апа
         if (Math.random() < 0.05 && !this.activePowerUp && this.createPowerUpCallback) {
             this.createPowerUpCallback()
@@ -97,53 +81,6 @@ export class SpawnManager {
             this.createDogEnemyCallback()
         }
         
-        // Спавн фоновой машины
-        if (Math.random() < 0.5 && !this.bgCar && this.createBgCarCallback) {
-            this.createBgCarCallback()
-        }
-        
-        // Спавн лужи
-        if (Math.random() < 0.2 && this.createPuddleCallback) {
-            this.createPuddleCallback()
-        }
-        
-        // Спавн зданий
-        if (!this.isClub && !this.currentBoss) {
-            const randomBuild = Math.floor(Math.random() * (10 - 1 + 1) + 1)
-            switch (true) {
-                case randomBuild <= this.buildingChance:
-                    if (this.isBuilding) {
-                        if (this.spawnBuildingCallback) {
-                            this.spawnBuildingCallback('continue')
-                        }
-                    } else {
-                        if (this.buildings.length === 0) {
-                            const testClub = Math.floor(Math.random() * (10 - 1 + 1) + 1)
-                            this.isBuilding = true
-                            if (testClub === 1) {
-                                this.isClub = true
-                                if (this.createClubCallback) {
-                                    this.createClubCallback()
-                                }
-                                return
-                            }
-                            if (this.spawnBuildingCallback) {
-                                this.spawnBuildingCallback('start')
-                            }
-                        }
-                    }
-                    break
-                default:
-                    if (this.isBuilding) {
-                        this.isBuilding = false
-                        if (this.spawnBuildingCallback) {
-                            this.spawnBuildingCallback('end')
-                        }
-                    }
-                    break
-            }
-        }
-        
         // Спавн врага
         if (Math.random() < 0.5 && this.createEnemyCallback) {
             this.createEnemyCallback()
@@ -152,20 +89,6 @@ export class SpawnManager {
         // Спавн банки
         if (Math.random() < 0.1 && !this.currentCan && this.createCanCallback) {
             this.createCanCallback()
-        }
-        
-        // Спавн босса или бочки
-        if (!this.isBuilding && !this.currentBoss && (this.afterBuilding < this.zeroRight - this.WORLD_WIDTH / 2)) {
-            if (Math.random() < Math.min(this.gameState.points / 40000, 0.1) && this.gameState.points > 2000) {
-                if (this.createBossCallback) {
-                    this.createBossCallback(random(1, 3))
-                }
-                return
-            }
-            if (Math.random() < 0.3 && this.createBarrelCallback) {
-                this.createBarrelCallback()
-                return
-            }
         }
     }
     
@@ -231,15 +154,5 @@ export class SpawnManager {
         }
         
         return true
-    }
-    
-    /**
-     * Получает состояние для обновления
-     */
-    getState() {
-        return {
-            isBuilding: this.isBuilding,
-            isClub: this.isClub
-        }
     }
 }
