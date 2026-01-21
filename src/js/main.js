@@ -19,7 +19,6 @@ import { ZipLineManager } from './environment/managers/ZipLineManager.js'
 import { SpawnManager } from './core/SpawnManager.js'
 import { HUDManager } from './ui/HUD.js'
 import { CameraManager } from './core/CameraManager.js'
-import { ScoreManager } from './core/ScoreManager.js'
 import { CollisionDetector } from './physics/CollisionDetector.js'
 import { EnemyManager } from './entities/Enemy.js'
 import { BossManager } from './entities/Boss.js'
@@ -81,7 +80,7 @@ const worldCoords = {
 
 let distance = 0
 // Инициализация состояния игры
-const gameState = new GameState()
+let gameState
 let music = null
 let playerPos = WORLD_HEIGHT - 230
 let secondFloor = WORLD_HEIGHT - 420
@@ -133,7 +132,6 @@ let particleManager // Инициализируется после создан�
 let spawnManager // Инициализируется после создания world
 let hudManager // Инициализируется после создания hud
 let cameraManager // Инициализируется после создания world
-let scoreManager // Менеджер очков и рейтинга
 let collisionDetector // Детектор коллизий
 let enemyManager // Менеджер врагов
 let bossManager // Менеджер боссов
@@ -234,7 +232,8 @@ window.onload = async function () {
         ground = new PIXI.Container()
         ground.name = 'ground'
         world.addChild(ground)
-        
+
+        gameState = new GameState(eventBus)
         // Инициализация менеджера частиц
         particleManager = new ParticleManager(world, physicsManager, ground, resources, gameState, eventBus)
 
@@ -252,7 +251,7 @@ window.onload = async function () {
         worldCoords.secondFloor = ground.getLocalBounds().y - 120
 
         // Initialize player instance
-        playerInstance = new Player(world, gameState, resources, storage, worldCoords, eventBus)
+        playerInstance = new Player(world, gameState, resources, storage, worldCoords, sleep, eventBus)
           // Инициализация менеджера спавна
         spawnManager = new SpawnManager(
             gameState,
@@ -270,16 +269,12 @@ window.onload = async function () {
         zipLineManager = new ZipLineManager(world, worldCoords, resources, eventBus)
         
         // Инициализация менеджера HUD
-        hudManager = new HUDManager(app, storage, hud, gameState, gameWidth, gameHeight, textStyles, resources)
+        hudManager = new HUDManager(app, storage, hud, gameState, gameWidth, gameHeight, textStyles, resources, eventBus)
         
         // Инициализация менеджера камеры
         cameraManager = new CameraManager(world, gameState, worldCoords, sleep, eventBus)
 
         //TODO
-
-        // Инициализация менеджера очков
-        scoreManager = new ScoreManager(gameState, hudManager, initSpeed)
-        scoreManager.setUpdatePlayerSpeedCallback((scoreSpeed) => playerInstance.updateDefaultSpeedByScore(scoreSpeed))
         
         // Инициализация детектора коллизий
         collisionDetector = new CollisionDetector()
@@ -574,7 +569,7 @@ window.onload = async function () {
             slowGameSpeed = 0.2
         }
         gameSpeed = defaultGameSpeed
-        scoreManager.startScoreTimer()
+        gameState.startScoreTimer()
     }
 
     function restartGame() {
@@ -656,8 +651,8 @@ window.onload = async function () {
         if (hudManager) {
             hudManager.updateMultiplier()
         }
-        if (scoreManager) {
-            scoreManager.updateScore(playerState.stimpack)
+        if (gameState) {
+            gameState.updateScore(playerInstance.stimpack)
         }
         // Обновление мусора через GarbageManager
         if (garbageManager) {
@@ -2207,17 +2202,7 @@ window.onload = async function () {
     // Функции HUDbullets, HUDpoints, HUDupdateSkills, HUDremoveShield, HUDcreateShield, HUDupdatePowerUp
     // теперь в HUD. Оставлены для обратной совместимости, но больше не используются.
 
-    function addPoints(points) {
-        if (scoreManager) {
-            scoreManager.addPoints(points)
-        } else {
-            gameState.addPoints(points)
-        }
-    }
-
     // Функция HUDpause теперь в HUD.createPauseMenu(). Оставлена для обратной совместимости, но больше не используется.
-    
-    // Функция updateScore теперь в ScoreManager.updateScore() и HUD.updateScore(). Оставлена для обратной совместимости, но больше не используется.
 
     // async function getData() {
     //     return

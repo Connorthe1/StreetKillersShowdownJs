@@ -15,7 +15,7 @@
  * Класс для управления состоянием игры
  */
 export class GameState {
-    constructor() {
+    constructor(eventBus) {
         // Игровые очки и статистика
         this.points = 0
         this.pointsToAdd = 0
@@ -30,11 +30,13 @@ export class GameState {
         this.isMenu = true
         this.gameStart = false
         this.gameEnd = false
+
+        // Таймер для уменьшения streak
+        this.scoreTimerInterval = null;
+
+        this.eventBus = eventBus
     }
-    
-    /**
-     * Сброс состояния игры к начальным значениям
-     */
+
     reset() {
         this.points = 0
         this.pointsToAdd = 0
@@ -46,20 +48,11 @@ export class GameState {
         this.isPause = false
         this.gameStart = false
         this.gameEnd = false
+
+        // Сброс таймера при сбросе состояния
+        this.stopScoreTimer();
     }
-    
-    /**
-     * Добавляет очки к накопленным для отображения
-     * @param {number} points - количество очков
-     */
-    addPoints(points) {
-        this.pointsToAdd += points * this.multiplier
-    }
-    
-    /**
-     * Обновляет очки (вызывается в игровом цикле)
-     * @returns {number} текущее количество очков
-     */
+
     updatePoints() {
         if (this.pointsToAdd > 0) {
             if (this.pointsToAdd < 0) {
@@ -71,15 +64,10 @@ export class GameState {
         }
         return this.points
     }
-    
-    /**
-     * Обновляет буквенный рейтинг на основе streak
-     * @param {boolean} stimpackActive - активен ли стимулятор
-     * @returns {string} текущий рейтинг
-     */
+
     updateScore(stimpackActive = false) {
         let multiplier = 1
-        
+
         if (this.scoreStreak < 10) {
             this.score = 'F'
             multiplier = 1
@@ -111,41 +99,86 @@ export class GameState {
             this.score = 'S++'
             multiplier = 2
         }
-        
+
         // Удваиваем множитель если активен стимулятор
         if (stimpackActive) {
             multiplier = multiplier * 2
         }
-        
-        this.multiplier = multiplier
-        return this.score
+
+        this.multiplier = multiplier;
     }
-    
-    /**
-     * Уменьшает streak (вызывается таймером)
-     */
-    decreaseStreak() {
-        if (this.scoreStreak > 0) {
-            this.scoreStreak--
+
+    startScoreTimer() {
+        if (this.scoreTimerInterval) {
+            this.stopScoreTimer();
+        }
+
+        this.scoreTimerInterval = setInterval(() => {
+            if (this.isPause) return;
+            if (this.gameEnd || this.isMenu) {
+                this.stopScoreTimer();
+                return;
+            }
+
+            if (this.scoreStreak <= 0) return;
+
+            this.decreaseStreak(1);
+
+            // Обновление скорости игрока на основе очков
+            this.eventBus.emit('player:speed', this.points / 10000)
+        }, 500);
+    }
+
+    stopScoreTimer() {
+        if (this.scoreTimerInterval) {
+            clearInterval(this.scoreTimerInterval);
+            this.scoreTimerInterval = null;
         }
     }
-    
-    /**
-     * Увеличивает streak
-     * @param {number} amount - количество для добавления
-     */
+
+    updatePointsDisplay() {
+        if (this.hudManager) {
+            this.hudManager.updatePoints();
+        }
+    }
+
+    updateMultiplierDisplay() {
+        if (this.hudManager) {
+            this.hudManager.updateMultiplier();
+        }
+    }
+
+    updateScoreDisplay(stimpackActive = false) {
+        if (this.hudManager) {
+            this.hudManager.updateScore(stimpackActive);
+        }
+
+        return this.updateScore(stimpackActive);
+    }
+
+    update(stimpackActive = false) {
+        this.updatePointsDisplay();
+        this.updateMultiplierDisplay();
+        this.updateScoreDisplay(this.score);
+        this.updateScore(stimpackActive)
+    }
+
+    addPoints(points) {
+        this.pointsToAdd += points * this.multiplier;
+    }
+
     increaseStreak(amount) {
-        this.scoreStreak += amount
+        this.scoreStreak += amount;
     }
-    
-    /**
-     * Уменьшает streak
-     * @param {number} amount - количество для вычитания
-     */
-    decreaseStreakBy(amount) {
-        this.scoreStreak -= amount
+
+    decreaseStreak(amount) {
+        this.scoreStreak -= amount;
         if (this.scoreStreak < 0) {
-            this.scoreStreak = 0
+            this.scoreStreak = 0;
         }
+    }
+
+    clear() {
+        this.stopScoreTimer();
     }
 }

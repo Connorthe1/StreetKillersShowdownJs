@@ -17,7 +17,7 @@ import * as PIXI from 'pixi.js'
  * Менеджер HUD
  */
 export class HUDManager {
-    constructor(app, storage, hud, gameState, gameWidth, gameHeight, textStyles, resources) {
+    constructor(app, storage, hud, gameState, gameWidth, gameHeight, textStyles, resources, eventBus) {
         this.hud = hud
         this.gameState = gameState
         this.gameWidth = gameWidth
@@ -26,6 +26,35 @@ export class HUDManager {
         this.resources = resources
         this.app = app
         this.storage = storage
+        this.eventBus = eventBus
+
+        eventBus.on('hud:createBulletsDisplay', gun => {
+            this.createBulletsDisplay(gun)
+        })
+
+        eventBus.on('hud:removeBullet', () => {
+            this.removeBullet()
+        })
+
+        eventBus.on('hud:setSkillsAlpha', val => {
+            this.setSkillsAlpha(val)
+        })
+
+        eventBus.on('hud:updateSkills', storage => {
+            this.updateSkills(storage)
+        })
+
+        eventBus.on('hud:createShield', health => {
+            this.createShield(health)
+        })
+
+        eventBus.on('hud:removeShield', () => {
+            this.removeShield()
+        })
+
+        eventBus.on('hud:updatePowerUps', activePowerUps => {
+            this.updatePowerUps(activePowerUps)
+        })
     }
     
     /**
@@ -247,8 +276,7 @@ export class HUDManager {
     /**
      * Обновляет отображение рейтинга
      */
-    updateScore(stimpackActive) {
-        const score = this.gameState.updateScore(stimpackActive)
+    updateScore(score) {
         const scoreElement = this.hud.getChildByName('score')
         if (!scoreElement) return
         
@@ -286,13 +314,13 @@ export class HUDManager {
     /**
      * Создает щит (stimpack активен)
      */
-    createShield(playerState) {
+    createShield(health) {
         // Удаляем старый щит, если есть
         this.removeShield()
         
         const shield = new PIXI.Sprite(this.resources.activeItems.textures.goldHeart)
         shield.name = 'shield'
-        shield.position.set(20 + (playerState.health) * (shield.width / 2 + 8), 46)
+        shield.position.set(20 + (health) * (shield.width / 2 + 8), 46)
         this.hud.addChild(shield)
     }
     
@@ -309,15 +337,15 @@ export class HUDManager {
     /**
      * Обновляет отображение пауэр-апов
      */
-    updatePowerUps(playerState) {
+    updatePowerUps(activePowerUps) {
         const powerUps = this.hud.getChildByName('powerUps')
         if (!powerUps) return
         
         powerUps.removeChildren(0, powerUps.children.length)
         
-        if (playerState.activePowerUps.length === 0) return
+        if (activePowerUps.length === 0) return
         
-        playerState.activePowerUps.forEach((item, idx) => {
+        activePowerUps.forEach((item, idx) => {
             const powerUp = new PIXI.Sprite(this.resources.menuIcons.textures[item.type])
             powerUp.scale.set(0.5)
             powerUp.position.set(50 * idx, 0)

@@ -17,13 +17,14 @@ import { soundPlayer } from "../playSound";
  * Класс игрока
  */
 export class Player {
-    constructor(world, gameState, resources, storage, worldCoords, eventBus) {
+    constructor(world, gameState, resources, storage, worldCoords, sleep, eventBus) {
         // GameState для управления уроном
         this.world = world
         this.gameState = gameState
         this.resources = resources
         this.storage = storage
         this.worldCoords = worldCoords
+        this.sleep = sleep
         this.eventBus = eventBus
 
         // Спрайт игрока
@@ -44,7 +45,8 @@ export class Player {
         this.inBossFight = false
         this.leaveCover = false
         this.afterRoll = true
-        
+        this.triggerDelay = false
+
         // Скорости
 
         // Обычная скорость в забеге
@@ -70,6 +72,10 @@ export class Player {
             noStop: false,
             melee: false
         }
+
+        eventBus.emit('player:defaultSpeed', speed => {
+            this.updateDefaultSpeedByScore(speed)
+        })
     }
 
     // Создает спрайт игрока
@@ -95,25 +101,24 @@ export class Player {
     }
 
     updatePlayer(gameSpeed, delta) {
-        // if (this.activePowerUps.length > 0) {
-        //     this.activePowerUps.forEach((powerUp, idx) => {
-        //         if (Date.now() > powerUp.expired) {
-        //             switch (true) {
-        //                 case powerUp.type === 'boostAmmo':
-        //                     gun.ammo = gun.ammo / 2
-        //                     break
-        //                 case powerUp.type === 'boostGun':
-        //                     gun.damage = gun.damage / 2
-        //                     break
-        //             }
-        //             this.activePowerUps.splice(idx, 1)
-        //             if (hudManager) {
-        //                 hudManager.updatePowerUps(playerState)
-        //             }
-        //             console.log('endPW')
-        //         }
-        //     })
-        // }
+        if (this.activePowerUps.length > 0) {
+            this.activePowerUps.forEach((powerUp, idx) => {
+                if (Date.now() > powerUp.expired) {
+                    switch (true) {
+                        case powerUp.type === 'boostAmmo':
+                            this.gun.ammo = this.gun.ammo / 2
+                            break
+                        case powerUp.type === 'boostGun':
+                            this.gun.damage = this.gun.damage / 2
+                            break
+                    }
+                    this.activePowerUps.splice(idx, 1)
+
+                    this.eventBus.emit('hud:updatePowerUps', this.activePowerUps)
+                    console.log('endPW')
+                }
+            })
+        }
         if (this.gameState.gameStart) {
             const dtX = 1 - Math.exp(-delta / 5)
             const dtY = 1 - Math.exp(-delta / 20)
@@ -146,23 +151,18 @@ export class Player {
             if (shieldIndex !== -1) {
                 this.activePowerUps.splice(shieldIndex, 1)
             }
-            if (this.HUDupdatePowerUp) {
-                this.HUDupdatePowerUp()
-            }
+            this.eventBus.emit('hud:updatePowerUps', this.activePowerUps)
         } else {
             // Проверка наличия стимпака
             if (this.stimpack) {
                 soundPlayer.damageMetal()
                 this.sprite.tint = 16777021
                 this.stimpack = false
-                if (this.HUDremoveShield) {
-                    this.HUDremoveShield()
-                }
+                this.eventBus.emit('hud:removeShield')
             } else {
                 // Нанесение реального урона
-                if (this.gameState) {
-                    this.gameState.scoreStreak -= 30
-                }
+                this.gameState.decreaseStreak(30)
+
                 this.sprite.tint = 16737894
                 this.health--
                 
@@ -179,30 +179,21 @@ export class Player {
         // Проверка смерти игрока
         if (this.health <= 0) {
             // Создание частиц крови
-            if (this.createParticles) {
-                const secondFloor = this.getSecondFloor ? this.getSecondFloor() : false
-                const isOnSecondFloor = secondFloor === this.sprite.y
-                for (let i = 0; i <= 20; i++) {
-                    this.createParticles(this.sprite, 'blood', isOnSecondFloor)
-                }
+            const isOnSecondFloor = this.worldCoords.secondFloor === this.sprite.y
+            for (let i = 0; i <= 20; i++) {
+                this.eventBus.emit('particle:default', {coords: this.sprite, type: 'blood', floor: isOnSecondFloor})
             }
             
             // Удаление игрока из мира
-            if (this.world && this.sprite) {
-                this.world.removeChild(this.sprite)
-            }
-            
+            this.world.removeChild(this.sprite)
+
             // Остановка движения игрока
-            if (this.setPlayerSpeed) {
-                this.setPlayerSpeed(false)
-            }
-            
+            this.setPlayerSpeed(0)
+
             // Задержка перед окончанием игры
-            if (this.sleep && this.endGame) {
-                this.sleep(1000).then(() => {
-                    this.endGame()
-                })
-            }
+            this.sleep(1000).then(() => {
+                this.endGame()
+            })
         } else {
             // Восстановление после урона
             if (this.sleep) {
@@ -217,6 +208,174 @@ export class Player {
                     }
                 })
             }
+        }
+    }
+
+    event(key) {
+        if (this.health === 0 || this.gameState.gameEnd || this.gameState.isPause || this.gameState.isMenu || !this.gameState.gameStart) return
+        if (this.inZipLine) return
+        switch (key) {
+            //RELOAD
+            case 'KeyR':
+                if ((!this.state || this.state === 'rollEnd') && this.gun.currentAmmo < this.gun.ammo && (!meleeKillManager || !meleeKillManager.hasMeleeKill())) {
+                    soundPlayer.gunReload(this.gun.type)
+                    this.playAnim('reload')
+                    this.setPlayerSpeed(0)
+                    switch (this.gun.type) {
+                        case 'shotgun':
+                            for (let i = 0; i < this.gun.ammo - this.gun.currentAmmo; i++) {
+                                this.eventBus.emit('particle:bounce', {coords: this.sprite, type: 'shell', tint: 16711680})
+                            }
+                            break
+                        case 'revolver':
+                            for (let i = 0; i < gun.ammo - gun.currentAmmo; i++) {
+                                this.eventBus.emit('particle:bounce', {coords: this.sprite, type: 'shell'})
+                            }
+                            break
+                        default:
+                            this.eventBus.emit('particle:bounce', {coords: this.sprite, type: 'mag'})
+                            break
+                    }
+                    this.sprite.onComplete = () => {
+                        this.eventBus.emit('hud:createBulletsDisplay', this.gun)
+
+                        this.gun.currentAmmo = this.gun.ammo
+                        if (this.inCover) {
+                            this.playAnim('idle')
+                            return
+                        }
+                        this.setPlayerSpeed(this.defaultSpeed)
+                        this.playAnim()
+                    }
+                }
+                break
+            //ROLL
+            case 'Space':
+                if (!this.state && !this.inBossFight && (!meleeKillManager || !meleeKillManager.hasMeleeKill())) {
+                    this.gameState.increaseStreak(1)
+                    soundPlayer.slide()
+                    this.playAnim('roll')
+                    this.setPlayerSpeed(this.defaultSpeed * 1.5)
+                    if (this.inCover) {
+                        this.inCover = false
+                        this.sprite.anchor.y = 0.5
+                        this.leaveCover = true
+                    }
+                    this.sprite.onComplete = () => {
+                        this.leaveCover = false
+                        if (this.inZipLine || this.state !== 'roll') return
+                        this.playAnim('rollEnd')
+                        this.sleep(550, true).then(() => {
+                            console.log('resolve')
+                            if (this.inCover || this.inZipLine) {
+                                this.gameState.increaseStreak(1)
+                            } else {
+                                if (meleeKillManager && meleeKillManager.hasMeleeKill()) return
+                                this.setPlayerSpeed(this.defaultSpeed)
+                                this.playAnim()
+                            }
+                            this.rollId = null
+                        })
+                        if (meleeKillManager && meleeKillManager.hasMeleeKill()) this.rollId.pause()
+                    };
+                }
+                break
+            //SHOT
+            case 'KeyF':
+                if (meleeKillManager && meleeKillManager.hasMeleeKill()) {
+                    meleeKillManager.handleMeleeKill(false, false)
+                    return
+                }
+                if ((!this.state || this.state === 'rollEnd') && !this.triggerDelay) {
+                    if (this.gun.currentAmmo <= 0) {
+                        soundPlayer.pistolEmpty()
+                        return;
+                    }
+                    this.triggerDelay = true
+                    this.sleep(this.gun.shotTrigger).then(() => {
+                        this.triggerDelay = false
+                    })
+                    if (this.inCover) {
+                        // player.y = playerState.secondFloor ? secondFloor : playerPos
+                        this.sprite.anchor.y = 0.5
+                        this.sprite.tint = this.sprite.color
+                    }
+                    this.gun.currentAmmo--
+                    this.eventBus.emit('hud:removeBullet')
+
+                    this.playAnim('shot')
+                    shot(playerInstance, this.gun.offsetX, this.gun.offsetY, this.gun.type, true)
+                    if (this.stimpack) {
+                        this.sleep(100).then(() => {
+                            shot(playerInstance, this.gun.offsetX, this.gun.offsetY, this.gun.type, true)
+                        })
+                    }
+                    if (!this.gun.noStop) {
+                        this.setPlayerSpeed(0)
+                        this.sprite.onComplete = () => {
+                            if (this.inCover) {
+                                this.playAnim('idle')
+                                return
+                            }
+                            this.setPlayerSpeed(this.defaultSpeed)
+                            this.playAnim()
+                        }
+                    } else {
+                        if (this.inCover) {
+                            this.sprite.onComplete = () => {
+                                this.playAnim('idle')
+                            }
+                            return
+                        }
+                        this.setPlayerSpeed(this.defaultSpeed)
+                        this.playAnim()
+                    }
+                }
+                break
+            //THROW GRENADE
+            case 'KeyE':
+                if (this.skillCD || this.storage.activeItems.grenades === 0) return;
+                storage.activeItems.grenades -= 1
+                this.skillCD = true
+
+                this.eventBus.emit('hud:setSkillsAlpha', 0.3)
+                this.eventBus.emit('hud:updateSkills', this.storage)
+
+                if (grenadeManager) {
+                    grenadeManager.grenadeBounce()
+                }
+                this.sleep(6000).then(() => {
+                    this.eventBus.emit('hud:setSkillsAlpha', 1)
+                    this.skillCD = false
+                })
+                break
+            //USE STIMPACK
+            case 'KeyW':
+                if (this.skillCD || storage.activeItems.stimpack === 0) return;
+                storage.activeItems.stimpack -= 1
+                this.skillCD = true
+
+                this.eventBus.emit('hud:setSkillsAlpha', 0.3)
+                this.eventBus.emit('hud:updateSkills', this.storage)
+                this.eventBus.emit('hud:createShield', this.health)
+
+                this.stimpack = true
+                soundPlayer.useSkill()
+                this.sleep(15000).then(() => {
+                    this.eventBus.emit('hud:removeShield')
+                    this.eventBus.emit('hud:setSkillsAlpha', 1)
+
+                    this.skillCD = false
+                    this.stimpack = false
+                })
+                break
+            case 'KeyQ':
+                if (this.speed) {
+                    this.setPlayerSpeed(0)
+                } else {
+                    this.setPlayerSpeed(this.defaultSpeed)
+                }
+                break
         }
     }
     
@@ -307,10 +466,6 @@ export class Player {
             afterRoll: this.afterRoll
         }
     }
-
-    updateDefaultSpeedByScore(score) {
-        this.defaultSpeed = this.initSpeed + score
-    }
     
     /**
      * Обновляет параметры оружия из скина и апгрейдов
@@ -396,6 +551,14 @@ export class Player {
                 this.gun.currentAmmo = this.gun.ammo
             }
         }
+    }
+
+    updateDefaultSpeedByScore(score) {
+        this.defaultSpeed = this.initSpeed + score
+    }
+
+    setPlayerSpeed(speed) {
+        this.speed = speed
     }
 
     get playerSpeed() {
