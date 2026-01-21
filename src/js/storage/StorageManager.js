@@ -13,9 +13,6 @@
 
 import bridge from '@vkontakte/vk-bridge'
 
-/**
- * Базовое состояние хранилища
- */
 export const BASE_STORAGE = {
     record: 0,
     money: 0,

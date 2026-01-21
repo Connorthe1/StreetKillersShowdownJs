@@ -18,84 +18,45 @@ import { random } from '../utils/GameUtils.js'
  * Менеджер пауэр-апов
  */
 export class PowerUpManager {
-    constructor(world, player, playerState, gameState, zeroLeft, zeroRight, playerPos, fg, menuIcons, storage) {
+    constructor(world, gameState, fg, storage, worldCoords, resources, eventBus) {
         this.world = world
-        this.player = player
-        this.playerState = playerState
         this.gameState = gameState
-        this.zeroLeft = zeroLeft
-        this.zeroRight = zeroRight
-        this.playerPos = playerPos
+        this.worldCoords = worldCoords
         this.fg = fg
-        this.menuIcons = menuIcons
+        this.resources = resources
         this.storage = storage
-        
+        this.eventBus = eventBus
+
         // Активный пауэр-ап
         this.activePowerUp = null
-        
-        // Callbacks
-        this.soundPlayer = null
-        this.HUDupdatePowerUpCallback = null
-        this.HUDbulletsCallback = null
-        this.gun = null
-    }
-    
-    /**
-     * Устанавливает колбэки
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.soundPlayer) this.soundPlayer = callbacks.soundPlayer
-        if (callbacks.HUDupdatePowerUp) this.HUDupdatePowerUpCallback = callbacks.HUDupdatePowerUp
-        if (callbacks.HUDbullets) this.HUDbulletsCallback = callbacks.HUDbullets
-        if (callbacks.gun) this.gun = callbacks.gun
-    }
-    
-    /**
-     * Обновляет состояние
-     */
-    updateState(state) {
-        if (state.player !== undefined) this.player = state.player
-        if (state.zeroLeft !== undefined) this.zeroLeft = state.zeroLeft
-        if (state.zeroRight !== undefined) this.zeroRight = state.zeroRight
     }
     
     /**
      * Создает пауэр-ап
      */
     createPowerUp() {
-        if (!this.menuIcons) {
-            console.warn('Menu icons not available')
-            return null
-        }
-        
-        if (this.activePowerUp) {
-            // Удаляем предыдущий пауэр-ап, если он существует
-            this.removePowerUp()
-        }
+        if (this.activePowerUp) return
         
         // Случайная позиция
-        const randomPos = Math.floor(this.zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50))
+        const randomPos = Math.floor(this.worldCoords.zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50))
         
         // Случайный тип пауэр-апа
         const rand = random(0, 2)
         const powerUps = ['boostAmmo', 'boostGun', 'boostShield']
         const powerUpType = powerUps[rand]
         
-        const powerUp = new PIXI.Sprite(this.menuIcons.textures[powerUpType])
+        const powerUp = new PIXI.Sprite(this.resources.menuIcons.textures[powerUpType])
         powerUp.type = powerUpType
         powerUp.scale.set(0.4)
         powerUp.anchor.set(0.5)
         powerUp.parentGroup = this.fg
         powerUp.zOrder = 6
-        powerUp.position.set(randomPos, this.playerPos - 10)
+        powerUp.position.set(randomPos, this.worldCoords.firstFloor - 10)
         powerUp.init = powerUp.y
         powerUp.positive = false
         
         this.activePowerUp = powerUp
-        
-        if (this.world) {
-            this.world.addChild(powerUp)
-        }
+        this.world.addChild(powerUp)
         
         return powerUp
     }

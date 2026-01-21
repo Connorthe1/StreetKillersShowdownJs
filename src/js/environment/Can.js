@@ -20,116 +20,40 @@ import { random } from '../utils/GameUtils.js'
  * Менеджер банок
  */
 export class CanManager {
-    constructor(world, engine, physicsManager, player, playerState, gameState, zeroLeft, zeroRight, WORLD_HEIGHT, playerPos, fg) {
+    constructor(world, physicsManager, gameState, fg, worldCoords, resources, storage, eventBus) {
         this.world = world
-        this.engine = engine
         this.physicsManager = physicsManager
-        this.player = player
-        this.playerState = playerState
         this.gameState = gameState
-        this.zeroLeft = zeroLeft
-        this.zeroRight = zeroRight
-        this.WORLD_HEIGHT = WORLD_HEIGHT
-        this.playerPos = playerPos
+        this.worldCoords = worldCoords
         this.fg = fg
-        
+        this.resources = resources
+        this.storage = storage
+        this.eventBus = eventBus
+
         // Текущая банка
         this.currentCan = null
-        
-        // Текстуры (устанавливаются позже)
-        this.canTexture = null
-        
-        // Callbacks
-        this.damageEnemyCallback = null
-        this.addPointsCallback = null
-        this.soundPlayer = null
-        this.barrelDeadCallback = null
-        this.storage = null
-        this.enemies = null
-        this.currentDogEnemy = null
-        this.currentBoss = null
-        this.traps = null
-    }
-    
-    /**
-     * Устанавливает текстуры
-     */
-    setTextures(canTexture) {
-        this.canTexture = canTexture
-    }
-    
-    /**
-     * Устанавливает колбэки
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.damageEnemy) this.damageEnemyCallback = callbacks.damageEnemy
-        if (callbacks.addPoints) this.addPointsCallback = callbacks.addPoints
-        if (callbacks.soundPlayer) this.soundPlayer = callbacks.soundPlayer
-        if (callbacks.barrelDead) this.barrelDeadCallback = callbacks.barrelDead
-        if (callbacks.storage) this.storage = callbacks.storage
-    }
-    
-    /**
-     * Обновляет состояние
-     */
-    updateState(state) {
-        if (state.player !== undefined) this.player = state.player
-        if (state.playerState !== undefined) this.playerState = state.playerState
-        if (state.zeroLeft !== undefined) this.zeroLeft = state.zeroLeft
-        if (state.zeroRight !== undefined) this.zeroRight = state.zeroRight
-        if (state.enemies !== undefined) this.enemies = state.enemies
-        if (state.currentDogEnemy !== undefined) this.currentDogEnemy = state.currentDogEnemy
-        if (state.currentBoss !== undefined) this.currentBoss = state.currentBoss
-        if (state.traps !== undefined) this.traps = state.traps
     }
     
     /**
      * Создает банку
      */
     createCan() {
-        if (!this.canTexture || !this.storage) {
-            console.warn('Can texture or storage not available')
-            return null
-        }
-        
-        if (this.currentCan) {
-            // Удаляем предыдущую банку, если она существует
-            this.removeCan()
-        }
-        
-        const can = new PIXI.Sprite(this.canTexture.textures.pixelCan)
+        if (this.currentCan) return
+        const can = new PIXI.Sprite(this.resources.canTexture.textures.pixelCan)
         can.width = 8
         can.height = 16
+        can.position.set(this.worldCoords.zeroRight, this.worldCoords.firstFloor + 20)
         can.anchor.set(0, 0.5)
         can.health = this.storage.upgrades.can + 1
         can.parentGroup = this.fg
         can.zOrder = 6
-        can.dealDamage = false
-        can.touched = false
-        
-        // Создание физического тела
-        can.body = Matter.Bodies.rectangle(
-            this.zeroRight,
-            this.playerPos + 20,
-            8,
-            16,
-            {
-                isStatic: false,
-                restitution: 0.2,
-                frictionAir: 0.01,
-                chamfer: { radius: [5, 5, 0, 0] }
-            }
-        )
-        
-        if (this.world) {
-            this.world.addChild(can)
-        }
-        
-        if (this.physicsManager) {
-            this.physicsManager.addBody(can.body)
-        }
-        
+        can.body = Matter.Bodies.rectangle(this.worldCoords.zeroRight, this.worldCoords.firstFloor + 20, 8, 16, {isStatic: false, restitution: 0.2, frictionAir: 0.01, chamfer: { radius: [5,5,0,0] }});
+
+        this.world.addChild(can)
+        const engine = this.physicsManager.getEngine()
+        Matter.World.add(engine.world, can.body);
         this.currentCan = can
+
         return can
     }
     
@@ -144,9 +68,9 @@ export class CanManager {
         this.currentCan.rotation = this.currentCan.body.angle
         
         // Удаление банки, если она вышла за границы или потеряла здоровье
-        if ((this.currentCan.x > this.zeroRight + 300) ||
-            (this.currentCan.y > this.WORLD_HEIGHT) ||
-            (this.currentCan.x < this.zeroLeft) ||
+        if ((this.currentCan.x > this.worldCoords.zeroRight + 300) ||
+            (this.currentCan.y > this.worldCoords.worldHeight) ||
+            (this.currentCan.x < this.worldCoords.zeroLeft) ||
             (this.currentCan.health <= 0)) {
             this.removeCan()
             return

@@ -149,21 +149,14 @@ export class BulletManager {
 
         return createdBullets
     }
-    
-    /**
-     * Обновляет все пули
-     * @param {number} zeroLeft - левая граница видимой области
-     * @param {number} zeroRight - правая граница видимой области
-     * @param {number} WORLD_WIDTH - ширина мира
-     * @param {number} gameSpeed - скорость игры
-     */
-    updateBullets(zeroLeft, zeroRight, WORLD_WIDTH, gameSpeed) {
+
+    updateBullets(worldCoords, gameSpeed) {
         // Обновление пуль врагов
         this.enemyBullets.forEach((b, idx) => {
             b.position.x -= (Math.cos(b.rotation) * this.bulletSpeed) * gameSpeed
             b.position.y -= (Math.sin(b.rotation) * this.bulletSpeed) * gameSpeed
             
-            if (b.position.x < zeroLeft + 50 || b.position.x > zeroRight + 100) {
+            if (b.position.x < worldCoords.zeroLeft + 50 || b.position.x > worldCoords.zeroRight + 100) {
                 // Создание частиц при исчезновении
                 for (let i = 0; i <= 3; i++) {
                     this.eventBus.emit('particle:default', { coords: b, type: 'spark', floor: undefined, size: 1 })
@@ -178,7 +171,7 @@ export class BulletManager {
             b.position.x += (Math.cos(b.rotation) * this.bulletSpeed) * gameSpeed
             b.position.y += (Math.sin(b.rotation) * this.bulletSpeed) * gameSpeed
             
-            if (b.position.x < zeroLeft || b.x - b.width * 2 > zeroLeft + getPercent(WORLD_WIDTH, 90)) {
+            if (b.position.x < worldCoords.zeroLeft || b.x - b.width * 2 > worldCoords.zeroLeft + getPercent(worldCoords.worldWidth, 90)) {
                 this.world.removeChild(b)
                 this.gameState.decreaseStreakBy(0.5)
                 // Создание частиц при исчезновении
@@ -192,6 +185,7 @@ export class BulletManager {
         // Обновление анимаций выстрелов
         if (this.shotsArr.length > 0) {
             this.shotsArr.forEach(item => {
+                // item.x += (playerSpeed / 2)
                 // Анимации выстрелов двигаются вместе с игроком
                 // (обновляется в ticker через playerSpeed)
             })

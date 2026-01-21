@@ -21,7 +21,7 @@ import { soundPlayer } from "../playSound";
  * Менеджер для управления всеми типами частиц
  */
 export class ParticleManager {
-    constructor(world, engine, physicsManager, ground, resources, gameState, eventBus) {
+    constructor(world, physicsManager, ground, resources, gameState, eventBus) {
         this.world = world
         this.physicsManager = physicsManager
         this.ground = ground

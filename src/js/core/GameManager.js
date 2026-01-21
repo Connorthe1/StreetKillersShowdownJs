@@ -141,9 +141,9 @@ export class GameManager {
         if (!this.isInitialized) return
         
         // Обновление физики
-        if (this.physicsManager) {
-            this.physicsManager.update()
-        }
+        // if (this.physicsManager) {
+        //     this.physicsManager.update()
+        // }
         
         // Обновление пуль
         if (this.bulletManager) {
@@ -158,9 +158,9 @@ export class GameManager {
         }
         
         // Обновление камеры
-        if (this.cameraManager && this.player) {
-            this.cameraManager.update(this.player.x, gameSpeed, gameSpeed)
-        }
+        // if (this.cameraManager && this.player) {
+        //     this.cameraManager.update(this.player.x, gameSpeed, gameSpeed)
+        // }
         
         // Обновление HUD
         if (this.hudManager) {

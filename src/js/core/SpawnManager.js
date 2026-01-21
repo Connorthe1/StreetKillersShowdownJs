@@ -3,32 +3,35 @@ import {BuildingManager} from "../environment/managers/Building";
 import {PuddleManager} from "../environment/managers/Puddle";
 import {WallManager} from "../environment/managers/Wall";
 import {TrapManager} from "../environment/managers/Trap";
+import {CanManager} from "../environment/Can";
+import {PowerUpManager} from "../entities/PowerUp";
 
 /**
  * Менеджер спавна сущностей
  */
 export class SpawnManager {
-    constructor(gameState, physicsManager, ground, fg, world, worldCoords, resources, sleep, gameConfig, eventBus) {
+    constructor(gameState, physicsManager, ground, fg, world, worldCoords, resources, sleep, storage, eventBus) {
         this.gameState = gameState
         this.world = world
         this.worldCoords = worldCoords
         this.resources = resources
         this.eventBus = eventBus
         this.sleep = sleep
-        this.gameConfig = gameConfig
         this.physicsManager = physicsManager
         this.ground = ground
         this.fg = fg
+        this.storage = storage
 
-        this.buildingManager = new BuildingManager(world, physicsManager, ground, worldCoords, gameConfig, fg, resources, eventBus)
+        this.buildingManager = new BuildingManager(world, physicsManager, ground, worldCoords, fg, resources, eventBus)
         this.puddleManager = new PuddleManager(gameState, world, worldCoords, resources, eventBus, sleep)
         this.wallManager = new WallManager(world, ground, worldCoords, resources, eventBus)
         this.trapManager = new TrapManager(world, gameState, worldCoords, ground, fg, resources, eventBus)
+        this.canManager = new CanManager(world, physicsManager, gameState, fg, worldCoords, resources, storage, eventBus)
+        this.powerUpManager = new PowerUpManager(world, gameState, fg, storage, worldCoords, resources, eventBus)
 
         this.currentBoss = null
         this.currentDogEnemy = null
         this.activePowerUp = null
-        this.currentCan = null
 
         eventBus.on('spawn:entity', data => {
             this.spawnEntity()
@@ -47,6 +50,16 @@ export class SpawnManager {
         // Спавн зданий
         if (!this.currentBoss) {
             this.buildingManager.createBuildingChance()
+        }
+
+        // Спавн банки
+        if (Math.random() < 0.1) {
+            this.canManager.createCan()
+        }
+
+        // Спавн пауэр-апа
+        if (Math.random() < 0.05) {
+            this.powerUpManager.createPowerUp()
         }
 
         // Спавн босса или бочки
@@ -70,11 +83,6 @@ export class SpawnManager {
         }
 
         return;
-
-        // Спавн пауэр-апа
-        if (Math.random() < 0.05 && !this.activePowerUp && this.createPowerUpCallback) {
-            this.createPowerUpCallback()
-        }
         
         // Спавн врага-собаки
         if (Math.random() < 0.05 && !this.currentDogEnemy && this.gameState.points > 2000 && this.createDogEnemyCallback) {
@@ -84,11 +92,6 @@ export class SpawnManager {
         // Спавн врага
         if (Math.random() < 0.5 && this.createEnemyCallback) {
             this.createEnemyCallback()
-        }
-        
-        // Спавн банки
-        if (Math.random() < 0.1 && !this.currentCan && this.createCanCallback) {
-            this.createCanCallback()
         }
     }
     

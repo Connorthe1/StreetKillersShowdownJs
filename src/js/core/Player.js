@@ -17,13 +17,14 @@ import { soundPlayer } from "../playSound";
  * Класс игрока
  */
 export class Player {
-    constructor(world, gameState, resources, storage, WORLD_WIDTH, worldCoords) {
+    constructor(world, gameState, resources, storage, worldCoords, eventBus) {
         // GameState для управления уроном
         this.world = world
         this.gameState = gameState
         this.resources = resources
         this.storage = storage
-        this.WORLD_WIDTH = WORLD_WIDTH
+        this.worldCoords = worldCoords
+        this.eventBus = eventBus
 
         // Спрайт игрока
         this.sprite = null
@@ -69,71 +70,28 @@ export class Player {
             noStop: false,
             melee: false
         }
-        
-        // UI ближнего боя
-        this.meleeKill = null
-        
-        // Задержка триггера
-        this.triggerDelay = false
-        
-        // Колбэки для управления уроном
-        this.cameraShake = null
-        this.hud = null
-        this.world = null
-        this.createParticles = null
-        this.sleep = null
-        this.endGame = null
-        this.HUDupdatePowerUp = null
-        this.HUDremoveShield = null
-        this.getSecondFloor = null
-        this.setPlayerSpeed = null
+    }
 
-        this.worldCoords = worldCoords
-    }
-    
-    /**
-     * Устанавливает колбэки для управления уроном
-     * @param {Object} callbacks - объект с колбэками
-     */
-    setDamageCallbacks(callbacks) {
-        if (callbacks.cameraShake !== undefined) this.cameraShake = callbacks.cameraShake
-        if (callbacks.hud !== undefined) this.hud = callbacks.hud
-        if (callbacks.world !== undefined) this.world = callbacks.world
-        if (callbacks.createParticles !== undefined) this.createParticles = callbacks.createParticles
-        if (callbacks.sleep !== undefined) this.sleep = callbacks.sleep
-        if (callbacks.endGame !== undefined) this.endGame = callbacks.endGame
-        if (callbacks.HUDupdatePowerUp !== undefined) this.HUDupdatePowerUp = callbacks.HUDupdatePowerUp
-        if (callbacks.HUDremoveShield !== undefined) this.HUDremoveShield = callbacks.HUDremoveShield
-        if (callbacks.getSecondFloor !== undefined) this.getSecondFloor = callbacks.getSecondFloor
-        if (callbacks.setPlayerSpeed !== undefined) this.setPlayerSpeed = callbacks.setPlayerSpeed
-    }
-    
-    /**
-     * Создает спрайт игрока
-     * @param {number} x - позиция X
-     * @param {number} y - позиция Y
-     * @returns {PIXI.AnimatedSprite} спрайт игрока
-     */
-    createPlayer(x = 0, y = 0) {
-        if (!this.currentSkin) {
-            console.error('Player.createPlayer: skin is required and must have animations.run')
-            return null
-        }
-        
-        const playerSprite = new PIXI.AnimatedSprite(this.currentSkin.animations.run)
-        playerSprite.anchor.set(0.5, 0.7)
-        playerSprite.position.set(x, y)
-        playerSprite.scale.set(2)
-        playerSprite.animationSpeed = 0.2
-        playerSprite.loop = true
-        playerSprite.play()
-        
-        playerSprite.color = 0xffffff
-        playerSprite.shadow = 0x757575
-        
-        this.sprite = playerSprite
-        
-        return playerSprite
+    // Создает спрайт игрока
+    createPlayer(x = 0, y = 0, fg) {
+        const player = new PIXI.AnimatedSprite(this.currentSkin.animations.run)
+        player.color = player.tint
+        player.shadow = 11776947
+        player.anchor.set(0.5)
+        player.scale.x = 2
+        player.scale.y = 2
+        player.animationSpeed = 0.2
+        player.autoUpdate = true
+        player.loop = true
+        player.parentGroup = fg
+        player.zOrder = 5
+        player.position.set(x, y)
+        this.world.addChild(player)
+        player.play()
+
+
+        this.sprite = player
+        return player
     }
 
     updatePlayer(gameSpeed, delta) {
@@ -165,9 +123,9 @@ export class Player {
         this.sprite.x += (0.5 * this.speed) * gameSpeed;
 
         this.worldCoords.zeroLeft = (this.sprite.x - 100)
-        this.worldCoords.zeroRight = (this.sprite.x + this.WORLD_WIDTH)
+        this.worldCoords.zeroRight = (this.sprite.x + this.worldCoords.worldWidth)
     }
-    
+
     /**
      * Наносит урон игроку
      */
@@ -175,9 +133,7 @@ export class Player {
         if (!this.sprite) return
         
         // Тряска камеры
-        if (this.cameraShake) {
-            this.cameraShake(4, 600)
-        }
+        this.eventBus.emit('camera:shake', {intensity: 4, duration: 600})
         
         // Установка неуязвимости
         this.invincible = true
@@ -285,7 +241,7 @@ export class Player {
             return
         }
         
-        if (!anim || (anim === 'shotEnd' && this.gunNoStop)) {
+        if (!anim || (anim === 'shotEnd' && this.gun.noStop)) {
             this.resetPlayerState()
         } else {
             const tint = (anim === 'roll' || anim === 'rollEnd' || (this.inCover && anim !== 'shot')) ?
@@ -350,17 +306,6 @@ export class Player {
             leaveCover: this.leaveCover,
             afterRoll: this.afterRoll
         }
-    }
-    
-    /**
-     * Геттеры для скоростей
-     */
-    get playerSpeed() {
-        return this.speed
-    }
-    
-    get playerDefaultSpeed() {
-        return this.defaultSpeed
     }
 
     updateDefaultSpeedByScore(score) {
@@ -451,6 +396,14 @@ export class Player {
                 this.gun.currentAmmo = this.gun.ammo
             }
         }
+    }
+
+    get playerSpeed() {
+        return this.speed
+    }
+
+    get playerDefaultSpeed() {
+        return this.defaultSpeed
     }
     
 }

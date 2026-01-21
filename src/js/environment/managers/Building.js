@@ -15,13 +15,13 @@
 import * as PIXI from 'pixi.js'
 import * as Matter from 'matter-js'
 import { random, randomRGB } from '../../utils/GameUtils.js'
-import {BUILDING_CHANCE} from "../../core/GameConfig";
+import { BUILDING_CHANCE } from "../../core/GameConfig";
 
 /**
  * Менеджер зданий
  */
 export class BuildingManager {
-    constructor(world, physicsManager, ground, worldCoords, gameConfig, fg, resources, eventBus) {
+    constructor(world, physicsManager, ground, worldCoords, fg, resources, eventBus) {
         this.world = world
         this.physicsManager = physicsManager
         this.ground = ground
@@ -30,7 +30,6 @@ export class BuildingManager {
         this.fg = fg
         this.eventBus = eventBus
         this.resources = resources
-        this.gameConfig = gameConfig
 
         // Состояние
         this.buildingChance = BUILDING_CHANCE
@@ -348,7 +347,7 @@ export class BuildingManager {
         for (let i = 1; i <= 17; i++) {
             const rand = Math.floor(Math.random() * (9 - 1 + 1) + 1)
             const laserBeam = new PIXI.AnimatedSprite(this.resources.laserBeamTexture.animations[`render${rand}`])
-            laserBeam.position.set(position + 526 + (i * 44), this.gameConfig.WORLD_HEIGHT - 434)
+            laserBeam.position.set(position + 526 + (i * 44), this.worldCoords.worldHeight - 434)
             laserBeam.tint = randomRGB()
             laserBeam.scale.y = `1.0${rand}`
             laserBeam.parentGroup = this.fg
