@@ -22,10 +22,11 @@ import {soundPlayer} from "../playSound";
  * Менеджер для управления пулями
  */
 export class BulletManager {
-    constructor(world, gameState, resources, eventBus) {
+    constructor(world, gameState, resources, sleep, eventBus) {
         this.world = world
         this.gameState = gameState
         this.resources = resources
+        this.sleep = sleep
         this.eventBus = eventBus
 
         // Массивы пуль
@@ -34,6 +35,10 @@ export class BulletManager {
         this.shotsArr = [] // Анимации выстрелов
         
         this.bulletSpeed = BULLET_SPEED
+
+        eventBus.on('bullet:shot', ({char, offsetX, offsetY, eventGun, friendly}) => {
+            this.shot(char, offsetX, offsetY, eventGun, friendly)
+        })
     }
 
     spawnBullet(x, y, char, isFriendly) {
@@ -73,10 +78,9 @@ export class BulletManager {
      * @param {number} offsetY - смещение Y
      * @param {string} eventGun - тип оружия
      * @param {boolean} friendly - дружественная пуля (игрок)
-     * @param {Function} sleep - функция задержки
      * @returns {Array} массив созданных пуль
      */
-    shot(char, offsetX, offsetY, eventGun, friendly, sleep = null) {
+    shot(char, offsetX, offsetY, eventGun, friendly) {
         const shot = new PIXI.AnimatedSprite(this.resources.particles.animations.gunShot)
         shot.anchor.set(0.5)
         shot.scale.x = 1.2
@@ -99,11 +103,9 @@ export class BulletManager {
             
             if (char.gun && char.gun.noStop) {
                 this.shotsArr.push(shot)
-                if (sleep) {
-                    sleep(150).then(() => {
-                        this.shotsArr.splice(0, 1)
-                    })
-                }
+                this.sleep(150).then(() => {
+                    this.shotsArr.splice(0, 1)
+                })
             }
             
             // Создание пуль (для дробовика - 3 пули)
@@ -140,12 +142,10 @@ export class BulletManager {
 
         this.world.addChild(shot)
         shot.play()
-        
-        if (sleep) {
-            sleep(150).then(() => {
-                this.world.removeChild(shot)
-            })
-        }
+
+        this.sleep(150).then(() => {
+            this.world.removeChild(shot)
+        })
 
         return createdBullets
     }
@@ -173,7 +173,7 @@ export class BulletManager {
             
             if (b.position.x < worldCoords.zeroLeft || b.x - b.width * 2 > worldCoords.zeroLeft + getPercent(worldCoords.worldWidth, 90)) {
                 this.world.removeChild(b)
-                this.gameState.decreaseStreakBy(0.5)
+                this.gameState.decreaseStreak(0.5)
                 // Создание частиц при исчезновении
                 for (let i = 0; i <= 3; i++) {
                     this.eventBus.emit('particle:default', { coords: b, type: 'spark', floor: undefined, size: 1 })

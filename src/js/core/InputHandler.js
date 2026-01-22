@@ -14,20 +14,12 @@
  * Обработчик ввода
  */
 export class InputHandler {
-    constructor(canvas, gameState, playerState, storage) {
+    constructor(canvas, gameState, playerState, storage, eventBus) {
         this.canvas = canvas
         this.gameState = gameState
         this.playerState = playerState
         this.storage = storage
-        
-        // Callbacks для действий
-        this.onReload = null
-        this.onRoll = null
-        this.onShot = null
-        this.onGrenade = null
-        this.onStimpack = null
-        this.onToggleSpeed = null
-        this.onMeleeKill = null
+        this.eventBus = eventBus
         
         // Для свайпов
         this.touchStart = null
@@ -37,83 +29,9 @@ export class InputHandler {
         // Инициализация свайпов
         this.initSwipes()
     }
-    
-    /**
-     * Устанавливает колбэки для действий
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.onReload) this.onReload = callbacks.onReload
-        if (callbacks.onRoll) this.onRoll = callbacks.onRoll
-        if (callbacks.onShot) this.onShot = callbacks.onShot
-        if (callbacks.onGrenade) this.onGrenade = callbacks.onGrenade
-        if (callbacks.onStimpack) this.onStimpack = callbacks.onStimpack
-        if (callbacks.onToggleSpeed) this.onToggleSpeed = callbacks.onToggleSpeed
-        if (callbacks.onMeleeKill) this.onMeleeKill = callbacks.onMeleeKill
-    }
-    
-    /**
-     * Обновляет состояние
-     */
-    updateState(state) {
-        if (state.gameState !== undefined) this.gameState = state.gameState
-        if (state.playerState !== undefined) this.playerState = state.playerState
-        if (state.storage !== undefined) this.storage = state.storage
-    }
-    
-    /**
-     * Обрабатывает событие клавиатуры
-     * @param {KeyboardEvent} e - событие клавиатуры
-     */
-    handleEvent(e) {
-        // Проверка условий для обработки событий
-        if (this.playerState.health === 0 || 
-            this.gameState.gameEnd || 
-            this.gameState.isPause || 
-            this.gameState.isMenu || 
-            !this.gameState.gameStart) {
-            return
-        }
-        
-        if (this.playerState.inZipLine) return
-        
-        // Обработка различных клавиш
-        switch (e.code) {
-            case 'KeyR':
-                if (this.onReload) {
-                    this.onReload()
-                }
-                break
-                
-            case 'Space':
-                if (this.onRoll) {
-                    this.onRoll()
-                }
-                break
-                
-            case 'KeyF':
-                if (this.onShot) {
-                    this.onShot()
-                }
-                break
-                
-            case 'KeyE':
-                if (this.onGrenade) {
-                    this.onGrenade()
-                }
-                break
-                
-            case 'KeyW':
-                if (this.onStimpack) {
-                    this.onStimpack()
-                }
-                break
-                
-            case 'KeyQ':
-                if (this.onToggleSpeed) {
-                    this.onToggleSpeed()
-                }
-                break
-        }
+
+    handleEvent(key) {
+        this.eventBus.emit('player:event', key)
     }
     
     /**
@@ -130,6 +48,10 @@ export class InputHandler {
         this.canvas.addEventListener("touchmove", (e) => this.touchMoveHandler(e))
         this.canvas.addEventListener("touchend", (e) => this.touchEndHandler(e))
         this.canvas.addEventListener("touchcancel", (e) => this.touchEndHandler(e))
+
+        document.addEventListener('keyup', (e) => {
+            this.handleEvent(e.code)
+        })
     }
     
     /**
@@ -201,31 +123,8 @@ export class InputHandler {
                 }
             }
         }
-        
-        // Преобразуем свайп в событие клавиатуры
-        let keyCode = null
-        switch (msg) {
-            case 'Swipe down':
-                keyCode = 'Space'
-                break
-            case 'Swipe up':
-                keyCode = 'KeyR'
-                break
-            case 'Swipe Right':
-                keyCode = 'KeyE'
-                break
-            case 'Swipe Left':
-                keyCode = 'KeyW'
-                break
-            default:
-                keyCode = 'KeyF'
-                break
-        }
-        
-        // Вызываем обработчик события
-        if (keyCode) {
-            this.handleEvent({ code: keyCode })
-        }
+
+        this.handleEvent(this.mapSwipeToKey(msg))
     }
     
     /**

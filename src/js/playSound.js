@@ -20,15 +20,16 @@ class SoundPlayer {
     }
     async gunReload(gun) {
         const randSound = random(0, 2)
-        switch (true) {
-            case gun === 'pistol':
+        switch (gun) {
+            case 'pistol':
+            case 'silence':
                 sound.play(`pistolRemoveMag${randSound}`)
                 await sleep(400)
                 sound.play(`pistolInsertMag${randSound}`)
                 await sleep(400)
                 sound.play(`pistolCock${randSound}`)
             break
-            case gun === 'doubles':
+            case 'doubles':
                 sound.play(`pistolRemoveMag${random(0, 2)}`)
                 await sleep(400)
                 sound.play(`pistolInsertMag${random(0, 2)}`)
@@ -39,7 +40,7 @@ class SoundPlayer {
                 await sleep(100)
                 sound.play(`pistolCock${random(0, 2)}`)
             break
-            case gun === 'shotgun':
+            case 'shotgun':
                 await sleep(100)
                 sound.play(`shotShotgunLoad${random(0, 2)}`)
                 await sleep(200)
@@ -47,7 +48,7 @@ class SoundPlayer {
                 await sleep(350)
                 sound.play(`shotShotgunCock${random(0, 1)}`)
             break
-            case gun === 'revolver':
+            case 'revolver':
                 sound.play(`shotRevolverRemoveMag${random(0, 1)}`)
                 await sleep(200)
                 sound.play(`shotRevolverLoad${random(0, 2)}`)

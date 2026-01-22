@@ -64,8 +64,8 @@ export class Player {
             fireRate: 100,
             type: 'pistol',
             angle: 0.4,
-            offsetX: 0,
-            offsetY: 0,
+            offsetX: 30,
+            offsetY: 12,
             shotTrigger: 0,
             reloadAnim: 0.2,
             reloadTime: 1000,
@@ -73,8 +73,12 @@ export class Player {
             melee: false
         }
 
-        eventBus.emit('player:defaultSpeed', speed => {
+        eventBus.on('player:defaultSpeed', speed => {
             this.updateDefaultSpeedByScore(speed)
+        })
+
+        eventBus.on('player:event', key => {
+            this.event(key)
         })
     }
 
@@ -167,12 +171,7 @@ export class Player {
                 this.health--
                 
                 // Удаление сердца из HUD
-                if (this.hud) {
-                    const hearts = this.hud.getChildByName('hearts')
-                    if (hearts && hearts.children.length > 0) {
-                        hearts.removeChildAt(0)
-                    }
-                }
+                this.eventBus.emit('hud:removeHP')
             }
         }
         
@@ -214,10 +213,11 @@ export class Player {
     event(key) {
         if (this.health === 0 || this.gameState.gameEnd || this.gameState.isPause || this.gameState.isMenu || !this.gameState.gameStart) return
         if (this.inZipLine) return
+        const isMeleeActive = this.eventBus.emit('melee:isActive', null, true);
         switch (key) {
             //RELOAD
             case 'KeyR':
-                if ((!this.state || this.state === 'rollEnd') && this.gun.currentAmmo < this.gun.ammo && (!meleeKillManager || !meleeKillManager.hasMeleeKill())) {
+                if ((!this.state || this.state === 'rollEnd') && this.gun.currentAmmo < this.gun.ammo && !isMeleeActive) {
                     soundPlayer.gunReload(this.gun.type)
                     this.playAnim('reload')
                     this.setPlayerSpeed(0)
@@ -228,7 +228,7 @@ export class Player {
                             }
                             break
                         case 'revolver':
-                            for (let i = 0; i < gun.ammo - gun.currentAmmo; i++) {
+                            for (let i = 0; i < this.gun.ammo - this.gun.currentAmmo; i++) {
                                 this.eventBus.emit('particle:bounce', {coords: this.sprite, type: 'shell'})
                             }
                             break
@@ -251,7 +251,7 @@ export class Player {
                 break
             //ROLL
             case 'Space':
-                if (!this.state && !this.inBossFight && (!meleeKillManager || !meleeKillManager.hasMeleeKill())) {
+                if (!this.state && !this.inBossFight && !isMeleeActive) {
                     this.gameState.increaseStreak(1)
                     soundPlayer.slide()
                     this.playAnim('roll')
@@ -270,20 +270,20 @@ export class Player {
                             if (this.inCover || this.inZipLine) {
                                 this.gameState.increaseStreak(1)
                             } else {
-                                if (meleeKillManager && meleeKillManager.hasMeleeKill()) return
+                                if (isMeleeActive) return
                                 this.setPlayerSpeed(this.defaultSpeed)
                                 this.playAnim()
                             }
                             this.rollId = null
                         })
-                        if (meleeKillManager && meleeKillManager.hasMeleeKill()) this.rollId.pause()
+                        if (isMeleeActive) this.rollId.pause()
                     };
                 }
                 break
             //SHOT
             case 'KeyF':
-                if (meleeKillManager && meleeKillManager.hasMeleeKill()) {
-                    meleeKillManager.handleMeleeKill(false, false)
+                if (isMeleeActive) {
+                    this.eventBus.emit('melee:handleMeleeKill', {skip: false, noDamage: false})
                     return
                 }
                 if ((!this.state || this.state === 'rollEnd') && !this.triggerDelay) {
@@ -304,10 +304,10 @@ export class Player {
                     this.eventBus.emit('hud:removeBullet')
 
                     this.playAnim('shot')
-                    shot(playerInstance, this.gun.offsetX, this.gun.offsetY, this.gun.type, true)
+                    this.eventBus.emit('bullet:shot', {char: this, offsetX: this.gun.offsetX, offsetY: this.gun.offsetY, eventGun: this.gun.type, friendly: true})
                     if (this.stimpack) {
                         this.sleep(100).then(() => {
-                            shot(playerInstance, this.gun.offsetX, this.gun.offsetY, this.gun.type, true)
+                            this.eventBus.emit('bullet:shot', {char: this, offsetX: this.gun.offsetX, offsetY: this.gun.offsetY, eventGun: this.gun.type, friendly: true})
                         })
                     }
                     if (!this.gun.noStop) {
@@ -527,8 +527,9 @@ export class Player {
             }
             
             if (skin.speedAmp !== undefined) {
-                this.defaultSpeed = this.initSpeed * skin.speedAmp
+                this.defaultSpeed += skin.speedAmp
                 this.speed = this.defaultSpeed
+                this.initSpeed = this.defaultSpeed
             }
         }
         

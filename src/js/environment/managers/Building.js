@@ -466,11 +466,6 @@ export class BuildingManager {
      * @param {boolean} forBoss - для босса
      */
     createCoverInClub(pos, type, forBoss) {
-        if (!this.inClubTexture) {
-            console.warn('Club cover textures not available')
-            return
-        }
-        
         const wall = new PIXI.Sprite(this.resources.inClubTexture.textures[`inClub-${type}`])
         switch (type) {
             case 0:

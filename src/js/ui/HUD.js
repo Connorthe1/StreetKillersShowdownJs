@@ -55,6 +55,10 @@ export class HUDManager {
         eventBus.on('hud:updatePowerUps', activePowerUps => {
             this.updatePowerUps(activePowerUps)
         })
+
+        eventBus.on('hud:removeHP', () => {
+            this.removeHP()
+        })
     }
     
     /**
@@ -331,6 +335,13 @@ export class HUDManager {
         const shield = this.hud.getChildByName('shield')
         if (shield) {
             this.hud.removeChild(shield)
+        }
+    }
+
+    removeHP() {
+        const hearts = this.hud.getChildByName('hearts')
+        if (hearts && hearts.children.length > 0) {
+            hearts.removeChildAt(0)
         }
     }
     

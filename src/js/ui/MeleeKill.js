@@ -11,20 +11,19 @@
  */
 
 import * as PIXI from 'pixi.js'
+import {DEFAULT_GAME_SPEED, SLOW_GAME_SPEED} from "../core/GameConfig";
 
 /**
  * Менеджер ближнего боя
  */
 export class MeleeKillManager {
-    constructor(hud, gameState, playerState, gameWidth, gameHeight, defaultGameSpeed, slowGameSpeed) {
+    constructor(hud, gameState, gameWidth, gameHeight, eventBus) {
         this.hud = hud
         this.gameState = gameState
-        this.playerState = playerState
         this.gameWidth = gameWidth
         this.gameHeight = gameHeight
-        this.defaultGameSpeed = defaultGameSpeed
-        this.slowGameSpeed = slowGameSpeed
-        
+        this.eventBus = eventBus
+
         // UI ближнего боя
         this.meleeKill = null
         
@@ -33,42 +32,14 @@ export class MeleeKillManager {
         this.selectorSpeed = 0.5 // скорость движения селектора (из Player.js)
         this.streak = 0 // стрик ближнего боя
         this.streakTimer = null
-        
-        // Callbacks
-        this.damageEnemyCallback = null
-        this.damagePlayerCallback = null
-        this.addPointsCallback = null
-        this.playAnimCallback = null
-        this.eventsCallback = null
-        this.sleepCallback = null
-        this.gun = null
-        this.traps = null
-        this.player = null
-    }
-    
-    /**
-     * Устанавливает колбэки
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.damageEnemy) this.damageEnemyCallback = callbacks.damageEnemy
-        if (callbacks.damagePlayer) this.damagePlayerCallback = callbacks.damagePlayer
-        if (callbacks.addPoints) this.addPointsCallback = callbacks.addPoints
-        if (callbacks.playAnim) this.playAnimCallback = callbacks.playAnim
-        if (callbacks.events) this.eventsCallback = callbacks.events
-        if (callbacks.sleep) this.sleepCallback = callbacks.sleep
-        if (callbacks.gun) this.gun = callbacks.gun
-        if (callbacks.traps) this.traps = callbacks.traps
-        if (callbacks.player) this.player = callbacks.player
-        if (callbacks.selectorSpeed) this.selectorSpeed = callbacks.selectorSpeed
-        if (callbacks.updateGameSpeed) this.updateGameSpeedCallback = callbacks.updateGameSpeed
-    }
-    
-    /**
-     * Обновляет состояние
-     */
-    updateState(state) {
-        if (state.defaultGameSpeed !== undefined) this.defaultGameSpeed = state.defaultGameSpeed
-        if (state.gameSpeed !== undefined) this.gameSpeed = state.gameSpeed
+
+        eventBus.on('melee:isActive', () => {
+            return this.hasMeleeKill();
+        });
+
+        eventBus.on('melee:handleMeleeKill', data => {
+            this.handleMeleeKill(data.skip, data.noDamage)
+        })
     }
     
     /**
@@ -76,13 +47,6 @@ export class MeleeKillManager {
      * @param {PIXI.Sprite} enemy - враг для ближнего боя
      */
     createMeleeKillUI(enemy) {
-        if (!this.hud || !enemy) {
-            console.warn('HUD or enemy not available for melee kill')
-            return null
-        }
-        
-        console.log('startMelee')
-        
         // Пауза анимации кувырка
         if (this.playerState.rollId) {
             this.playerState.rollId.pause()
@@ -90,7 +54,7 @@ export class MeleeKillManager {
         
         // Замедление игры
         if (this.updateGameSpeedCallback) {
-            this.updateGameSpeedCallback(this.slowGameSpeed)
+            this.updateGameSpeedCallback(SLOW_GAME_SPEED)
         }
         
         // Создание контейнера UI
@@ -173,9 +137,9 @@ export class MeleeKillManager {
         
         // Движение селектора
         if (this.selectorSide) {
-            selector.x += ((this.selectorSpeed + this.streak) * this.defaultGameSpeed)
+            selector.x += ((this.selectorSpeed + this.streak) * DEFAULT_GAME_SPEED)
         } else {
-            selector.x -= ((this.selectorSpeed + this.streak) * this.defaultGameSpeed)
+            selector.x -= ((this.selectorSpeed + this.streak) * DEFAULT_GAME_SPEED)
         }
         
         // Отскок от краев

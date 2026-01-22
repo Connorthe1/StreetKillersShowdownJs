@@ -322,12 +322,11 @@ export class ParticleManager {
             // Дополнительные частицы при качении
             if ((playerInstance.state === 'roll' || playerInstance.state === 'rollEnd')) {
                 this.spawnTrailParticle(playerInstance.sprite)
-                this.spawnTrailParticle(playerInstance.sprite)
-                this.spawnTrailParticle(playerInstance.sprite)
             } else {
                 // Звук шагов
                 this.stepSound++
                 if (this.stepSound > 20 && soundPlayer) {
+                    this.spawnTrailParticle(playerInstance.sprite)
                     this.spawnTrailParticle(playerInstance.sprite)
                     soundPlayer.footStep()
                     this.stepSound = 0

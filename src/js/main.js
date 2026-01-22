@@ -4,10 +4,10 @@ import * as PIXI from 'pixi.js'
 import { Layer, Group, Stage } from '@pixi/layers';
 import * as Matter from 'matter-js'
 import { Player } from './core/Player.js'
-import { getPercent, random, randomRGB } from './utils/GameUtils.js'
-import { GAME_SCALE, DEFAULT_GAME_SPEED, SLOW_GAME_SPEED, BULLET_SPEED, FENCE_CHANCE, BUILDING_CHANCE, GROUND_COLORS, BG_SPEED, initGameConfig } from './core/GameConfig.js'
+import { getPercent, random } from './utils/GameUtils.js'
+import { GAME_SCALE, DEFAULT_GAME_SPEED, SLOW_GAME_SPEED, BUILDING_CHANCE, BG_SPEED, initGameConfig } from './core/GameConfig.js'
 import { GameState } from './core/GameState.js'
-import { StorageManager, BASE_STORAGE } from './storage/StorageManager.js'
+import { StorageManager } from './storage/StorageManager.js'
 import { ResourceLoader } from './resources/ResourceLoader.js'
 import { PhysicsManager } from './physics/PhysicsManager.js'
 import { ParticleManager } from './entities/Particle.js'
@@ -111,13 +111,6 @@ let groundManager // Инициализируется после создани�
 let garbageManager // Инициализируется после создания world
 let zipLineManager // Инициализируется после создания world
 
-// shotsArr импортируется из Player.js, но также управляется через BulletManager
-let shotsArr = []
-
-const groundColor = GROUND_COLORS
-let selectGroundColor = 0
-// textStyles теперь в gameConfig
-
 let walls = []
 let traps = []
 let enemies = []
@@ -127,7 +120,6 @@ let moneyDrop = []
 let buildings = []
 let grenades = []
 let puddles = []
-let garbages = []
 let particleManager // Инициализируется после создания world
 let spawnManager // Инициализируется после создания world
 let hudManager // Инициализируется после создания hud
@@ -237,7 +229,7 @@ window.onload = async function () {
         // Инициализация менеджера частиц
         particleManager = new ParticleManager(world, physicsManager, ground, resources, gameState, eventBus)
 
-        bulletManager = new BulletManager(world, gameState, resources, eventBus)
+        bulletManager = new BulletManager(world, gameState, resources, sleep, eventBus)
 
         backgroundManager = new BackgroundManager(world, WORLD_WIDTH, WORLD_HEIGHT, gameHeight, resources, gameState)
 
@@ -273,6 +265,8 @@ window.onload = async function () {
         
         // Инициализация менеджера камеры
         cameraManager = new CameraManager(world, gameState, worldCoords, sleep, eventBus)
+
+        meleeKillManager = new MeleeKillManager(hud, gameState, gameWidth, gameHeight, eventBus)
 
         //TODO
         
@@ -453,25 +447,12 @@ window.onload = async function () {
 
         // Инициализация UI менеджеров (текстуры передаются сразу, так как они уже загружены)
         menuManager = new MenuManager(app, gameState, storage, gameWidth, gameHeight, textStyles, resources, storageManager)
-        meleeKillManager = new MeleeKillManager(hud, gameState, gameWidth, gameHeight, textStyles)
 
         // Установка колбэков для UI менеджеров
         if (menuManager) {
             menuManager.setCallbacks({
                 startGame: startGame,
                 sleep: sleep
-            })
-        }
-
-        if (meleeKillManager) {
-            meleeKillManager.setCallbacks({
-                damagePlayer: () => {
-                    if (playerInstance) {
-                        playerInstance.damagePlayer()
-                    }
-                },
-                damageEnemy: damageEnemy,
-                soundPlayer: soundPlayer
             })
         }
         
@@ -541,26 +522,11 @@ window.onload = async function () {
             app.renderer.view,
             gameState,
             playerState,
-            storage
+            storage,
+            eventBus
         )
-        
-        // Установка колбэков для InputHandler (все действия вызывают events)
-        inputHandler.setCallbacks({
-            onReload: () => events({ code: 'KeyR' }),
-            onRoll: () => events({ code: 'Space' }),
-            onShot: () => events({ code: 'KeyF' }),
-            onGrenade: () => events({ code: 'KeyE' }),
-            onStimpack: () => events({ code: 'KeyW' }),
-            onToggleSpeed: () => events({ code: 'KeyQ' }),
-            onMeleeKill: () => {
-                if (meleeKillManager && meleeKillManager.hasMeleeKill()) {
-                    meleeKillManager.handleMeleeKill(false, false)
-                }
-            }
-        })
-        
+
         // Старый обработчик оставлен для обратной совместимости
-        document.addEventListener('keyup', events)
         app.ticker.maxFPS = 60
         app.ticker.minFPS = 60
         app.ticker.add(ticker)
@@ -639,10 +605,6 @@ window.onload = async function () {
         physicsManager.update();
         // Обновление ближнего боя через MeleeKillManager
         if (meleeKillManager) {
-            meleeKillManager.updateState({
-                defaultGameSpeed: defaultGameSpeed,
-                gameSpeed: gameSpeed
-            })
             meleeKillManager.updateMeleeKill()
         }
         if (hudManager) {
@@ -884,313 +846,6 @@ window.onload = async function () {
         }
     }
 
-
-    function updatePlayer(delta) {
-        if (gameState.gameEnd) return
-        if (playerState.activePowerUps.length > 0) {
-            playerState.activePowerUps.forEach((powerUp, idx) => {
-                if (Date.now() > powerUp.expired) {
-                    switch (true) {
-                        case powerUp.type === 'boostAmmo':
-                            gun.ammo = gun.ammo / 2
-                        break
-                        case powerUp.type === 'boostGun':
-                            gun.damage = gun.damage / 2
-                        break
-                    }
-                    playerState.activePowerUps.splice(idx, 1)
-                    if (hudManager) {
-                        hudManager.updatePowerUps(playerState)
-                    }
-                    console.log('endPW')
-                }
-            })
-        }
-        if (gameStart) {
-            const dtX = 1 - Math.exp(-delta / 5)
-            const dtY = 1 - Math.exp(-delta / 20)
-            world.pivot.x = ((player.x - 60) - world.pivot.x) * dtX + world.pivot.x;
-            world.pivot.y = (-world.pivot.y) * dtY + world.pivot.y;
-        }
-        player.x += (0.5 * playerSpeed) * gameSpeed;
-        worldCoords.zeroLeft = player.x - 100
-        worldCoords.zeroRight = player.x + WORLD_WIDTH
-        bulletManager.enemyBullets.forEach((bullet, idx) => {
-            if (player.x + 40 > bullet.x && player.x < bullet.x && player.y - player.height / 2 < bullet.y && player.y + player.height / 2 > bullet.y) {
-                if (playerState.state === 'roll' || playerState.state === 'rollEnd' || (playerState.inCover && playerState.state !== 'shot')) return soundPlayer.bulletSkip()
-                world.removeChild(bullet)
-                bulletManager.enemyBullets.splice(idx, 1)
-                if (playerState.invincible) {
-                    return
-                }
-                if (playerInstance) {
-                    playerInstance.damagePlayer()
-                }
-            }
-        })
-    }
-
-
-
-
-    function deleteWallsAroundBuilding(pos) {
-        walls.forEach((wall, idx) => {
-            if (wall.x + 100 > pos) {
-                world.removeChild(wall)
-                walls.splice(idx, 1)
-            }
-        })
-    }
-
-    function spawnBuilding(type) {
-        const randBuild = buildingType > 0 ? buildingType : Math.floor(Math.random() * (2 - 1 + 1) + 1)
-        switch (true) {
-            case randBuild === 1:
-                buildingType = 1
-                createBuildingZipline(type)
-            break
-            case randBuild === 2:
-                buildingType = 2
-                createBuilding(type)
-            break
-        }
-        if (type === 'end') {
-            buildingType = 0
-        }
-    }
-
-    function createBuildingZipline(type) {
-        const buildContainer = new PIXI.Container()
-        buildContainer.secondFloor = true
-        let buildBack
-        let buildFront
-        let buildConnect
-        let buildZipline
-        let position = zeroRight + 300
-        let lastBuilding
-        if (buildings.length > 0 && type !== 'start') {
-            lastBuilding = buildings[buildings.length - 1]
-            const LBbounds = lastBuilding.getLocalBounds()
-            position = LBbounds.x + LBbounds.width
-        }
-        deleteWallsAroundBuilding(position)
-        if (type === 'start') {
-            buildBack = new PIXI.Sprite(build2.textures.Build2FOne)
-            buildFront = new PIXI.Sprite(build2.textures.Build2FOneClose)
-            buildBack.anchor.set(0.5)
-            buildBack.position.set(position + buildBack.width / 2, ground.getLocalBounds().y - 118)
-            buildZipline = new PIXI.Sprite(buildZiplineTexture.textures.Zipline2FStart)
-            buildZipline.position.set((position - buildZipline.width) + 40, buildBack.y - buildBack.height / 2 )
-            buildZipline.zIndex = 1
-            world.addChild(buildZipline)
-            if (trapManager) trapManager.createWindow(position + 11)
-            if (Math.random() < 0.5) {
-                if (trapManager) trapManager.createDoor(position + buildBack.width - 72, true)
-            }
-            if (Math.random() < 0.5) {
-                createCoverInBuild(position + buildBack.width - 180, true)
-            }
-        } else {
-            const rand = Math.random()
-            if (!lastBuilding.outroof) {
-                if (rand < 0.5) {
-                    buildConnect = new PIXI.Sprite(build2.textures.Build2fOneConnect)
-                    buildBack = new PIXI.Sprite(build2.textures.Build2FTwo)
-                    buildFront = new PIXI.Sprite(build2.textures.Build2FTwoClose)
-                    buildBack.anchor.set(0.5)
-                    buildBack.position.set(position + buildBack.width / 2, ground.getLocalBounds().y - 118)
-                    if (Math.random() < 0.5) {
-                        createCoverInBuild(buildBack.x - 50, true)
-                    }
-                    if (type === 'end') {
-                        if (trapManager) trapManager.createWindow(position + buildBack.width - 93)
-                    } else {
-                        if (Math.random() < 0.5) {
-                            if (trapManager) trapManager.createDoor(position + buildBack.width - 72)
-                        }
-                    }
-                } else {
-                    buildBack = new PIXI.Sprite(build2.textures.Build2Outroof)
-                    buildContainer.outroof = true
-                    buildBack.anchor.set(0.5)
-                    buildBack.position.set(position + buildBack.width / 2, ground.getLocalBounds().y - 3)
-                    if (Math.random() < 0.5) {
-                        createCoverInBuild(position + buildBack.width - 250, true, true)
-                    }
-                    if (Math.random() < 0.5) {
-                        createCoverInBuild(position + 150, true, true)
-                    }
-                }
-            } else {
-                if (rand < 0.5) {
-                    buildBack = new PIXI.Sprite(build2.textures.Build2FThree)
-                    buildFront = new PIXI.Sprite(build2.textures.Build2FThreeClose)
-                    buildBack.anchor.set(0.5)
-                    buildBack.position.set(position + buildBack.width / 2 - 120, ground.getLocalBounds().y - 119)
-                    if (Math.random() < 0.5) {
-                        createCoverInBuild(position + buildBack.width - 360, true)
-                    }
-                    if (Math.random() < 0.5) {
-                        createCoverInBuild(position + 210, true)
-                    }
-                    if (Math.random() < 0.5) {
-                        if (trapManager) trapManager.createWindow(position - 108)
-                    } else {
-                        if (trapManager) trapManager.createDoor(position - 88, true)
-                    }
-                    if (type === 'end') {
-                        if (trapManager) trapManager.createWindow(position + buildBack.width - 212)
-                    }
-                } else {
-                    buildBack = new PIXI.Sprite(build2.textures.Build2Outroof)
-                    buildConnect = new PIXI.Sprite(build2.textures.Build2fOneConnect)
-                    buildContainer.outroof = true
-                    buildBack.anchor.set(0.5)
-                    buildBack.position.set(position + buildBack.width / 2, ground.getLocalBounds().y - 3)
-                    if (Math.random() < 0.5) {
-                        createCoverInBuild(position + buildBack.width - 250, true, true)
-                    }
-                    if (Math.random() < 0.5) {
-                        createCoverInBuild(position + 150, true, true)
-                    }
-                }
-            }
-        }
-        if (type === 'end') {
-            if (buildContainer.outroof) {
-                buildZipline = new PIXI.Sprite(buildZiplineTexture.textures.Zipline1FEnd)
-                buildZipline.position.set(buildBack.x + buildBack.width / 2 - 96, buildBack.y - buildBack.height / 2 - 74 )
-                buildZipline.end = true
-            } else {
-                buildZipline = new PIXI.Sprite(buildZiplineTexture.textures.Zipline2FEnd)
-                buildZipline.position.set(buildBack.x + buildBack.width / 2, buildBack.y - buildBack.height / 2 )
-                buildZipline.end = true
-            }
-            buildZipline.zIndex = 1
-            world.addChild(buildZipline)
-            afterBuilding = buildBack.x + buildBack.width / 2
-        }
-        if (buildFront) {
-            buildFront.anchor.set(0.5)
-            buildFront.position.set(buildBack.x, buildBack.y)
-            buildFront.parentGroup = fg
-            buildFront.zOrder = 10
-            buildContainer.addChild(buildFront)
-        }
-        if (buildConnect) {
-            if (buildContainer.outroof) {
-                buildConnect.position.set(buildBack.x - buildBack.width - 54 , buildBack.y - buildBack.height / 2 - 42)
-            } else {
-                buildConnect.position.set((buildBack.x - buildBack.width * 1.5) - 4, buildBack.y - buildBack.height / 2)
-            }
-            buildContainer.addChild(buildConnect)
-        }
-        buildContainer.addChild(buildBack)
-        const bounds = buildContainer.getLocalBounds()
-        const resetSpawnZones = [
-            {
-                x: bounds.x - 50,
-                w: bounds.x + 150
-            },
-            {
-                x: bounds.x + bounds.width - 50,
-                w: bounds.x + bounds.width + 150
-            }
-        ]
-        buildContainer.resetSpawnZones = resetSpawnZones
-        buildContainer.body = Matter.Bodies.rectangle(buildBack.x, secondFloor + 50, buildBack.width + 20, 40, {isStatic: true});
-        Matter.World.add(engine.world, buildContainer.body);
-        world.addChild(buildContainer)
-        buildings.push(buildContainer)
-    }
-
-    function createBuilding(type) {
-        const buildContainer = new PIXI.Container()
-        let buildBack
-        let buildFront
-        let buildConnect
-        let position = zeroRight + 300
-        if (buildings.length > 0 && type !== 'start') {
-            const lastBuilding = buildings[buildings.length - 1].getLocalBounds()
-            position = lastBuilding.x + lastBuilding.width
-        }
-        deleteWallsAroundBuilding(position)
-        if (type === 'start') {
-            buildBack = new PIXI.Sprite(build1.textures.Build1FOne)
-            buildFront = new PIXI.Sprite(build1.textures.Build1FOneClose)
-            if (trapManager) trapManager.createDoor(position + 32)
-            if (Math.random() < 0.5) {
-                if (trapManager) trapManager.createDoor(position + buildBack.width - 72)
-            }
-            if (Math.random() < 0.5) {
-                createCoverInBuild(position + buildBack.width / 2)
-            }
-        } else {
-            const rand = Math.random()
-            if (rand < 0.5) {
-                buildBack = new PIXI.Sprite(build1.textures.Build1FTwo)
-                buildFront = new PIXI.Sprite(build1.textures.Build1FTwoClose)
-                if (Math.random() < 0.5) {
-                    createCoverInBuild(position + buildBack.width - 150)
-                }
-                if (Math.random() < 0.5) {
-                    if (trapManager) trapManager.createDoor(position + buildBack.width - 72)
-                }
-            } else {
-                buildBack = new PIXI.Sprite(build1.textures.Build1FThree)
-                buildFront = new PIXI.Sprite(build1.textures.Build1FThreeClose)
-                if (Math.random() < 0.5) {
-                    createCoverInBuild(position + buildBack.width - 150)
-                }
-                if (Math.random() < 0.5) {
-                    createCoverInBuild(position + buildBack.width - 340)
-                }
-                if (Math.random() < 0.5) {
-                    // if (trapManager) trapManager.createDoor(position + buildBack.width - 72)
-                }
-            }
-            if (type !== 'end') {
-                if (rand < 0.5) {
-                    buildConnect = new PIXI.Sprite(build1.textures.Build1FTwoConnection)
-                } else {
-                    buildConnect = new PIXI.Sprite(build1.textures.Build1FThreeConnection)
-                }
-            }
-        }
-        buildBack.anchor.set(0.5)
-        buildFront.anchor.set(0.5)
-        buildFront.parentGroup = fg
-        buildFront.zOrder = 10
-        buildBack.position.set(position + buildBack.width / 2, ground.getLocalBounds().y - 97)
-        buildFront.position.set(position + buildFront.width / 2, buildBack.y)
-        if (buildConnect) {
-            buildConnect.anchor.set(0.5)
-            buildConnect.position.set(position + buildConnect.width / 2, buildBack.y)
-            buildContainer.addChild(buildConnect)
-        }
-        if (type === 'end') {
-            afterBuilding = buildBack.x + buildBack.width / 2
-        }
-        buildContainer.addChild(buildBack)
-        buildContainer.addChild(buildFront)
-        const bounds = buildContainer.getLocalBounds()
-        const resetSpawnZones = [
-            {
-                x: bounds.x - 50,
-                w: bounds.x + 150
-            },
-            {
-                x: bounds.x + bounds.width - 50,
-                w: bounds.x + bounds.width + 150
-            }
-        ]
-        buildContainer.resetSpawnZones = resetSpawnZones
-        buildContainer.body = Matter.Bodies.rectangle(buildBack.x, secondFloor + 50, buildBack.width + 20, 40, {isStatic: true});
-        Matter.World.add(engine.world, buildContainer.body);
-        world.addChild(buildContainer)
-        buildings.push(buildContainer)
-    }
-
     function createCoverInBuild(pos, isSecondFloor, isRoof) {
         let wall
         if (isRoof) {
@@ -1211,147 +866,6 @@ window.onload = async function () {
         world.addChild(wall)
         walls.push(wall)
     }
-
-    function updateBuildings() {
-        return
-        buildings.forEach((build, idx) => {
-            const b = build.getBounds()
-            if (b.x + b.width < 0) {
-                if (build.club) {
-                    isClub = false
-                    isBuilding = false
-                }
-                world.removeChild(build)
-                if (build.body) Matter.World.remove(engine.world, build.body)
-                buildings.splice(idx, 1)
-            }
-        })
-    }
-
-    // randomRGB перенесена в utils/GameUtils.js
-
-    function createClub() {
-        let position = zeroRight + 300
-        const clubContainer = new PIXI.Container()
-        const clubBack = new PIXI.Sprite(club.textures.clubBack)
-        const clubFront = new PIXI.Sprite(club.textures.clubFront)
-        deleteWallsAroundBuilding(zeroRight + clubBack.width / 2)
-        for (let i = 1; i <= 17; i++) {
-            const rand = Math.floor(Math.random() * (9 - 1 + 1) + 1)
-            const laserBeam = new PIXI.AnimatedSprite(laserBeamTexture.animations[`render${rand}`])
-            laserBeam.position.set(position + 526 + (i * 44), WORLD_HEIGHT - 434)
-            laserBeam.tint = randomRGB()
-            laserBeam.scale.y = `1.0${rand}`
-            laserBeam.parentGroup = fg
-            if (Math.random() < 0.5) {
-                laserBeam.zOrder = 4
-            } else {
-                laserBeam.zOrder = 6
-            }
-            laserBeam.animationSpeed = 0.01 * rand + 0.01
-            laserBeam.alpha = 0.4
-            laserBeam.play()
-            clubContainer.addChild(laserBeam)
-        }
-        clubBack.anchor.set(0.5)
-        clubFront.anchor.set(0.5)
-        clubFront.parentGroup = fg
-        clubFront.zOrder = 10
-        clubBack.position.set(position + clubBack.width / 2, ground.getLocalBounds().y - 97)
-        clubFront.position.set(position + clubFront.width / 2, clubBack.y)
-        clubContainer.club = true
-
-        if (Math.random() < 0.5) {
-            createCoverInClub(position + 190, 0)
-        }
-        if (Math.random() < 0.5) {
-            createCoverInClub(position + 410, 1)
-        }
-        if (Math.random() < 0.5) {
-            createCoverInClub(position + 540, 1)
-        }
-        if (Math.random() < 0.1) {
-            createBoss(4, clubBack.x + 130)
-        } else {
-            if (Math.random() < 0.5) {
-                createCoverInClub(position + 840, 0)
-            }
-            if (Math.random() < 0.5) {
-                createCoverInClub(position + 1300, 0)
-            }
-        }
-        if (Math.random() < 0.5) {
-            createCoverInClub(position + 1600, 2)
-        }
-        if (Math.random() < 0.5) {
-            createCoverInClub(position + 1900, 2)
-        }
-
-        clubContainer.addChild(clubBack)
-        clubContainer.addChild(clubFront)
-        const bounds = clubContainer.getLocalBounds()
-        const resetSpawnZones = [
-            {
-                x: bounds.x - 50,
-                w: bounds.x + 100
-            },
-            {
-                x: clubBack.x - 450,
-                w: clubBack.x - 350
-            },
-            {
-                x: clubBack.x + 400,
-                w: clubBack.x + 500
-            },
-            {
-                x: bounds.x + bounds.width - 50,
-                w: bounds.x + bounds.width + 50
-            }
-        ]
-        clubContainer.resetSpawnZones = resetSpawnZones
-        world.addChild(clubContainer)
-        buildings.push(clubContainer)
-    }
-
-    function createCoverInClub(pos, type, forBoss) {
-        const wall = new PIXI.Sprite(inClubTexture.textures[`inClub-${type}`])
-        switch (true) {
-            case type === 0:
-                wall.bound = 50
-                wall.coverX = pos - 42
-                wall.position.set(pos, ground.getLocalBounds().y + 31)
-            break
-            case type === 1:
-                wall.bound = 80
-                wall.coverX = pos - 26
-                wall.position.set(pos, ground.getLocalBounds().y + 25)
-            break
-            case type === 2:
-                wall.bound = 80
-                wall.coverX = pos - 30
-                wall.position.set(pos, ground.getLocalBounds().y + 33)
-            break
-        }
-        if (forBoss) {
-            wall.forBoss = true
-        }
-        wall.anchor.set(0.5)
-        wall.height = wall.height * 2
-        wall.width = wall.width * 2
-        wall.zIndex = 1
-        world.addChild(wall)
-        walls.push(wall)
-    }
-
-    // Функции updateDropMoney и spawnDropMoney теперь в MoneyManager
-    // Оставлены для обратной совместимости, но больше не используются
-
-
-
-    // Функции grenadeBounce, grenadeExplode, updateGrenade теперь в GrenadeManager
-    // Оставлены для обратной совместимости, но больше не используются
-
-
 
     async function enemyShooting(char) {
         const warning = new PIXI.Sprite(particles.textures.detection)
@@ -1852,54 +1366,6 @@ window.onload = async function () {
         })
     }
 
-    function createBgCar() {
-        const car = new PIXI.Container()
-        const carBack = new PIXI.Sprite(bgCarTexture.textures.carBack)
-        const carFront = new PIXI.Sprite(bgCarTexture.textures.carFront)
-        carBack.anchor.set(0.5)
-        carFront.anchor.set(0.5)
-        carBack.tint = randomRGB()
-        if (Math.random() < 0.5) {
-            car.side = 1
-            car.position.set(zeroRight, ground.getLocalBounds().y + 56)
-        } else {
-            carBack.scale.set(-1, 1)
-            carFront.scale.set(-1, 1)
-            car.side = -1
-            car.position.set(zeroLeft - 100, ground.getLocalBounds().y + 56)
-        }
-        car.speed = random(4, 10)
-        car.zIndex = -1
-        car.addChild(carBack)
-        car.addChild(carFront)
-        world.addChild(car)
-        bgCar = car
-    }
-
-    function updateBgCar() {
-        const b = bgCar.getBounds()
-        if (bgCar.side > 0) {
-            bgCar.x -= bgCar.speed
-            if (b.x + b.width < 0) {
-                world.removeChild(bgCar)
-                bgCar = null
-            }
-        } else {
-            bgCar.x += bgCar.speed
-            if (b.x > worldCoords.zeroRight) {
-                world.removeChild(bgCar)
-                bgCar = null
-            }
-        }
-    }
-
-    // Функции updatePowerUp и createPowerUp теперь в PowerUpManager
-    // Оставлены для обратной совместимости, но больше не используются
-
-
-    // Функции barrelDead, updateTraps, createWindow, createDoor теперь в TrapManager
-    // Оставлены для обратной совместимости, но больше не используются
-
     function detectWall() {
         let p = player.getBounds()
         return walls.find(w => {
@@ -2233,16 +1699,6 @@ window.onload = async function () {
     // Оставлена для обратной совместимости, но больше не используется
 }
 
-// getPercent перенесена в utils/GameUtils.js
-
-// async function sleep(time) {
-//     return new Promise((resolve, reject) => {
-//         setTimeout(() => {
-//             resolve(true);
-//         }, time);
-//     });
-// }
-
 async function sleep(time, isRoll) {
     const idx = timeouts.length
     return new Promise((resolve, reject) => {
@@ -2252,7 +1708,7 @@ async function sleep(time, isRoll) {
         }, time);
         if (isRoll) {
             console.log('rollId Created')
-            playerState.rollId = timer
+            playerInstance.rollId = timer
         } else {
             timeouts.push(timer)
         }
