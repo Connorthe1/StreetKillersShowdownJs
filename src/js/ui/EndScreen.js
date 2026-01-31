@@ -11,12 +11,13 @@
  */
 
 import * as PIXI from 'pixi.js'
+import {soundPlayer} from "../playSound";
 
 /**
  * Менеджер экрана окончания игры
  */
 export class EndScreenManager {
-    constructor(app, gameState, storage, gameWidth, gameHeight, textStyles, resources, storageManager) {
+    constructor(app, gameState, storage, gameWidth, gameHeight, textStyles, resources) {
         this.app = app
         this.gameState = gameState
         this.storage = storage
@@ -24,14 +25,12 @@ export class EndScreenManager {
         this.gameHeight = gameHeight
         this.textStyles = textStyles
         this.resources = resources
-        this.storageManager = storageManager
         
         // Экран окончания
         this.endScreen = null
         
         // Callbacks
         this.restartGameCallback = null
-        this.music = null
         this.removeHudCallback = null
         this.clearTimeoutsCallback = null
     }
@@ -41,7 +40,6 @@ export class EndScreenManager {
      */
     setCallbacks(callbacks) {
         if (callbacks.restartGame) this.restartGameCallback = callbacks.restartGame
-        if (callbacks.music) this.music = callbacks.music
         if (callbacks.removeHud) this.removeHudCallback = callbacks.removeHud
         if (callbacks.clearTimeouts) this.clearTimeoutsCallback = callbacks.clearTimeouts
     }
@@ -51,14 +49,9 @@ export class EndScreenManager {
      * @param {boolean} toRestart - перезапустить игру сразу
      */
     async createEndScreen(toRestart = false) {
-        if (!this.resources) {
-            console.warn('End screen textures not available')
-            return null
-        }
-        
         // Остановка музыки
-        if (this.music) {
-            this.music.stop()
+        if (soundPlayer) {
+            soundPlayer.stop()
         }
         
         // Очистка таймаутов

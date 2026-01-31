@@ -20,57 +20,19 @@ import { random } from '../utils/GameUtils.js'
  * Менеджер гранат
  */
 export class GrenadeManager {
-    constructor(world, engine, physicsManager, player, playerState, enemies, traps, currentDogEnemy, currentBoss, zeroLeft, activeItems, bounceParticlesTexture, particles) {
+    constructor(world, physicsManager, worldCoords, resources, sleep, eventBus) {
         this.world = world
-        this.engine = engine
         this.physicsManager = physicsManager
-        this.player = player
-        this.playerState = playerState
-        this.enemies = enemies
-        this.traps = traps
-        this.currentDogEnemy = currentDogEnemy
-        this.currentBoss = currentBoss
-        this.zeroLeft = zeroLeft
-        this.activeItems = activeItems
-        this.bounceParticlesTexture = bounceParticlesTexture
-        this.particles = particles
-        
+        this.worldCoords = worldCoords
+        this.resources = resources
+        this.sleep = sleep
+        this.eventBus = eventBus
+
         // Массив гранат
         this.grenades = []
         
         // Активная граната (для игрока)
         this.activeGrenade = null
-        
-        // Callbacks
-        this.damagePlayerCallback = null
-        this.createExplodeCallback = null
-        this.damageEnemyCallback = null
-        this.barrelDeadCallback = null
-        this.soundPlayer = null
-        this.sleepCallback = null
-    }
-    
-    /**
-     * Устанавливает колбэки
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.damagePlayer) this.damagePlayerCallback = callbacks.damagePlayer
-        if (callbacks.createExplode) this.createExplodeCallback = callbacks.createExplode
-        if (callbacks.damageEnemy) this.damageEnemyCallback = callbacks.damageEnemy
-        if (callbacks.barrelDead) this.barrelDeadCallback = callbacks.barrelDead
-        if (callbacks.soundPlayer) this.soundPlayer = callbacks.soundPlayer
-        if (callbacks.sleep) this.sleepCallback = callbacks.sleep
-    }
-    
-    /**
-     * Обновляет состояние
-     */
-    updateState(state) {
-        if (state.player !== undefined) this.player = state.player
-        if (state.playerState !== undefined) this.playerState = state.playerState
-        if (state.zeroLeft !== undefined) this.zeroLeft = state.zeroLeft
-        if (state.currentDogEnemy !== undefined) this.currentDogEnemy = state.currentDogEnemy
-        if (state.currentBoss !== undefined) this.currentBoss = state.currentBoss
     }
     
     /**
@@ -80,12 +42,7 @@ export class GrenadeManager {
      * @param {number} offsetY - смещение по Y
      */
     shotGrenade(char, offsetX, offsetY) {
-        if (!this.bounceParticlesTexture) {
-            console.warn('Grenade texture not available')
-            return null
-        }
-        
-        const grenade = new PIXI.Sprite(this.bounceParticlesTexture.textures.grenade)
+        const grenade = new PIXI.Sprite(this.resources.bounceParticlesTexture.textures.grenade)
         grenade.scale.set(-1.5)
         grenade.position.set(char.x + offsetX, char.y - offsetY)
         grenade.lifeTime = 100
@@ -103,14 +60,9 @@ export class GrenadeManager {
                 restitution: 0.5
             }
         )
-        
-        if (this.world) {
-            this.world.addChild(grenade)
-        }
-        
-        if (this.physicsManager) {
-            this.physicsManager.addBody(grenade.body)
-        }
+
+        this.world.addChild(grenade)
+        this.physicsManager.addBody(grenade.body)
         
         // Применение силы
         const randomMassX = Math.random() * (0.2 - 0.1) + 0.1
@@ -121,22 +73,16 @@ export class GrenadeManager {
         )
         
         this.grenades.push(grenade)
-        return grenade
     }
     
     /**
      * Бросает гранату игроком (отскок)
      */
-    grenadeBounce() {
-        if (!this.activeItems || !this.player) {
-            console.warn('Active items or player not available')
-            return null
-        }
-        
-        const grenade = new PIXI.Sprite(this.activeItems.textures.handGrenade)
+    grenadeBounce(pos) {
+        const grenade = new PIXI.Sprite(this.resources.activeItems.textures.handGrenade)
         grenade.scale.set(1.2)
         grenade.anchor.set(0.5)
-        grenade.position.set(this.player.x + 10, this.player.y - 20)
+        grenade.position.set(pos.x + 10, pos.y - 20)
         
         // Создание физического тела
         grenade.body = Matter.Bodies.rectangle(
@@ -151,14 +97,9 @@ export class GrenadeManager {
         )
         
         grenade.rotation = Math.floor(Math.random() * (6 + 1))
-        
-        if (this.world) {
-            this.world.addChild(grenade)
-        }
-        
-        if (this.physicsManager) {
-            this.physicsManager.addBody(grenade.body)
-        }
+
+        this.world.addChild(grenade)
+        this.physicsManager.addBody(grenade.body)
         
         // Применение силы
         Matter.Body.applyForce(
@@ -170,13 +111,9 @@ export class GrenadeManager {
         this.activeGrenade = grenade
         
         // Взрыв через 650мс
-        if (this.sleepCallback) {
-            this.sleepCallback(650).then(() => {
-                this.grenadeExplode()
-            })
-        }
-        
-        return grenade
+        this.sleep(650).then(() => {
+            this.grenadeExplode()
+        })
     }
     
     /**

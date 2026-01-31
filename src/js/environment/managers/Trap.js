@@ -29,6 +29,10 @@ export class TrapManager {
 
         // Массив ловушек
         this.traps = []
+
+        eventBus.on('trap:bossClear', pos => {
+            this.bossClear(pos)
+        })
     }
     
     /**
@@ -339,16 +343,20 @@ export class TrapManager {
         return door
     }
     
-    /**
-     * Получает массив ловушек
-     */
-    getTraps() {
-        return this.traps
+    bossClear(pos) {
+        this.traps.forEach((trap, idx) => {
+            if (!trap.type) {
+                const t = trap.getLocalBounds ? trap.getLocalBounds() : trap
+                if (t.x > pos - 400 && t.x < pos + 200) {
+                    if (this.world) {
+                        this.world.removeChild(trap)
+                    }
+                    this.traps.splice(idx, 1)
+                }
+            }
+        })
     }
-    
-    /**
-     * Очищает все ловушки
-     */
+
     clear() {
         this.traps.forEach(trap => {
             if (this.world) {

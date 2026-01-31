@@ -27,6 +27,18 @@ export class WallManager {
 
         // Массив стен
         this.walls = []
+
+        eventBus.on('wall:bossClear', pos => {
+            this.bossClear(pos)
+        })
+
+        eventBus.on('wall:create', data => {
+            this.createWall(data.pos, data.forBoss, data.afterBuilding)
+        })
+
+        eventBus.on('wall:createInClub', data => {
+            this.createCoverInClub(data.pos, data.type, data.forBoss)
+        })
     }
     
     /**
@@ -137,18 +149,8 @@ export class WallManager {
         this.walls.push(wall)
         return wall
     }
-    
-    /**
-     * Создает укрытие в клубе
-     * @deprecated Используйте BuildingManager.createCoverInClub() вместо этого
-     * Метод оставлен для обратной совместимости, но будет удален в будущем
-     * @param {number} pos - позиция X
-     * @param {number} type - тип укрытия (0, 1, 2)
-     * @param {boolean} forBoss - для босса
-     */
+
     createCoverInClub(pos, type, forBoss) {
-        console.warn('WallManager.createCoverInClub() устарел. Используйте BuildingManager.createCoverInClub()')
-        
         const wall = new PIXI.Sprite(this.resources.inClubTexture.textures[`inClub-${type}`])
         const groundY = this.ground.getLocalBounds ? this.ground.getLocalBounds().y : 0
         
@@ -184,7 +186,6 @@ export class WallManager {
         }
         
         this.walls.push(wall)
-        return wall
     }
     
     /**
@@ -224,9 +225,17 @@ export class WallManager {
         }) || null
     }
     
-    /**
-     * Очищает все стены
-     */
+    bossClear(pos) {
+        this.walls.forEach((wall, idx) => {
+            if (wall.x > pos - 400 && wall.x < pos + 200) {
+                if (this.world) {
+                    this.world.removeChild(wall)
+                }
+                this.walls.splice(idx, 1)
+            }
+        })
+    }
+
     clear() {
         this.walls.forEach(wall => {
             if (this.world) {

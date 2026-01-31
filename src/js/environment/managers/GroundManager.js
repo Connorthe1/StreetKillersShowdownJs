@@ -8,16 +8,14 @@ import {CarBG} from "../classes/CarBG";
  * Менеджер земли/пола (новая версия)
  */
 export class GroundManager {
-    constructor(world, ground, woodsBG, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources, worldCoords, eventBus) {
+    constructor(world, ground, woodsBG, physicsManager, resources, worldCoords, eventBus) {
         this.world = world
         this.ground = ground
         this.woodsBG = woodsBG
         this.physicsManager = physicsManager
-        this.WORLD_WIDTH = WORLD_WIDTH
-        this.WORLD_HEIGHT = WORLD_HEIGHT
         this.resources = resources
-        this.eventBus = eventBus
         this.worldCoords = worldCoords
+        this.eventBus = eventBus
 
         // Состояние пола
         this.floorPosition = 0
@@ -39,7 +37,7 @@ export class GroundManager {
         const changeWall = random(1, 10) < FENCE_CHANCE
 
         const floorSegment = new FloorSegment(
-            { ...this.resources, WORLD_HEIGHT: this.WORLD_HEIGHT },
+            { ...this.resources, WORLD_HEIGHT: this.worldCoords.worldHeight },
             this.physicsManager,
             this.floorPosition,
             idx,

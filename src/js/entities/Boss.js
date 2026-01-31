@@ -13,150 +13,41 @@
 
 import * as PIXI from 'pixi.js'
 import { random } from '../utils/GameUtils.js'
+import enemyParams from "../enemyParams";
 
 /**
  * Менеджер боссов
  */
 export class BossManager {
-    constructor(world, gameState, enemies, walls, traps, playerBullets, player, playerState, zeroLeft, zeroRight, WORLD_WIDTH, playerPos, hud, gameWidth, gameHeight, textStyles) {
+    constructor(world, gameState, worldCoords, resources, sleep, eventBus) {
         this.world = world
         this.gameState = gameState
-        this.enemies = enemies
-        this.walls = walls
-        this.traps = traps
-        this.playerBullets = playerBullets
-        this.player = player
-        this.playerState = playerState
-        this.zeroLeft = zeroLeft
-        this.zeroRight = zeroRight
-        this.WORLD_WIDTH = WORLD_WIDTH
-        this.playerPos = playerPos
-        this.hud = hud
-        this.gameWidth = gameWidth
-        this.gameHeight = gameHeight
-        this.textStyles = textStyles
-        
+        this.worldCoords = worldCoords
+        this.resources = resources
+        this.eventBus = eventBus
+        this.sleep = sleep
+
         // Текущий босс
         this.currentBoss = null
-        
-        // Текстуры и параметры (устанавливаются позже)
-        this.bossTextures = {} // bossGun, bossLauncher, bossVan, bossSmg
-        this.enemyParams = null
-        this.particles = null
-        
-        // Callbacks
-        this.shotCallback = null
-        this.shotRapidCallback = null
-        this.shotGrenadeCallback = null
-        this.enemyShotAnimCallback = null
-        this.damageEnemyCallback = null
-        this.damagePlayerCallback = null
-        this.createWallCallback = null
-        this.createCoverInClubCallback = null
-        this.soundPlayer = null
-        this.sleepCallback = null
-        this.gun = null
-        this.storage = null
-        this.HUDupdateSkillsCallback = null
-        this.activeItems = null
-        this.menuIcons = null
-        this.walkingInterval = null
     }
-    
-    /**
-     * Устанавливает текстуры боссов
-     */
-    setTextures(bossTextures, enemyParams, particles, activeItems, menuIcons) {
-        this.bossTextures = bossTextures
-        this.enemyParams = enemyParams
-        this.particles = particles
-        this.activeItems = activeItems
-        this.menuIcons = menuIcons
-    }
-    
-    /**
-     * Устанавливает колбэки
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.shot) this.shotCallback = callbacks.shot
-        if (callbacks.shotRapid) this.shotRapidCallback = callbacks.shotRapid
-        if (callbacks.shotGrenade) this.shotGrenadeCallback = callbacks.shotGrenade
-        if (callbacks.enemyShotAnim) this.enemyShotAnimCallback = callbacks.enemyShotAnim
-        if (callbacks.damageEnemy) this.damageEnemyCallback = callbacks.damageEnemy
-        if (callbacks.damagePlayer) this.damagePlayerCallback = callbacks.damagePlayer
-        if (callbacks.createWall) this.createWallCallback = callbacks.createWall
-        if (callbacks.createCoverInClub) this.createCoverInClubCallback = callbacks.createCoverInClub
-        if (callbacks.soundPlayer) this.soundPlayer = callbacks.soundPlayer
-        if (callbacks.sleep) this.sleepCallback = callbacks.sleep
-        if (callbacks.gun) this.gun = callbacks.gun
-        if (callbacks.storage) this.storage = callbacks.storage
-        if (callbacks.HUDupdateSkills) this.HUDupdateSkillsCallback = callbacks.HUDupdateSkills
-    }
-    
-    /**
-     * Обновляет состояние
-     */
-    updateState(state) {
-        if (state.player !== undefined) this.player = state.player
-        if (state.playerState !== undefined) this.playerState = state.playerState
-        if (state.zeroLeft !== undefined) this.zeroLeft = state.zeroLeft
-        if (state.zeroRight !== undefined) this.zeroRight = state.zeroRight
-    }
-    
-    /**
-     * Создает босса
-     * @param {number} propType - тип босса (1-4, опционально)
-     * @param {number} propPos - позиция X (опционально)
-     * @returns {PIXI.AnimatedSprite|null} созданный босс или null
-     */
-    createBoss(propType = null, propPos = null) {
-        if (!this.bossTextures || !this.enemyParams) {
-            console.warn('Boss textures or params not available')
-            return null
-        }
-        
-        let randomPos = propPos || Math.floor(this.zeroRight + random(300, 750))
+
+    createBoss(bossType = null, pos = null) {
+        if (this.currentBoss) return
+
+        let randomPos = pos || Math.floor(this.worldCoords.zeroRight + random(300, 750))
         
         // Очистка врагов в зоне босса
-        this.enemies.forEach((enemy, idx) => {
-            if (enemy.x > randomPos - 400 && enemy.x < randomPos + 50) {
-                if (this.world) {
-                    this.world.removeChild(enemy)
-                }
-                this.enemies.splice(idx, 1)
-            }
-        })
+        this.eventBus.emit('enemy:bossClear', randomPos)
         
         // Очистка стен в зоне босса
-        if (this.walls) {
-            this.walls.forEach((wall, idx) => {
-                if (wall.x > randomPos - 400 && wall.x < randomPos + 200) {
-                    if (this.world) {
-                        this.world.removeChild(wall)
-                    }
-                    this.walls.splice(idx, 1)
-                }
-            })
-        }
+        this.eventBus.emit('wall:bossClear', randomPos)
         
         // Очистка ловушек в зоне босса
-        if (this.traps) {
-            this.traps.forEach((trap, idx) => {
-                if (!trap.type) {
-                    const t = trap.getLocalBounds ? trap.getLocalBounds() : trap
-                    if (t.x > randomPos - 400 && t.x < randomPos + 200) {
-                        if (this.world) {
-                            this.world.removeChild(trap)
-                        }
-                        this.traps.splice(idx, 1)
-                    }
-                }
-            })
-        }
+        this.eventBus.emit('trap:bossClear', randomPos)
         
         // Определение типа босса
         let type
-        const randType = propType || random(1, 4)
+        const randType = bossType || random(1, 4)
         switch (randType) {
             case 1:
                 type = 'bossGun'
@@ -175,22 +66,14 @@ export class BossManager {
         }
         
         // Создание укрытия/стены для босса
-        if (propType === 4) {
-            if (this.createCoverInClubCallback) {
-                this.createCoverInClubCallback(randomPos - (this.WORLD_WIDTH / 1.8), 0, true)
-            }
+        if (bossType === 4) {
+            this.eventBus.emit('wall:create', {pos: randomPos - (this.worldCoords.worldWidth / 1.8), type:0, forBoss: true})
         } else {
-            if (this.createWallCallback) {
-                this.createWallCallback(randomPos - (this.WORLD_WIDTH / 1.8), true)
-            }
+            this.eventBus.emit('wall:create', {pos: randomPos - (this.worldCoords.worldWidth / 1.8), forBoss: true})
         }
         
         // Получение текстур босса
-        const bossTextureSet = this.bossTextures[type]
-        if (!bossTextureSet) {
-            console.warn(`Boss texture set not found for type: ${type}`)
-            return null
-        }
+        const bossTextureSet = this.resources[type]
         
         // Создание босса
         const boss = new PIXI.AnimatedSprite(bossTextureSet.animations.idle)
@@ -198,7 +81,7 @@ export class BossManager {
         boss.animationSpeed = 0.15
         boss.position.set(
             type === 'bossVan' ? randomPos + 25 : randomPos,
-            this.playerPos - (type === 'bossVan' ? 36 : 10)
+            this.worldCoords.firstFloor - (type === 'bossVan' ? 36 : 10)
         )
         
         boss.params = {
@@ -206,22 +89,18 @@ export class BossManager {
         }
         
         // Копирование параметров
-        if (this.enemyParams[type]) {
-            Object.keys(this.enemyParams[type]).forEach(item => {
-                boss.params[item] = this.enemyParams[type][item]
+        if (enemyParams[type]) {
+            Object.keys(enemyParams[type]).forEach(item => {
+                boss.params[item] = enemyParams[type][item]
             })
         }
         
         boss.zIndex = 10
         boss.type = type
         this.currentBoss = boss
-        
-        if (this.world) {
-            this.world.addChild(boss)
-        }
+
+        this.world.addChild(boss)
         boss.play()
-        
-        return boss
     }
     
     /**
@@ -585,17 +464,7 @@ export class BossManager {
     getCurrentBoss() {
         return this.currentBoss
     }
-    
-    /**
-     * Устанавливает текущего босса
-     */
-    setCurrentBoss(boss) {
-        this.currentBoss = boss
-    }
-    
-    /**
-     * Очищает босса
-     */
+
     clear() {
         if (this.walkingInterval) {
             clearInterval(this.walkingInterval)

@@ -17,10 +17,9 @@ import {BG_SPEED, DEFAULT_GAME_SPEED} from '../core/GameConfig.js'
  * Менеджер фона
  */
 export class BackgroundManager {
-    constructor(world, WORLD_WIDTH, WORLD_HEIGHT, gameHeight, resources, gameState) {
+    constructor(world, worldCoords, gameHeight, resources, gameState) {
         this.world = world
-        this.WORLD_WIDTH = WORLD_WIDTH
-        this.WORLD_HEIGHT = WORLD_HEIGHT
+        this.worldCoords = worldCoords
         this.gameHeight = gameHeight
         this.resources = resources
         this.gameState = gameState
@@ -41,11 +40,11 @@ export class BackgroundManager {
      * @returns {PIXI.TilingSprite} созданный фон
      */
     createBg() {
-        const tiling = new PIXI.TilingSprite(this.resources.bg, this.WORLD_WIDTH + 100, this.gameHeight + 100)
+        const tiling = new PIXI.TilingSprite(this.resources.bg, this.worldCoords.worldWidth + 100, this.gameHeight + 100)
         tiling.anchor.set(0.5, 1)
         tiling.zIndex = -10
         tiling.tilePosition.y = this.gameHeight
-        tiling.position.set(this.WORLD_WIDTH / 2, this.WORLD_HEIGHT)
+        tiling.position.set(this.worldCoords.worldWidth / 2, this.worldCoords.worldHeight)
         
         if (this.world) {
             this.world.addChild(tiling)
@@ -78,7 +77,7 @@ export class BackgroundManager {
             
             // Обновление позиции фона
             if (zeroLeft !== null && zeroLeft !== undefined) {
-                this.background.x = zeroLeft + this.WORLD_WIDTH / 2
+                this.background.x = zeroLeft + this.worldCoords.worldWidth / 2
             }
             this.background.tilePosition.x = this.bgPosition
         }

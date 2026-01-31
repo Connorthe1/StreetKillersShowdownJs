@@ -16,100 +16,39 @@
 import * as PIXI from 'pixi.js'
 import { random } from '../utils/GameUtils.js'
 import { getPercent } from '../utils/GameUtils.js'
+import {default as enemyParams} from '../enemyParams.js'
 
 /**
  * Менеджер врагов
  */
 export class EnemyManager {
-    constructor(world, gameState, enemies, playerBullets, player, playerState, traps, buildings, currentBoss, zeroLeft, WORLD_WIDTH, secondFloor, playerPos) {
+    constructor(world, gameState, worldCoords, resources, eventBus) {
         this.world = world
         this.gameState = gameState
-        this.enemies = enemies
-        this.playerBullets = playerBullets
-        this.player = player
-        this.playerState = playerState
-        this.traps = traps
-        this.buildings = buildings
-        this.currentBoss = currentBoss
-        this.zeroLeft = zeroLeft
-        this.WORLD_WIDTH = WORLD_WIDTH
-        this.secondFloor = secondFloor
-        this.playerPos = playerPos
-        
-        // Текстуры и параметры (устанавливаются позже)
-        this.enemiesTexture = null
-        this.enemyParams = null
-        
-        // Callbacks
-        this.shotCallback = null
-        this.damagePlayerCallback = null
-        this.createParticlesCallback = null
-        this.createExplodeCallback = null
-        this.spawnDropMoneyCallback = null
-        this.cameraShakeCallback = null
-        this.HUDmeleeKillCallback = null
-        this.addPointsCallback = null
-        this.soundPlayer = null
-        this.sleepCallback = null
-        this.gun = null
+        this.worldCoords = worldCoords
+        this.resources = resources
+        this.eventBus = eventBus
+
+        this.enemies = []
+
+        eventBus.on('enemy:create', data => {
+            this.createEnemy(data.pos, data.canCover, data.enemyType)
+        })
+
+        eventBus.on('enemy:bossClear', pos => {
+            this.bossClear(pos)
+        })
     }
-    
-    /**
-     * Устанавливает текстуры и параметры врагов
-     */
-    setTextures(textures, enemyParams) {
-        this.enemiesTexture = textures
-        this.enemyParams = enemyParams
-    }
-    
-    /**
-     * Устанавливает колбэки
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.shot) this.shotCallback = callbacks.shot
-        if (callbacks.damagePlayer) this.damagePlayerCallback = callbacks.damagePlayer
-        if (callbacks.createParticles) this.createParticlesCallback = callbacks.createParticles
-        if (callbacks.createExplode) this.createExplodeCallback = callbacks.createExplode
-        if (callbacks.spawnDropMoney) this.spawnDropMoneyCallback = callbacks.spawnDropMoney
-        if (callbacks.cameraShake) this.cameraShakeCallback = callbacks.cameraShake
-        if (callbacks.HUDmeleeKill) this.HUDmeleeKillCallback = callbacks.HUDmeleeKill
-        if (callbacks.addPoints) this.addPointsCallback = callbacks.addPoints
-        if (callbacks.soundPlayer) this.soundPlayer = callbacks.soundPlayer
-        if (callbacks.sleep) this.sleepCallback = callbacks.sleep
-        if (callbacks.gun) this.gun = callbacks.gun
-    }
-    
-    /**
-     * Обновляет состояние
-     */
-    updateState(state) {
-        if (state.player !== undefined) this.player = state.player
-        if (state.playerState !== undefined) this.playerState = state.playerState
-        if (state.currentBoss !== undefined) this.currentBoss = state.currentBoss
-        if (state.zeroLeft !== undefined) this.zeroLeft = state.zeroLeft
-        if (state.traps !== undefined) this.traps = state.traps
-        if (state.buildings !== undefined) this.buildings = state.buildings
-    }
-    
-    /**
-     * Создает врага
-     * @param {number} pos - позиция X (опционально)
-     * @param {boolean} canCover - может ли враг быть в укрытии
-     * @param {string} enemyType - тип врага (опционально, определяется автоматически)
-     * @returns {PIXI.AnimatedSprite|null} созданный враг или null
-     */
+
     createEnemy(pos = null, canCover = false, enemyType = null) {
-        if (!this.enemiesTexture || !this.enemyParams) {
-            console.warn('Enemy textures or params not available')
-            return null
-        }
-        
-        let randomPos = pos || Math.floor(this.zeroLeft + this.WORLD_WIDTH + Math.floor(Math.random() * (250 - 50 + 1) + 50))
+        let randomPos = pos || Math.floor(this.worldCoords.zeroLeft + this.worldCoords.worldWidth + Math.floor(Math.random() * (250 - 50 + 1) + 50))
         let isSecondFloor = false
+
+        const buildings = this.eventBus.emit('buildings:get', null, true) || []
         
         // Проверка зон спавна зданий
-        if (this.buildings && this.buildings.length > 0) {
-            this.buildings.forEach(build => {
+        if (buildings.length > 0) {
+            buildings.forEach(build => {
                 if (build.resetSpawnZones) {
                     build.resetSpawnZones.forEach(zone => {
                         if (randomPos + 30 > zone.x && randomPos < zone.w) {
@@ -131,16 +70,16 @@ export class EnemyManager {
         if (findDuplicate >= 0) return null
         
         // Проверка на босса
-        if (this.currentBoss) {
-            if (randomPos + 30 > this.currentBoss.x && randomPos < this.currentBoss.x + this.currentBoss.width) {
-                return null
-            }
-        }
+        // if (this.currentBoss) {
+        //     if (randomPos + 30 > this.currentBoss.x && randomPos < this.currentBoss.x + this.currentBoss.width) {
+        //         return null
+        //     }
+        // }
         
         // Определение этажа
-        if (this.buildings && this.buildings.length > 0) {
-            const activeBuilding = this.buildings[0]
-            const lastBuilding = this.buildings[this.buildings.length - 1].getLocalBounds()
+        if (buildings.length > 0) {
+            const activeBuilding = buildings[0]
+            const lastBuilding = buildings[buildings.length - 1].getLocalBounds()
             if ((lastBuilding.x + lastBuilding.width > randomPos && 
                  activeBuilding.getLocalBounds().x < randomPos) && 
                 activeBuilding.secondFloor) {
@@ -167,27 +106,27 @@ export class EnemyManager {
         }
         
         // Создание врага
-        const enemy = new PIXI.AnimatedSprite(this.enemiesTexture.animations[`${enemyType}Idle`])
+        const enemy = new PIXI.AnimatedSprite(this.resources.enemiesTexture.animations[`${enemyType}Idle`])
         enemy.params = {}
         
         // Копирование параметров
-        if (this.enemyParams[enemyType]) {
-            Object.keys(this.enemyParams[enemyType]).forEach(item => {
-                enemy.params[item] = this.enemyParams[enemyType][item]
+        if (enemyParams[enemyType]) {
+            Object.keys(enemyParams[enemyType]).forEach(item => {
+                enemy.params[item] = enemyParams[enemyType][item]
             })
         }
         
         // Настройка анимаций
         enemy.params.animset = {}
-        enemy.params.animset.idle = this.enemiesTexture.animations[`${enemyType}Idle`]
-        enemy.params.animset.shot = this.enemiesTexture.animations[`${enemyType}Shot`]
-        enemy.params.animset.death = this.enemiesTexture.animations[`${enemyType}Death`]
-        enemy.params.animset.deathCrit = this.enemiesTexture.animations[`${enemyType}DeathCrit`]
+        enemy.params.animset.idle = this.resources.enemiesTexture.animations[`${enemyType}Idle`]
+        enemy.params.animset.shot = this.resources.enemiesTexture.animations[`${enemyType}Shot`]
+        enemy.params.animset.death = this.resources.enemiesTexture.animations[`${enemyType}Death`]
+        enemy.params.animset.deathCrit = this.resources.enemiesTexture.animations[`${enemyType}DeathCrit`]
         
         if (enemy.params.shield) {
-            enemy.params.animset.idleAlt = this.enemiesTexture.animations[`${enemyType}IdleAlt`]
-            enemy.params.animset.shotAlt = this.enemiesTexture.animations[`${enemyType}ShotAlt`]
-            enemy.params.animset.knock = this.enemiesTexture.animations[`${enemyType}Knock`]
+            enemy.params.animset.idleAlt = this.resources.enemiesTexture.animations[`${enemyType}IdleAlt`]
+            enemy.params.animset.shotAlt = this.resources.enemiesTexture.animations[`${enemyType}ShotAlt`]
+            enemy.params.animset.knock = this.resources.enemiesTexture.animations[`${enemyType}Knock`]
         }
         
         enemy.anchor.set(0.5)
@@ -202,7 +141,7 @@ export class EnemyManager {
         enemy.scale.set(2)
         enemy.animationSpeed = 0.2
         enemy.zIndex = 8
-        enemy.position.set(randomPos, isSecondFloor ? this.secondFloor : this.playerPos)
+        enemy.position.set(randomPos, isSecondFloor ? this.worldCoords.secondFloor : this.worldCoords.firstFloor)
         enemy.secondFloor = isSecondFloor
         
         this.world.addChild(enemy)
@@ -425,17 +364,16 @@ export class EnemyManager {
             }
         })
     }
-    
-    /**
-     * Получает массив врагов (для обратной совместимости)
-     */
-    getEnemies() {
-        return this.enemies
+
+    bossClear(pos) {
+        this.enemies.forEach((enemy, idx) => {
+            if (enemy.x > pos - 400 && enemy.x < pos + 50) {
+                this.world.removeChild(enemy)
+                this.enemies.splice(idx, 1)
+            }
+        })
     }
-    
-    /**
-     * Очищает всех врагов
-     */
+
     clear() {
         this.enemies.forEach(enemy => {
             if (this.world) {

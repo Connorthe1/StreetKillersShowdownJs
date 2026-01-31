@@ -14,8 +14,8 @@
 
 import * as PIXI from 'pixi.js'
 import * as Matter from 'matter-js'
-import { random, randomRGB } from '../../utils/GameUtils.js'
-import { BUILDING_CHANCE } from "../../core/GameConfig";
+import {random, randomRGB} from '../../utils/GameUtils.js'
+import {BUILDING_CHANCE} from "../../core/GameConfig";
 
 /**
  * Менеджер зданий
@@ -38,6 +38,10 @@ export class BuildingManager {
         this.afterBuilding = 0
         this.isBuilding = false
         this.isClub = false
+
+        eventBus.on('buildings:get', () => {
+            return this.getBuildings()
+        })
     }
 
     createBuildingChance() {
@@ -216,7 +220,7 @@ export class BuildingManager {
         
         buildContainer.addChild(buildBack)
         const bounds = buildContainer.getLocalBounds()
-        const resetSpawnZones = [
+        buildContainer.resetSpawnZones = [
             {
                 x: bounds.x - 50,
                 w: bounds.x + 150
@@ -226,7 +230,6 @@ export class BuildingManager {
                 w: bounds.x + bounds.width + 150
             }
         ]
-        buildContainer.resetSpawnZones = resetSpawnZones
         buildContainer.body = Matter.Bodies.rectangle(buildBack.x, this.worldCoords.secondFloor + 50, buildBack.width + 20, 40, { isStatic: true })
         if (this.physicsManager) {
             this.physicsManager.addBody(buildContainer.body)
@@ -315,7 +318,7 @@ export class BuildingManager {
         buildContainer.addChild(buildBack)
         buildContainer.addChild(buildFront)
         const bounds = buildContainer.getLocalBounds()
-        const resetSpawnZones = [
+        buildContainer.resetSpawnZones = [
             {
                 x: bounds.x - 50,
                 w: bounds.x + 150
@@ -325,7 +328,6 @@ export class BuildingManager {
                 w: bounds.x + bounds.width + 150
             }
         ]
-        buildContainer.resetSpawnZones = resetSpawnZones
         buildContainer.body = Matter.Bodies.rectangle(buildBack.x, this.worldCoords.secondFloor + 50, buildBack.width + 20, 40, { isStatic: true })
 
         this.physicsManager.addBody(buildContainer.body)
@@ -401,7 +403,7 @@ export class BuildingManager {
         clubContainer.addChild(clubBack)
         clubContainer.addChild(clubFront)
         const bounds = clubContainer.getLocalBounds()
-        const resetSpawnZones = [
+        clubContainer.resetSpawnZones = [
             {
                 x: bounds.x - 50,
                 w: bounds.x + 100
@@ -415,7 +417,6 @@ export class BuildingManager {
                 w: clubBack.x + clubBack.width / 2 + 450
             }
         ]
-        clubContainer.resetSpawnZones = resetSpawnZones
         clubContainer.body = Matter.Bodies.rectangle(clubBack.x, this.worldCoords.secondFloor + 50, clubBack.width + 20, 40, { isStatic: true })
         if (this.physicsManager) {
             this.physicsManager.addBody(clubContainer.body)
@@ -503,12 +504,7 @@ export class BuildingManager {
      * @param {boolean} isSecondFloor - на втором этаже
      */
     createDoor(pos, isSecondFloor) {
-        if (!this.doorTexture) {
-            console.warn('Door texture not available')
-            return
-        }
-        
-        const door = new PIXI.AnimatedSprite(this.doorTexture.animations.door)
+        const door = new PIXI.AnimatedSprite(this.resources.doorTexture.animations.door)
         door.loop = false
         door.animationSpeed = 0.6
         door.anchor.set(0.5)

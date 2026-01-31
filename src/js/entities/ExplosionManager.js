@@ -1,88 +1,29 @@
-/**
- * ExplosionManager.js
- * 
- * Менеджер взрывов
- * 
- * Содержит:
- * - Создание взрывов (createExplode)
- * - Анимация взрывов (большой/маленький)
- * - Звуки взрыва
- * - Тряска камеры при взрыве
- */
-
 import * as PIXI from 'pixi.js'
+import {soundPlayer} from "../playSound";
 
 /**
  * Менеджер взрывов
  */
 export class ExplosionManager {
-    constructor(world) {
+    constructor(world, resources, eventBus) {
         this.world = world
-        
-        // Текстуры (устанавливаются позже)
-        this.bigExplode = null
-        this.bochka = null
-        
-        // Callbacks
-        this.cameraShakeCallback = null
-        this.soundPlayer = null
+        this.resources = resources
+        this.eventBus = eventBus
+
+        eventBus.on('explode:create', data => {
+            this.createExplode(data.target, data.offsetX, data.offsetY, data.isBig, data.silence)
+        })
     }
-    
-    /**
-     * Устанавливает текстуры
-     */
-    setTextures(textures) {
-        if (textures.bigExplode) this.bigExplode = textures.bigExplode
-        if (textures.bochka) this.bochka = textures.bochka
-    }
-    
-    /**
-     * Устанавливает колбэки
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.cameraShake) this.cameraShakeCallback = callbacks.cameraShake
-        if (callbacks.soundPlayer) this.soundPlayer = callbacks.soundPlayer
-    }
-    
-    /**
-     * Создает взрыв
-     * @param {PIXI.Sprite|Object} target - цель взрыва (спрайт с позицией)
-     * @param {number} offsetX - смещение по X
-     * @param {number} offsetY - смещение по Y
-     * @param {boolean} isBig - большой взрыв
-     * @param {boolean} silence - беззвучный взрыв
-     */
+
     createExplode(target, offsetX = 0, offsetY = 0, isBig = false, silence = false) {
-        if (!this.world) {
-            console.warn('World not available for explosion')
-            return null
-        }
-        
-        // Тряска камеры
-        if (this.cameraShakeCallback) {
-            this.cameraShakeCallback(2, 500)
-        }
+        this.eventBus.emit('camera:shake', {intensity: 2, duration: 500})
         
         // Звук взрыва
-        if (!silence && this.soundPlayer) {
-            this.soundPlayer.explosion()
+        if (!silence && soundPlayer) {
+            soundPlayer.explosion()
         }
-        
         // Определение анимации взрыва
-        let explodeAnimation = null
-        if (isBig) {
-            if (!this.bigExplode) {
-                console.warn('Big explode texture not available')
-                return null
-            }
-            explodeAnimation = this.bigExplode.animations.explode
-        } else {
-            if (!this.bochka) {
-                console.warn('Bochka texture not available')
-                return null
-            }
-            explodeAnimation = this.bochka.animations.smallExplode
-        }
+        let explodeAnimation = isBig ? this.resources.bigExplode.animations.explode : this.resources.bochka.animations.smallExplode
         
         // Создание спрайта взрыва
         const explode = new PIXI.AnimatedSprite(explodeAnimation)

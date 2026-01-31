@@ -5,6 +5,9 @@ import {WallManager} from "../environment/managers/Wall";
 import {TrapManager} from "../environment/managers/Trap";
 import {CanManager} from "../environment/Can";
 import {PowerUpManager} from "../entities/PowerUp";
+import {EnemyManager} from "../entities/Enemy";
+import {DogEnemyManager} from "../entities/DogEnemy";
+import {BossManager} from "../entities/Boss";
 
 /**
  * Менеджер спавна сущностей
@@ -28,10 +31,11 @@ export class SpawnManager {
         this.trapManager = new TrapManager(world, gameState, worldCoords, ground, fg, resources, eventBus)
         this.canManager = new CanManager(world, physicsManager, gameState, fg, worldCoords, resources, storage, eventBus)
         this.powerUpManager = new PowerUpManager(world, gameState, fg, storage, worldCoords, resources, eventBus)
+        this.enemyManager = new EnemyManager(world, gameState, worldCoords, resources, eventBus)
+        this.dogEnemyManager = new DogEnemyManager(world, worldCoords, fg, resources, eventBus)
+        this.bossManager = new BossManager(world, gameState, worldCoords, resources, sleep, eventBus)
 
         this.currentBoss = null
-        this.currentDogEnemy = null
-        this.activePowerUp = null
 
         eventBus.on('spawn:entity', data => {
             this.spawnEntity()
@@ -48,7 +52,7 @@ export class SpawnManager {
         }
 
         // Спавн зданий
-        if (!this.currentBoss) {
+        if (!this.bossManager.getCurrentBoss()) {
             this.buildingManager.createBuildingChance()
         }
 
@@ -62,14 +66,22 @@ export class SpawnManager {
             this.powerUpManager.createPowerUp()
         }
 
+        // Спавн врага
+        if (Math.random() < 0.5) {
+            this.enemyManager.createEnemy()
+        }
+
+        // Спавн врага-собаки
+        if (Math.random() < 0.05 && this.gameState.points > 2000) {
+            this.dogEnemyManager.createDogEnemy()
+        }
+
         // Спавн босса или бочки
-        if (!this.buildingManager.getIsBuilding() && !this.currentBoss && (this.buildingManager.getAfterBuilding() < this.worldCoords.zeroRight - this.worldCoords.worldWidth / 2)) {
-            // if (Math.random() < Math.min(this.gameState.points / 40000, 0.1) && this.gameState.points > 2000) {
-            //     if (this.createBossCallback) {
-            //         this.createBossCallback(random(1, 3))
-            //     }
-            //     return
-            // }
+        if (!this.buildingManager.getIsBuilding() && !this.bossManager.getCurrentBoss() && (this.buildingManager.getAfterBuilding() < this.worldCoords.zeroRight - this.worldCoords.worldWidth / 2)) {
+            if (Math.random() < Math.min(this.gameState.points / 40000, 0.1) && this.gameState.points > 2000) {
+                this.bossManager.createBoss(random(1, 3))
+                return
+            }
             if (Math.random() < 0.3) {
                 console.log('trap')
                 this.trapManager.createBarrel(this.buildingManager.getAfterBuilding())
@@ -81,49 +93,6 @@ export class SpawnManager {
                 return
             }
         }
-
-        return;
-        
-        // Спавн врага-собаки
-        if (Math.random() < 0.05 && !this.currentDogEnemy && this.gameState.points > 2000 && this.createDogEnemyCallback) {
-            this.createDogEnemyCallback()
-        }
-        
-        // Спавн врага
-        if (Math.random() < 0.5 && this.createEnemyCallback) {
-            this.createEnemyCallback()
-        }
-    }
-    
-    /**
-     * Определяет тип врага на основе очков игрока
-     */
-    getEnemyType() {
-        const rand = random(1, 100)
-        let enemyType = 'default'
-        
-        switch (true) {
-            case rand > Math.max(180 - this.gameState.points / 100, 90):
-                enemyType = 'shield'
-                break
-            case rand > Math.max(150 - this.gameState.points / 100, 75):
-                enemyType = 'silence'
-                break
-            case rand > Math.max(130 - this.gameState.points / 100, 60):
-                enemyType = 'shotgun'
-                break
-            case rand > Math.max(115 - this.gameState.points / 100, 50):
-                enemyType = 'smg'
-                break
-            case rand > Math.max(95 - this.gameState.points / 100, 20):
-                enemyType = 'nigga'
-                break
-            case rand > 0:
-                enemyType = 'default'
-                break
-        }
-        
-        return enemyType
     }
     
     /**

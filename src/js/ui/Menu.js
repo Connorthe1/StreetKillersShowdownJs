@@ -18,7 +18,7 @@ import { StoreManager } from './Store.js'
  * Менеджер главного меню
  */
 export class MenuManager {
-    constructor(app, gameState, storage, gameWidth, gameHeight, textStyles, resources, storageManager) {
+    constructor(app, gameState, storage, gameWidth, gameHeight, textStyles, resources, storageManager, sleep) {
         this.app = app
         this.gameState = gameState
         this.storage = storage
@@ -27,7 +27,8 @@ export class MenuManager {
         this.textStyles = textStyles
         this.resources = resources  // Main textures object
         this.storageManager = storageManager
-        
+        this.sleep = sleep
+
         // Меню
         this.menu = null
         
@@ -36,15 +37,10 @@ export class MenuManager {
         
         // Callbacks
         this.startGameCallback = null
-        this.sleepCallback = null
     }
-    
-    /**
-     * Устанавливает колбэки
-     */
+
     setCallbacks(callbacks) {
         if (callbacks.startGame) this.startGameCallback = callbacks.startGame
-        if (callbacks.sleep) this.sleepCallback = callbacks.sleep
     }
     
     /**
@@ -142,17 +138,15 @@ export class MenuManager {
             const menuLeft = setInterval(() => {
                 this.menu.x -= 20
             }, 10)
-            
-            if (this.sleepCallback) {
-                this.sleepCallback(300).then(() => {
-                    clearInterval(menuLeft)
-                    if (this.startGameCallback) {
-                        this.startGameCallback()
-                    }
-                    this.app.stage.removeChild(this.menu)
-                    this.menu = null
-                })
-            }
+
+            this.sleep(300).then(() => {
+                clearInterval(menuLeft)
+                if (this.startGameCallback) {
+                    this.startGameCallback()
+                }
+                this.app.stage.removeChild(this.menu)
+                this.menu = null
+            })
         })
         
         return this.menu

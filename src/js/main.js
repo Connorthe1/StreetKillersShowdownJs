@@ -1,11 +1,10 @@
-import {default as enemyParams} from './enemyParams.js'
 import { soundPlayer } from './playSound.js'
 import * as PIXI from 'pixi.js'
 import { Layer, Group, Stage } from '@pixi/layers';
 import * as Matter from 'matter-js'
 import { Player } from './core/Player.js'
 import { getPercent, random } from './utils/GameUtils.js'
-import { GAME_SCALE, DEFAULT_GAME_SPEED, SLOW_GAME_SPEED, BUILDING_CHANCE, BG_SPEED, initGameConfig } from './core/GameConfig.js'
+import { GAME_SCALE, DEFAULT_GAME_SPEED, SLOW_GAME_SPEED, BG_SPEED, initGameConfig } from './core/GameConfig.js'
 import { GameState } from './core/GameState.js'
 import { StorageManager } from './storage/StorageManager.js'
 import { ResourceLoader } from './resources/ResourceLoader.js'
@@ -20,11 +19,8 @@ import { SpawnManager } from './core/SpawnManager.js'
 import { HUDManager } from './ui/HUD.js'
 import { CameraManager } from './core/CameraManager.js'
 import { CollisionDetector } from './physics/CollisionDetector.js'
-import { EnemyManager } from './entities/Enemy.js'
-import { BossManager } from './entities/Boss.js'
 import { GrenadeManager } from './entities/Grenade.js'
 import { MoneyManager } from './entities/Money.js'
-import { DogEnemyManager } from './entities/DogEnemy.js'
 import { InputHandler } from './core/InputHandler.js'
 import { ExplosionManager } from './entities/ExplosionManager.js'
 import { MeleeKillManager } from './ui/MeleeKill.js'
@@ -69,6 +65,11 @@ const { WORLD_WIDTH, WORLD_HEIGHT, textStyles } = gameConfig
 let defaultGameSpeed = DEFAULT_GAME_SPEED
 let slowGameSpeed = SLOW_GAME_SPEED
 let gameSpeed = DEFAULT_GAME_SPEED
+const gameSpeedTODO = {
+    current: DEFAULT_GAME_SPEED,
+    default: DEFAULT_GAME_SPEED,
+    slow: SLOW_GAME_SPEED
+}
 const worldCoords = {
     zeroLeft: 0,
     zeroRight: WORLD_WIDTH,
@@ -82,8 +83,6 @@ let distance = 0
 // Инициализация состояния игры
 let gameState
 let music = null
-let playerPos = WORLD_HEIGHT - 230
-let secondFloor = WORLD_HEIGHT - 420
 
 let bulletManager // Инициализируется после создания world
 
@@ -93,17 +92,9 @@ let bgPosition = 0
 let bgSpeed = BG_SPEED
 
 let world
-let particleContainer
 let ground
 let woodsBackgroundContainer
 let hud
-let stepSound = 0
-// Флаги окружения
-let isBuilding = false
-let afterBuilding = 0
-let isClub = false
-const buildingChance = BUILDING_CHANCE
-let buildingType = 0
 
 // Менеджеры окружения и сущностей
 let backgroundManager // Инициализируется после создания world
@@ -115,27 +106,21 @@ let walls = []
 let traps = []
 let enemies = []
 // Массивы частиц теперь управляются через ParticleManager
-let moneyDrop = []
 // Массивы окружения теперь управляются через отдельные менеджеры
 let buildings = []
-let grenades = []
 let puddles = []
 let particleManager // Инициализируется после создания world
 let spawnManager // Инициализируется после создания world
 let hudManager // Инициализируется после создания hud
 let cameraManager // Инициализируется после создания world
 let collisionDetector // Детектор коллизий
-let enemyManager // Менеджер врагов
-let bossManager // Менеджер боссов
 let grenadeManager // Менеджер гранат
 let moneyManager // Менеджер денег
-let dogEnemyManager // Менеджер собаки-врага
 let explosionManager // Менеджер взрывов
 let meleeKillManager // Менеджер ближнего боя
 let menuManager // Менеджер меню
 let endScreenManager // Менеджер экрана окончания
 let currentBoss = null
-let currentDogEnemy = null
 let currentCan = null
 let activePowerUp = null
 let activeGrenade = null
@@ -190,10 +175,8 @@ window.onload = async function () {
     
     // Извлечение ресурсов для обратной совместимости
     const {
-        textures, build1, build2, buildZiplineTexture, club,
-        laserBeamTexture, inBuildTexture, inFloorTexture, inClubTexture, bgCarTexture,
-        enemiesTexture,
-        particles, canTexture, puddleTexture,
+        textures, inBuildTexture, inFloorTexture,
+        particles,
         activeItems, menuIcons,
     } = resources
 
@@ -231,14 +214,12 @@ window.onload = async function () {
 
         bulletManager = new BulletManager(world, gameState, resources, sleep, eventBus)
 
-        backgroundManager = new BackgroundManager(world, WORLD_WIDTH, WORLD_HEIGHT, gameHeight, resources, gameState)
+        backgroundManager = new BackgroundManager(world, worldCoords, gameHeight, resources, gameState)
 
         garbageManager = new GarbageManager(world, resources, eventBus)
 
-        groundManager = new GroundManager(world, ground, woodsBackgroundContainer, physicsManager, WORLD_WIDTH, WORLD_HEIGHT, resources, worldCoords, eventBus)
+        groundManager = new GroundManager(world, ground, woodsBackgroundContainer, physicsManager, resources, worldCoords, eventBus)
 
-        playerPos = ground.getLocalBounds().y + 70
-        secondFloor = ground.getLocalBounds().y - 120
         worldCoords.firstFloor = ground.getLocalBounds().y + 70
         worldCoords.secondFloor = ground.getLocalBounds().y - 120
 
@@ -268,156 +249,16 @@ window.onload = async function () {
 
         meleeKillManager = new MeleeKillManager(hud, gameState, gameWidth, gameHeight, eventBus)
 
+        explosionManager = new ExplosionManager(world, resources, eventBus)
+
+        grenadeManager = new GrenadeManager(world, physicsManager, worldCoords, resources, sleep, eventBus)
+
+        moneyManager = new MoneyManager(world, physicsManager, worldCoords, resources, eventBus)
+
         //TODO
         
         // Инициализация детектора коллизий
         collisionDetector = new CollisionDetector()
-        
-        // Инициализация менеджера врагов (текстуры будут установлены после загрузки ресурсов)
-        enemyManager = new EnemyManager(
-            world,
-            gameState,
-            enemies,
-            bulletManager.playerBullets,
-            player,
-            playerState,
-            traps,
-            buildings,
-            currentBoss,
-            worldCoords.zeroLeft,
-            WORLD_WIDTH,
-            secondFloor,
-            playerPos
-        )
-        
-        // Инициализация менеджера боссов (текстуры будут установлены после загрузки ресурсов)
-        bossManager = new BossManager(
-            world,
-            gameState,
-            enemies,
-            walls,
-            traps,
-            bulletManager.playerBullets,
-            null, // player - будет установлен позже
-            playerState,
-            worldCoords.zeroLeft,
-            worldCoords.zeroRight,
-            WORLD_WIDTH,
-            playerPos,
-            hud,
-            gameWidth,
-            gameHeight,
-            textStyles
-        )
-        
-        // Инициализация менеджера гранат (текстуры будут установлены после загрузки ресурсов)
-        grenadeManager = new GrenadeManager(
-            world,
-            engine,
-            physicsManager,
-            null, // player - будет установлен позже
-            playerState,
-            enemies,
-            traps,
-            currentDogEnemy,
-            currentBoss,
-            worldCoords.zeroLeft,
-            null, // activeItems - будет установлен позже
-            null, // bounceParticlesTexture - будет установлен позже
-            null  // particles - будет установлен позже
-        )
-        
-        // Установка колбэков для GrenadeManager (explosionManager будет установлен позже)
-        grenadeManager.setCallbacks({
-            damagePlayer: () => {
-                if (playerInstance) {
-                    playerInstance.damagePlayer()
-                }
-            },
-            createExplode: null, // Будет установлен после инициализации explosionManager
-            damageEnemy: damageEnemy,
-            soundPlayer: soundPlayer,
-            sleep: sleep
-        })
-        
-        // Обновление ссылок на массивы для обратной совместимости
-        grenades = grenadeManager.getGrenades()
-        
-        // Инициализация менеджера денег (текстуры будут установлены после загрузки ресурсов)
-        moneyManager = new MoneyManager(
-            world,
-            engine,
-            physicsManager,
-            null, // player - будет установлен позже
-            gameState,
-            worldCoords.zeroLeft,
-            menuIcons // menuIcons - будет установлен позже
-        )
-        
-        // Установка колбэков для MoneyManager
-        moneyManager.setCallbacks({
-            soundPlayer: soundPlayer
-        })
-        
-        // Обновление ссылок на массивы для обратной совместимости
-        moneyDrop = moneyManager.getMoneyDrop()
-        
-        // Инициализация менеджера собаки-врага (текстуры будут установлены после загрузки ресурсов)
-        dogEnemyManager = new DogEnemyManager(
-            world,
-            null, // player - будет установлен позже
-            playerState,
-            bulletManager.playerBullets,
-            buildings,
-            worldCoords.zeroRight,
-            playerPos,
-            secondFloor,
-            fg,
-            gameSpeed
-        )
-        
-        // Установка колбэков для DogEnemyManager
-        dogEnemyManager.setCallbacks({
-            damagePlayer: () => {
-                if (playerInstance) {
-                    playerInstance.damagePlayer()
-                }
-            },
-            damageEnemy: damageEnemy,
-            soundPlayer: soundPlayer,
-            gun: gun
-        })
-        
-        // Обновление ссылок на переменные для обратной совместимости
-        currentDogEnemy = dogEnemyManager.getCurrentDogEnemy()
-        
-        // Инициализация менеджера взрывов (текстуры будут установлены после загрузки ресурсов)
-        explosionManager = new ExplosionManager(world)
-        
-        // Установка колбэков для ExplosionManager
-        explosionManager.setCallbacks({
-            cameraShake: (intensity, duration) => {
-                if (cameraManager) {
-                    cameraManager.cameraShake(intensity, duration)
-                }
-            },
-            soundPlayer: soundPlayer
-        })
-        
-        // Обновление колбэков для GrenadeManager и TrapManager с ExplosionManager
-        if (grenadeManager) {
-            grenadeManager.setCallbacks({
-                damagePlayer: () => playerInstance.damagePlayer(),
-                createExplode: (target, offsetX, offsetY, isBig, silence) => {
-                    if (explosionManager) {
-                        explosionManager.createExplode(target, offsetX, offsetY, isBig, silence)
-                    }
-                },
-                damageEnemy: damageEnemy,
-                soundPlayer: soundPlayer,
-                sleep: sleep
-            })
-        }
         
         // Инициализация менеджера экрана окончания (текстуры будут установлены после загрузки ресурсов)
         endScreenManager = new EndScreenManager(
@@ -428,7 +269,6 @@ window.onload = async function () {
             gameHeight,
             textStyles,
             resources,
-            storageManager
         )
         
         // Установка колбэков для EndScreenManager
@@ -446,17 +286,13 @@ window.onload = async function () {
         })
 
         // Инициализация UI менеджеров (текстуры передаются сразу, так как они уже загружены)
-        menuManager = new MenuManager(app, gameState, storage, gameWidth, gameHeight, textStyles, resources, storageManager)
+        menuManager = new MenuManager(app, gameState, storage, gameWidth, gameHeight, textStyles, resources, storageManager, sleep)
 
         // Установка колбэков для UI менеджеров
         if (menuManager) {
             menuManager.setCallbacks({
-                startGame: startGame,
-                sleep: sleep
+                startGame: startGame
             })
-        }
-        
-        if (menuManager) {
             menuManager.createMenu()
         }
         
@@ -479,7 +315,7 @@ window.onload = async function () {
     }
 
     function startGame() {
-        player = playerInstance.createPlayer(-100, playerPos, fg)
+        player = playerInstance.createPlayer(-100, worldCoords.firstFloor, fg)
         playerInstance.updateGunFromSkin()
 
         if (hudManager) {
@@ -561,10 +397,6 @@ window.onload = async function () {
         world = null
         ground = null
         hud = null
-        isBuilding = false
-        afterBuilding = 0
-        isClub = false
-        buildingType = 0
 
         walls.length = 0
         // Обновление ссылок на массивы для обратной совместимости
@@ -574,17 +406,9 @@ window.onload = async function () {
         }
         buildings.length = 0
         zipLineManager.clear()
-        if (grenadeManager) {
-            grenadeManager.clear()
-        }
         // Обновление ссылок на массивы для обратной совместимости
-        grenades = grenadeManager ? grenadeManager.getGrenades() : []
         activeGrenade = null
         currentBoss = null
-        if (dogEnemyManager) {
-            dogEnemyManager.clear()
-        }
-        currentDogEnemy = null
         activePowerUp = null
         init()
     }
@@ -639,48 +463,6 @@ window.onload = async function () {
 
         particleManager.updateAllParticles(worldCoords.zeroLeft, playerInstance)
 
-        // Обновление денег через MoneyManager
-        if (moneyManager) {
-            moneyManager.updateState({
-                player: player,
-                zeroLeft: worldCoords.zeroLeft
-            })
-            moneyManager.updateDropMoney()
-        }
-        if (grenadeManager && grenadeManager.getActiveGrenade()) {
-            grenadeManager.updateGrenade()
-        }
-        // Обновление собаки-врага через DogEnemyManager
-        if (dogEnemyManager) {
-            dogEnemyManager.updateState({
-                player: player,
-                playerState: playerState,
-                playerBullets: bulletManager.playerBullets,
-                buildings: buildings,
-                zeroRight: worldCoords.zeroRight,
-                zeroLeft: worldCoords.zeroLeft,
-                gameSpeed: gameSpeed
-            })
-            dogEnemyManager.updateDogEnemy()
-            // Синхронизация currentDogEnemy для обратной совместимости
-            currentDogEnemy = dogEnemyManager.getCurrentDogEnemy()
-        }
-        // Обновление состояния GrenadeManager
-        if (grenadeManager) {
-            grenadeManager.updateState({
-                player: player,
-                playerState: playerState,
-                zeroLeft: worldCoords.zeroLeft,
-                currentDogEnemy: currentDogEnemy,
-                currentBoss: currentBoss
-            })
-            if (grenadeManager.getGrenades().length > 0) {
-                grenadeManager.updateGrenades()
-            }
-            // Синхронизация activeGrenade для обратной совместимости
-            activeGrenade = grenadeManager.getActiveGrenade()
-        }
-
         if (currentBoss) {
             updateBoss()
         }
@@ -690,11 +472,11 @@ window.onload = async function () {
             }
             if (playerState.inZipLine === 'top') {
                 player.y -= (5 * defaultGameSpeed)
-                if (player.y < secondFloor) {
+                if (player.y < worldCoords.secondFloor) {
                     playerState.inZipLine = ''
                     player.rotation = 0
                     setPlayerSpeed(playerDefaultSpeed)
-                    player.y = secondFloor
+                    player.y = worldCoords.secondFloor
                     playerState.secondFloor = true
                     const e = {
                         code: 'Space'
@@ -703,11 +485,11 @@ window.onload = async function () {
                 }
             } else {
                 player.y += (5 * defaultGameSpeed)
-                if (player.y > playerPos) {
+                if (player.y > worldCoords.firstFloor) {
                     playerState.inZipLine = ''
                     player.rotation = 0
                     setPlayerSpeed(playerDefaultSpeed)
-                    player.y = playerPos
+                    player.y = worldCoords.firstFloor
                     playerState.secondFloor = false
                     if (playerInstance) playerInstance.playAnim('')
                 }
@@ -985,14 +767,6 @@ window.onload = async function () {
         }, 10)
     }
 
-    function createBoss(propType, propPos) {
-        if (typeof bossManager !== 'undefined' && bossManager) {
-            bossManager.createBoss(propType, propPos);
-        } else {
-            console.error('bossManager is not defined');
-        }
-    }
-
     async function bossShooting() {
         const warning = new PIXI.Sprite(particles.textures.detection)
         warning.zIndex = 20
@@ -1135,93 +909,6 @@ window.onload = async function () {
 
     // Функции updateDogEnemy и createDogEnemy теперь в DogEnemyManager
     // Оставлены для обратной совместимости, но больше не используются
-
-    function createEnemy(pos, canCover) {
-        let randomPos = pos || Math.floor(zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50))
-        let isSecondFloor = false
-
-        buildings.forEach(build => {
-            build.resetSpawnZones.forEach(zone => {
-                // console.log(`${zone.x} > ${randomPos} < ${zone.w}`)
-                if (randomPos + 30 > zone.x && randomPos < zone.w) {
-                    if (zone.w - randomPos < randomPos - zone.x) {
-                        randomPos = zone.w + 50
-                    } else {
-                        randomPos = zone.x - 50
-                    }
-                    // console.log('popal' + randomPos)
-                }
-            })
-        })
-
-        const findDuplicate = enemies.findIndex(enemy => randomPos + 30 > enemy.x && randomPos < enemy.x + enemy.width)
-        if (findDuplicate >= 0) return
-
-        if (currentBoss) {
-            if (randomPos + 30 > currentBoss.x && randomPos < currentBoss.x + currentBoss.width) return
-        }
-
-        if (buildings.length > 0) {
-            const activeBuilding = buildings[0]
-            const lastBuilding = buildings[buildings.length - 1].getLocalBounds()
-            if ((lastBuilding.x + lastBuilding.width > randomPos && activeBuilding.getLocalBounds().x < randomPos) && activeBuilding.secondFloor) {
-                isSecondFloor = true
-            }
-        }
-
-        const rand = random(1, 100)
-        let enemyType = 'default'
-        switch(true) {
-            case rand > Math.max(200 - gameState.points / 100, 80):
-                enemyType = 'shield'
-                break
-            case rand > Math.max(150 - gameState.points / 100, 75):
-                enemyType = 'silence'
-                break
-            case rand > Math.max(130 - gameState.points / 100, 60):
-                enemyType = 'shotgun'
-                break
-            case rand > Math.max(115 - gameState.points / 100, 50):
-                enemyType = 'smg'
-                break
-            case rand > Math.max(95 - gameState.points / 100, 20):
-                enemyType = 'nigga'
-                break
-            case rand > 0:
-                enemyType = 'default'
-                break
-        }
-        const enemy = new PIXI.AnimatedSprite(enemiesTexture.animations[`${enemyType}Idle`])
-        enemy.params = {}
-        Object.keys(enemyParams[enemyType]).forEach(item => {
-            enemy.params[item] = enemyParams[enemyType][item]
-        })
-        enemy.params.animset = {}
-        enemy.params.animset.idle = enemiesTexture.animations[`${enemyType}Idle`]
-        enemy.params.animset.shot = enemiesTexture.animations[`${enemyType}Shot`]
-        enemy.params.animset.death = enemiesTexture.animations[`${enemyType}Death`]
-        enemy.params.animset.deathCrit = enemiesTexture.animations[`${enemyType}DeathCrit`]
-        if (enemy.params.shield) {
-            enemy.params.animset.idleAlt = enemiesTexture.animations[`${enemyType}IdleAlt`]
-            enemy.params.animset.shotAlt = enemiesTexture.animations[`${enemyType}ShotAlt`]
-            enemy.params.animset.knock = enemiesTexture.animations[`${enemyType}Knock`]
-        }
-        enemy.anchor.set(0.5)
-        if (canCover) {
-            enemy.params.canCover = true
-            enemy.params.inCover = true
-            enemy.anchor.y = 0.7
-            enemy.tint = 11776947
-        }
-        enemy.scale.set(2)
-        enemy.animationSpeed = 0.2
-        enemy.zIndex = 8
-        enemy.position.set(randomPos, isSecondFloor ? secondFloor : playerPos)
-        enemy.secondFloor = isSecondFloor
-        world.addChild(enemy)
-        enemy.play()
-        enemies.push(enemy)
-    }
 
     function damageEnemy(enemy, damage, isBoss) {
         enemy.params.health -= damage
@@ -1483,186 +1170,6 @@ window.onload = async function () {
         player.textures = playerState.currentSkin.animations.run;
         player.tint = player.color;
         player.play();
-    }
-
-
-    function events(e) {
-        if (playerState.health === 0 || gameState.gameEnd || gameState.isPause || gameState.isMenu || !gameState.gameStart) return
-        if (playerState.inZipLine) return
-        switch (true) {
-            //RELOAD
-            case e.code === 'KeyR':
-                if ((!playerState.state || playerState.state === 'rollEnd') && gun.currentAmmo < gun.ammo && (!meleeKillManager || !meleeKillManager.hasMeleeKill())) {
-                    soundPlayer.gunReload(gun.type)
-                    playAnim('reload')
-                    setPlayerSpeed(0)
-                    switch (true) {
-                        case gun.type === 'shotgun':
-                            for (let i = 0; i < gun.ammo - gun.currentAmmo; i++) {
-                                if (particleManager) {
-                                    particleManager.spawnBounceParticle(player, 'shell', 16711680)
-                                }
-                            }
-                        break
-                        case gun.type === 'revolver':
-                            for (let i = 0; i < gun.ammo - gun.currentAmmo; i++) {
-                                if (particleManager) {
-                                    particleManager.spawnBounceParticle(player, 'shell')
-                                }
-                            }
-                        break
-                        default:
-                            if (particleManager) {
-                                particleManager.spawnBounceParticle(player, 'mag')
-                            }
-                        break
-                    }
-                    player.onComplete = () => {
-                        if (hudManager) {
-                            hudManager.createBulletsDisplay(gun)
-                        }
-                        gun.currentAmmo = gun.ammo
-                        if (playerState.inCover) {
-                            playAnim('idle')
-                            return
-                        }
-                        setPlayerSpeed(playerDefaultSpeed)
-                        playAnim()
-                    }
-                }
-            break
-            //ROLL
-            case e.code === 'Space':
-                if (!playerState.state && !playerState.inBossFight && (!meleeKillManager || !meleeKillManager.hasMeleeKill())) {
-                    gameState.scoreStreak += 1
-                    soundPlayer.slide()
-                    playAnim('roll')
-                    setPlayerSpeed(playerDefaultSpeed) * 1.5
-                    if (playerState.inCover) {
-                        playerState.inCover = false
-                        player.anchor.y = 0.5
-                        playerState.leaveCover = true
-                    }
-                    player.onComplete = () => {
-                        playerState.leaveCover = false
-                        if (playerState.inZipLine || playerState.state !== 'roll') return
-                        playAnim('rollEnd')
-                        sleep(550, true).then(() => {
-                            console.log('resolve')
-                            if (playerState.inCover || playerState.inZipLine) {
-                                gameState.scoreStreak += 1
-                            } else {
-                                if (meleeKillManager && meleeKillManager.hasMeleeKill()) return
-                                setPlayerSpeed(playerDefaultSpeed)
-                                playAnim()
-                            }
-                            playerState.rollId = null
-                        })
-                        if (meleeKillManager && meleeKillManager.hasMeleeKill()) playerState.rollId.pause()
-                    };
-                }
-            break
-            //SHOT
-            case e.code === 'KeyF':
-                if (meleeKillManager && meleeKillManager.hasMeleeKill()) {
-                    meleeKillManager.handleMeleeKill(false, false)
-                    return
-                }
-                if ((!playerState.state || playerState.state === 'rollEnd') && !playerInstance.triggerDelay) {
-                    if (gun.currentAmmo <= 0) {
-                        soundPlayer.pistolEmpty()
-                        return;
-                    }
-                    playerInstance.triggerDelay = true
-                    sleep(gun.shotTrigger).then(() => {
-                        playerInstance.triggerDelay = false
-                    })
-                    if (playerState.inCover) {
-                        // player.y = playerState.secondFloor ? secondFloor : playerPos
-                        player.anchor.y = 0.5
-                        player.tint = player.color
-                    }
-                    gun.currentAmmo--
-                    if (hudManager) {
-                        hudManager.removeBullet()
-                    }
-                    playAnim('shot')
-                    shot(playerInstance, gun.offsetX, gun.offsetY, gun.type, true)
-                    if (playerState.stimpack) {
-                        sleep(100).then(() => {
-                            shot(playerInstance, gun.offsetX, gun.offsetY, gun.type, true)
-                        })
-                    }
-                    if (!gun.noStop) {
-                        setPlayerSpeed(0)
-                        player.onComplete = () => {
-                            if (playerState.inCover) {
-                                playAnim('idle')
-                                return
-                            }
-                            setPlayerSpeed(playerDefaultSpeed)
-                            playAnim()
-                        }
-                    } else {
-                        if (playerState.inCover) {
-                            player.onComplete = () => {
-                                playAnim('idle')
-                            }
-                            return
-                        }
-                        setPlayerSpeed(playerDefaultSpeed)
-                        playAnim()
-                    }
-                }
-            break
-            //THROW GRENADE
-            case e.code === 'KeyE':
-                if (playerState.skillCD || storage.activeItems.grenades === 0) return;
-                storage.activeItems.grenades -= 1
-                playerState.skillCD = true
-                if (hudManager) {
-                    hudManager.setSkillsAlpha(0.3)
-                    hudManager.updateSkills(storage)
-                }
-                if (grenadeManager) {
-                    grenadeManager.grenadeBounce()
-                }
-                sleep(6000).then(() => {
-                    if (hudManager) {
-                        hudManager.setSkillsAlpha(1)
-                    }
-                    playerState.skillCD = false
-                })
-            break
-            //USE STIMPACK
-            case e.code === 'KeyW':
-                if (playerState.skillCD || storage.activeItems.stimpack === 0) return;
-                storage.activeItems.stimpack -= 1
-                playerState.skillCD = true
-                if (hudManager) {
-                    hudManager.setSkillsAlpha(0.3)
-                    hudManager.updateSkills(storage)
-                    hudManager.createShield(playerState)
-                }
-                playerState.stimpack = true
-                soundPlayer.useSkill()
-                sleep(15000).then(() => {
-                    if (hudManager) {
-                        hudManager.removeShield()
-                        hudManager.setSkillsAlpha(1)
-                    }
-                    playerState.skillCD = false
-                    playerState.stimpack = false
-                })
-            break
-            case e.code === 'KeyQ':
-                if (playerSpeed) {
-                    setPlayerSpeed(0)
-                } else {
-                    setPlayerSpeed(playerDefaultSpeed)
-                }
-            break
-        }
     }
 
     // Функции HUDbullets, HUDpoints, HUDupdateSkills, HUDremoveShield, HUDcreateShield, HUDupdatePowerUp

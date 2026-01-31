@@ -14,40 +14,21 @@
 import * as PIXI from 'pixi.js'
 import * as Matter from 'matter-js'
 import { random } from '../utils/GameUtils.js'
+import {soundPlayer} from "../playSound";
 
 /**
  * Менеджер денег
  */
 export class MoneyManager {
-    constructor(world, engine, physicsManager, player, gameState, zeroLeft, menuIcons) {
+    constructor(world, physicsManager, worldCoords, resources, eventBus) {
         this.world = world
-        this.engine = engine
         this.physicsManager = physicsManager
-        this.player = player
-        this.gameState = gameState
-        this.zeroLeft = zeroLeft
-        this.menuIcons = menuIcons
+        this.worldCoords = worldCoords
+        this.resources = resources
+        this.eventBus = eventBus
         
         // Массив денег
         this.moneyDrop = []
-        
-        // Callbacks
-        this.soundPlayer = null
-    }
-    
-    /**
-     * Устанавливает колбэки
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.soundPlayer) this.soundPlayer = callbacks.soundPlayer
-    }
-    
-    /**
-     * Обновляет состояние
-     */
-    updateState(state) {
-        if (state.player !== undefined) this.player = state.player
-        if (state.zeroLeft !== undefined) this.zeroLeft = state.zeroLeft
     }
     
     /**
@@ -55,11 +36,6 @@ export class MoneyManager {
      * @param {Object|PIXI.Sprite} pos - позиция {x, y} или спрайт с позицией
      */
     spawnDropMoney(pos) {
-        if (!this.menuIcons) {
-            console.warn('Menu icons not available')
-            return null
-        }
-        
         // Определение позиции
         let x, y
         if (pos.x !== undefined && pos.y !== undefined) {
@@ -73,7 +49,7 @@ export class MoneyManager {
             return null
         }
         
-        const money = new PIXI.Sprite(this.menuIcons.textures.money)
+        const money = new PIXI.Sprite(this.resources.menuIcons.textures.money)
         money.scale.set(0.15)
         money.anchor.set(0.5)
         money.position.set(x, y)
@@ -91,14 +67,9 @@ export class MoneyManager {
         )
         
         money.rotation = Math.floor(Math.random() * (6 + 1))
-        
-        if (this.world) {
-            this.world.addChild(money)
-        }
-        
-        if (this.physicsManager) {
-            this.physicsManager.addBody(money.body)
-        }
+
+        this.world.addChild(money)
+        this.physicsManager.addBody(money.body)
         
         // Применение случайной силы
         let randomMassX = Math.random() * money.body.mass
@@ -112,7 +83,6 @@ export class MoneyManager {
         )
         
         this.moneyDrop.push(money)
-        return money
     }
     
     /**
@@ -134,9 +104,7 @@ export class MoneyManager {
             if (this.player) {
                 if (this.player.x + 20 > b.x && this.player.x < b.x + 10) {
                     // Звук сбора
-                    if (this.soundPlayer) {
-                        this.soundPlayer.coins()
-                    }
+                    soundPlayer.coins()
                     
                     // Удаление денег
                     if (this.world) {
@@ -159,7 +127,7 @@ export class MoneyManager {
             }
             
             // Удаление за левой границей
-            if (b.x < this.zeroLeft) {
+            if (b.x < this.worldCoords.zeroLeft) {
                 if (this.world) {
                     this.world.removeChild(b)
                 }

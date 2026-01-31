@@ -13,123 +13,72 @@
 
 import * as PIXI from 'pixi.js'
 import { random } from '../utils/GameUtils.js'
+import {soundPlayer} from "../playSound";
+import {default as enemyParams} from '../enemyParams.js'
 
 /**
  * Менеджер собаки-врага
  */
 export class DogEnemyManager {
-    constructor(world, player, playerState, playerBullets, buildings, zeroRight, playerPos, secondFloor, fg, gameSpeed) {
+    constructor(world, worldCoords, fg, resources, eventBus) {
         this.world = world
-        this.player = player
-        this.playerState = playerState
-        this.playerBullets = playerBullets
-        this.buildings = buildings
-        this.zeroRight = zeroRight
-        this.playerPos = playerPos
-        this.secondFloor = secondFloor
+        this.worldCoords = worldCoords
         this.fg = fg
-        this.gameSpeed = gameSpeed
-        
+        this.resources = resources
+        this.eventBus = eventBus
+
         // Текущая собака-враг
         this.currentDogEnemy = null
-        
-        // Текстуры и параметры (устанавливаются позже)
-        this.dogEnemy = null
-        this.enemyParams = null
-        
-        // Callbacks
-        this.damagePlayerCallback = null
-        this.damageEnemyCallback = null
-        this.soundPlayer = null
-        this.gun = null
-    }
-    
-    /**
-     * Устанавливает текстуры и параметры
-     */
-    setTextures(dogEnemy, enemyParams) {
-        this.dogEnemy = dogEnemy
-        this.enemyParams = enemyParams
-    }
-    
-    /**
-     * Устанавливает колбэки
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.damagePlayer) this.damagePlayerCallback = callbacks.damagePlayer
-        if (callbacks.damageEnemy) this.damageEnemyCallback = callbacks.damageEnemy
-        if (callbacks.soundPlayer) this.soundPlayer = callbacks.soundPlayer
-        if (callbacks.gun) this.gun = callbacks.gun
-    }
-    
-    /**
-     * Обновляет состояние
-     */
-    updateState(state) {
-        if (state.player !== undefined) this.player = state.player
-        if (state.playerState !== undefined) this.playerState = state.playerState
-        if (state.playerBullets !== undefined) this.playerBullets = state.playerBullets
-        if (state.buildings !== undefined) this.buildings = state.buildings
-        if (state.zeroRight !== undefined) this.zeroRight = state.zeroRight
-        if (state.zeroLeft !== undefined) this.zeroLeft = state.zeroLeft
-        if (state.gameSpeed !== undefined) this.gameSpeed = state.gameSpeed
     }
     
     /**
      * Создает собаку-врага
      */
     createDogEnemy() {
-        if (!this.dogEnemy || !this.enemyParams) {
-            console.warn('Dog enemy textures or params not available')
-            return null
-        }
+        if (this.currentDogEnemy) return
+
+        soundPlayer.dogBarking()
         
-        if (this.soundPlayer) {
-            this.soundPlayer.dogBarking()
-        }
-        
-        let randomPos = Math.floor(this.zeroRight + random(10, 10))
-        let level = this.playerPos
+        let randomPos = Math.floor(this.worldCoords.zeroRight + random(10, 10))
+        let level = this.worldCoords.firstFloor
+
+        const buildings = this.eventBus.emit('buildings:get', null, true) || []
         
         // Проверка на здания (может быть на втором этаже)
-        if (this.buildings && this.buildings.length > 0) {
-            const activeBuilding = this.buildings[0]
-            const lastBuilding = this.buildings[this.buildings.length - 1]
+        if (buildings.length > 0) {
+            const activeBuilding = buildings[0]
+            const lastBuilding = buildings[buildings.length - 1]
             const lastBuildingBounds = lastBuilding.getLocalBounds ? lastBuilding.getLocalBounds() : lastBuilding
             const activeBuildingBounds = activeBuilding.getLocalBounds ? activeBuilding.getLocalBounds() : activeBuilding
             
             if ((lastBuildingBounds.x + lastBuildingBounds.width > randomPos && 
                  activeBuildingBounds.x < randomPos) && 
                 activeBuilding.secondFloor) {
-                level = this.secondFloor
+                level = this.worldCoords.secondFloor
             }
         }
         
-        const dog = new PIXI.AnimatedSprite(this.dogEnemy.animations.idle)
+        const dog = new PIXI.AnimatedSprite(this.resources.dogEnemy.animations.idle)
         dog.anchor.set(0.5)
         dog.scale.set(2)
         dog.animationSpeed = 0.2
-        dog.position.set(this.zeroRight + 100, level)
+        dog.position.set(this.worldCoords.zeroRight + 100, level)
         dog.params = {}
         dog.parentGroup = this.fg
         dog.zOrder = 6
         
         // Копирование параметров из enemyParams.dog
-        if (this.enemyParams && this.enemyParams.dog) {
-            Object.keys(this.enemyParams.dog).forEach(item => {
-                dog.params[item] = this.enemyParams.dog[item]
-            })
-        }
+        Object.keys(enemyParams.dog).forEach(item => {
+            dog.params[item] = enemyParams.dog[item]
+        })
         
         dog.params.speed = random(0.5, 1, true, true)
-        dog.params.animset = this.dogEnemy.animations
+        dog.params.animset = this.resources.dogEnemy.animations
         dog.skip = false
         
         this.currentDogEnemy = dog
-        
-        if (this.world) {
-            this.world.addChild(dog)
-        }
+
+        this.world.addChild(dog)
         
         dog.play()
         return dog
@@ -186,7 +135,7 @@ export class DogEnemyManager {
         }
         
         // Удаление за левой границей
-        if (this.currentDogEnemy.x + 100 < this.zeroLeft) {
+        if (this.currentDogEnemy.x + 100 < this.worldCoords.zeroLeft) {
             if (this.world) {
                 this.world.removeChild(this.currentDogEnemy)
             }
