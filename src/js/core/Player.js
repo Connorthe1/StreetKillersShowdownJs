@@ -133,6 +133,31 @@ export class Player {
 
         this.worldCoords.zeroLeft = (this.sprite.x - 100)
         this.worldCoords.zeroRight = (this.sprite.x + this.worldCoords.worldWidth)
+
+        if (this.inZipLine) {
+            this.eventBus.emit('particle:trail', { coords: this.sprite, tint: null, zipLine: true })
+            if (this.inZipLine === 'top') {
+                this.sprite.y -= (5 * gameSpeed)
+                if (this.sprite.y < this.worldCoords.secondFloor) {
+                    this.inZipLine = ''
+                    this.sprite.rotation = 0
+                    this.setPlayerSpeed(this.defaultSpeed)
+                    this.sprite.y = this.worldCoords.secondFloor
+                    this.secondFloor = true
+                    this.event('Space')
+                }
+            } else {
+                this.sprite.y += (5 * gameSpeed)
+                if (this.sprite.y > this.worldCoords.firstFloor) {
+                    this.inZipLine = ''
+                    this.sprite.rotation = 0
+                    this.setPlayerSpeed(this.defaultSpeed)
+                    this.sprite.y = this.worldCoords.firstFloor
+                    this.secondFloor = false
+                    this.playAnim('')
+                }
+            }
+        }
     }
 
     /**

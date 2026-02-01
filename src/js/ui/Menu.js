@@ -9,6 +9,7 @@
  * - Кнопки: старт, магазин, миссии, настройки
  * - Отображение рекорда, денег, золота
  * - Управление магазином (StoreManager создается внутри)
+ * - Взаимодействие через EventBus (эмиты, без колбэков)
  */
 
 import * as PIXI from 'pixi.js'
@@ -18,45 +19,34 @@ import { StoreManager } from './Store.js'
  * Менеджер главного меню
  */
 export class MenuManager {
-    constructor(app, gameState, storage, gameWidth, gameHeight, textStyles, resources, storageManager, sleep) {
+    constructor(app, gameState, storage, gameWidth, gameHeight, textStyles, resources, storageManager, sleep, eventBus) {
         this.app = app
         this.gameState = gameState
         this.storage = storage
         this.gameWidth = gameWidth
         this.gameHeight = gameHeight
         this.textStyles = textStyles
-        this.resources = resources  // Main textures object
+        this.resources = resources
         this.storageManager = storageManager
         this.sleep = sleep
+        this.eventBus = eventBus
 
-        // Меню
         this.menu = null
-        
-        // StoreManager (внутренний)
         this.storeManager = null
-        
-        // Callbacks
-        this.startGameCallback = null
+
+        this.eventBus.on('menu:create', () => {
+            this.createMenu()
+        })
     }
 
-    setCallbacks(callbacks) {
-        if (callbacks.startGame) this.startGameCallback = callbacks.startGame
-    }
-    
     /**
      * Создает главное меню
      */
     createMenu() {
-        if (!this.resources) {
-            console.warn('Menu textures not available')
-            return null
-        }
-        
-        // Удаляем старое меню, если оно существует
         if (this.menu) {
             this.clear()
         }
-        
+
         this.gameState.isMenu = true
         this.gameState.gameStart = false
         this.gameState.gameEnd = false
@@ -141,9 +131,7 @@ export class MenuManager {
 
             this.sleep(300).then(() => {
                 clearInterval(menuLeft)
-                if (this.startGameCallback) {
-                    this.startGameCallback()
-                }
+                this.eventBus.emit('menu:startGame')
                 this.app.stage.removeChild(this.menu)
                 this.menu = null
             })

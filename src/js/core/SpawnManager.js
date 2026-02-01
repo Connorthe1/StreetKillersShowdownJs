@@ -30,7 +30,9 @@ export class SpawnManager {
         this.wallManager = new WallManager(world, ground, worldCoords, resources, eventBus)
         this.trapManager = new TrapManager(world, gameState, worldCoords, ground, fg, resources, eventBus)
         this.canManager = new CanManager(world, physicsManager, gameState, fg, worldCoords, resources, storage, eventBus)
+
         this.powerUpManager = new PowerUpManager(world, gameState, fg, storage, worldCoords, resources, eventBus)
+
         this.enemyManager = new EnemyManager(world, gameState, worldCoords, resources, eventBus)
         this.dogEnemyManager = new DogEnemyManager(world, worldCoords, fg, resources, eventBus)
         this.bossManager = new BossManager(world, gameState, worldCoords, resources, sleep, eventBus)

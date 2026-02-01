@@ -2,21 +2,10 @@
  * Wall.js
  * 
  * Менеджер стен и укрытий
- * 
- * Содержит:
- * - Создание уличных стен (createWall)
- * - Создание укрытий в зданиях (createCoverInBuild, createCoverInClub)
- * - Обновление стен (updateWall)
- * - Обнаружение стены для укрытия (detectWall)
- * - Управление массивами стен
  */
 
 import * as PIXI from 'pixi.js'
 import { random } from '../../utils/GameUtils.js'
-
-/**
- * Менеджер стен
- */
 export class WallManager {
     constructor(world, ground, worldCoords, resources, eventBus) {
         this.world = world
@@ -40,12 +29,7 @@ export class WallManager {
             this.createCoverInClub(data.pos, data.type, data.forBoss)
         })
     }
-    
-    /**
-     * Создает уличную стену
-     * @param {number} pos - позиция X (опционально)
-     * @param {boolean} forBoss - для босса
-     */
+
     createWall(pos = null, forBoss = false, afterBuilding = 0) {
         const randomPos = pos || this.worldCoords.zeroRight + random(100, 250)
         

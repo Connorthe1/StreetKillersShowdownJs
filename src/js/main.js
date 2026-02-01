@@ -18,7 +18,6 @@ import { ZipLineManager } from './environment/managers/ZipLineManager.js'
 import { SpawnManager } from './core/SpawnManager.js'
 import { HUDManager } from './ui/HUD.js'
 import { CameraManager } from './core/CameraManager.js'
-import { CollisionDetector } from './physics/CollisionDetector.js'
 import { GrenadeManager } from './entities/Grenade.js'
 import { MoneyManager } from './entities/Money.js'
 import { InputHandler } from './core/InputHandler.js'
@@ -113,7 +112,6 @@ let particleManager // Инициализируется после создан�
 let spawnManager // Инициализируется после создания world
 let hudManager // Инициализируется после создания hud
 let cameraManager // Инициализируется после создания world
-let collisionDetector // Детектор коллизий
 let grenadeManager // Менеджер гранат
 let moneyManager // Менеджер денег
 let explosionManager // Менеджер взрывов
@@ -175,7 +173,6 @@ window.onload = async function () {
     
     // Извлечение ресурсов для обратной совместимости
     const {
-        textures, inBuildTexture, inFloorTexture,
         particles,
         activeItems, menuIcons,
     } = resources
@@ -226,18 +223,7 @@ window.onload = async function () {
         // Initialize player instance
         playerInstance = new Player(world, gameState, resources, storage, worldCoords, sleep, eventBus)
           // Инициализация менеджера спавна
-        spawnManager = new SpawnManager(
-            gameState,
-            physicsManager,
-            ground,
-            fg,
-            world,
-            worldCoords,
-            resources,
-            sleep,
-            storage,
-            eventBus,
-        )
+        spawnManager = new SpawnManager(gameState, physicsManager, ground, fg, world, worldCoords, resources, sleep, storage, eventBus)
         
         zipLineManager = new ZipLineManager(world, worldCoords, resources, eventBus)
         
@@ -254,47 +240,31 @@ window.onload = async function () {
         grenadeManager = new GrenadeManager(world, physicsManager, worldCoords, resources, sleep, eventBus)
 
         moneyManager = new MoneyManager(world, physicsManager, worldCoords, resources, eventBus)
+        
+        // Инициализация менеджера экрана окончания
+        endScreenManager = new EndScreenManager(app, gameState, gameWidth, gameHeight, textStyles, resources, storageManager, eventBus)
 
-        //TODO
-        
-        // Инициализация детектора коллизий
-        collisionDetector = new CollisionDetector()
-        
-        // Инициализация менеджера экрана окончания (текстуры будут установлены после загрузки ресурсов)
-        endScreenManager = new EndScreenManager(
-            app,
-            gameState,
-            storage,
-            gameWidth,
-            gameHeight,
-            textStyles,
-            resources,
-        )
-        
-        // Установка колбэков для EndScreenManager
-        endScreenManager.setCallbacks({
-            restartGame: restartGame,
-            music: music,
-            removeHud: () => {
-                if (hud && app.stage) {
-                    app.stage.removeChild(hud)
-                }
-            },
-            clearTimeouts: () => {
-                timeouts.length = 0
-            }
+        eventBus.on('endScreen:clearTimeouts', () => {
+            timeouts.length = 0
+        })
+        eventBus.on('endScreen:stopMusic', () => {
+            music.stop()
+        })
+        eventBus.on('endScreen:removeHud', () => {
+            if (hud && app.stage) app.stage.removeChild(hud)
+        })
+        eventBus.on('endScreen:restart', () => {
+            restartGame()
         })
 
-        // Инициализация UI менеджеров (текстуры передаются сразу, так как они уже загружены)
-        menuManager = new MenuManager(app, gameState, storage, gameWidth, gameHeight, textStyles, resources, storageManager, sleep)
+        // Инициализация менеджера меню
+        menuManager = new MenuManager(app, gameState, storage, gameWidth, gameHeight, textStyles, resources, storageManager, sleep, eventBus)
 
-        // Установка колбэков для UI менеджеров
-        if (menuManager) {
-            menuManager.setCallbacks({
-                startGame: startGame
-            })
-            menuManager.createMenu()
-        }
+        eventBus.on('menu:startGame', () => {
+            startGame()
+        })
+
+        eventBus.emit('menu:create')
         
         // Установка алиасов для обратной совместимости
         playerState = playerInstance.playerState
@@ -343,10 +313,8 @@ window.onload = async function () {
                     timeouts.forEach(item => item.resume())
                 },
                 endGame: (skip) => {
-                    if (endScreenManager) {
-                        timeouts.length = 0
-                        endScreenManager.createEndScreen(skip)
-                    }
+                    timeouts.length = 0
+                    eventBus.emit('endScreen:create', skip)
                 }
             })
         }
@@ -354,13 +322,7 @@ window.onload = async function () {
         music = soundPlayer.startMusic()
         
         // Инициализация обработчика ввода (для свайпов)
-        const inputHandler = new InputHandler(
-            app.renderer.view,
-            gameState,
-            playerState,
-            storage,
-            eventBus
-        )
+        const inputHandler = new InputHandler(app.renderer.view, gameState, playerState, storage, eventBus)
 
         // Старый обработчик оставлен для обратной совместимости
         app.ticker.maxFPS = 60
@@ -424,18 +386,12 @@ window.onload = async function () {
             playerState.rollId = null
         }
         if (hudManager) {
-            hudManager.updateFPS(app.ticker.FPS)
+            hudManager.update()
         }
         physicsManager.update();
         // Обновление ближнего боя через MeleeKillManager
         if (meleeKillManager) {
             meleeKillManager.updateMeleeKill()
-        }
-        if (hudManager) {
-            hudManager.updatePoints()
-        }
-        if (hudManager) {
-            hudManager.updateMultiplier()
         }
         if (gameState) {
             gameState.updateScore(playerInstance.stimpack)
@@ -453,49 +409,18 @@ window.onload = async function () {
             backgroundManager.updateBg(worldCoords.zeroLeft, playerInstance.speed)
         }
         if (groundManager) {
-            groundManager.updateFloor(worldCoords.zeroLeft, isBuilding)
+            groundManager.updateFloor(worldCoords.zeroLeft)
         }
         if (bulletManager) {
             bulletManager.updateBullets(worldCoords, gameSpeed)
         }
-        updateWall()
-        updateEnemies()
 
         particleManager.updateAllParticles(worldCoords.zeroLeft, playerInstance)
 
-        if (currentBoss) {
-            updateBoss()
-        }
-        if (playerState.inZipLine) {
-            if (particleManager) {
-                particleManager.spawnTrailParticle(player, null, true)
-            }
-            if (playerState.inZipLine === 'top') {
-                player.y -= (5 * defaultGameSpeed)
-                if (player.y < worldCoords.secondFloor) {
-                    playerState.inZipLine = ''
-                    player.rotation = 0
-                    setPlayerSpeed(playerDefaultSpeed)
-                    player.y = worldCoords.secondFloor
-                    playerState.secondFloor = true
-                    const e = {
-                        code: 'Space'
-                    }
-                    events(e)
-                }
-            } else {
-                player.y += (5 * defaultGameSpeed)
-                if (player.y > worldCoords.firstFloor) {
-                    playerState.inZipLine = ''
-                    player.rotation = 0
-                    setPlayerSpeed(playerDefaultSpeed)
-                    player.y = worldCoords.firstFloor
-                    playerState.secondFloor = false
-                    if (playerInstance) playerInstance.playAnim('')
-                }
-            }
-        }
-        
+        // updateWall()
+        // updateEnemies()
+        // updateBoss()
+
         const detectedWall = detectWall()
         if (detectedWall && !playerState.inCover) {
             if (((playerState.state === 'roll' || playerState.state === 'rollEnd') && !playerState.leaveCover) || (detectedWall.forBoss && !currentBoss.params.dead)) {
@@ -626,27 +551,6 @@ window.onload = async function () {
                 }
             })
         }
-    }
-
-    function createCoverInBuild(pos, isSecondFloor, isRoof) {
-        let wall
-        if (isRoof) {
-            const randomWall = Math.floor(Math.random() * (1 + 1))
-            wall = new PIXI.Sprite(inFloorTexture.textures[`Floor-${randomWall}`])
-            wall.coverX = pos - 34
-        } else {
-            const randomWall = Math.floor(Math.random() * (2 + 1))
-            wall = new PIXI.Sprite(inBuildTexture.textures[`inhouse-${randomWall}`])
-            wall.coverX = pos - 20
-        }
-        wall.bound = 0
-        wall.anchor.set(0.5, 1)
-        wall.position.set(pos, isSecondFloor ? isRoof ? ground.getLocalBounds().y - 115 : ground.getLocalBounds().y - 110 : ground.getLocalBounds().y + 78)
-        wall.height = wall.height * 2
-        wall.width = wall.width * 2
-        wall.zIndex = 1
-        world.addChild(wall)
-        walls.push(wall)
     }
 
     async function enemyShooting(char) {
@@ -1063,51 +967,6 @@ window.onload = async function () {
         })
     }
 
-    function createWall(pos, forBoss) {
-        let wall
-        const randomPos = pos || zeroRight + random(100, 250)
-        if (!pos && !forBoss) {
-            const rand = random(1, 10)
-            if (rand > 5) {
-                createEnemy(randomPos + 60, true)
-            }
-        }
-        if (afterBuilding > randomPos - 100) {
-            return
-        }
-        if (walls.length > 0) {
-            const wallSize = walls[walls.length - 1].getLocalBounds()
-            if (randomPos > wallSize.x - 100 &&
-                randomPos < wallSize.x + wallSize.width + 100) {
-                return
-            }
-        }
-        const randomWall = random(1, 10)
-        if (randomWall < 4) {
-            wall = new PIXI.Sprite(textures.textures.coverTrash)
-            wall.position.set(randomPos, ground.getLocalBounds().y + 36)
-            wall.bound = -20
-            wall.coverX = randomPos - 28
-        } else {
-            wall = new PIXI.Sprite(textures.textures.wall)
-            wall.position.set(randomPos, ground.getLocalBounds().y + 36)
-            wall.bound = 0
-            wall.coverX = randomPos - 20
-        }
-        if (forBoss) {
-            wall.forBoss = true
-        }
-        wall.anchor.set(0.5)
-        world.addChild(wall)
-        if (Math.random() < 0.5 && randomWall < 4) {
-            const pos = random(10, wall.width / 2)
-            if (garbageManager) {
-                garbageManager.createGarbage(wall.x - wall.width / 2 + pos, wall.y, 4)
-            }
-        }
-        walls.push(wall)
-    }
-
     function updateWall() {
         walls.forEach((wall, idx) => {
             if (wall.x + 100 < worldCoords.zeroLeft) {
@@ -1128,48 +987,6 @@ window.onload = async function () {
                 sleep
             )
         }
-    }
-
-    function playAnim(anim) {
-        if (!player) return;
-
-        player.loop = !anim || anim === 'idle';
-        player.animationSpeed = (anim === 'reload' && gun.reloadAnim) ? gun.reloadAnim : 0.2;
-
-        if (gun.noStop && anim === 'shot' && !playerState.inCover) {
-            if (playerState.state) {
-                updatePlayerState(anim, playerState.currentSkin.animations.run, player.color);
-            } else {
-                playerState.state = anim;
-            }
-            return;
-        }
-
-        if (!anim || (anim === 'shotEnd' && gun.noStop)) {
-            resetPlayerState();
-        } else {
-            player.tint = (anim === 'roll' || anim === 'rollEnd' || (playerState.inCover && anim !== 'shot')) ? player.shadow : player.color;
-            if (anim === 'idle' || anim === 'zipLine') {
-                if (anim === 'idle') player.anchor.y = 0.7;
-                updatePlayerState('', playerState.currentSkin.animations[anim], player.tint);
-            } else {
-                updatePlayerState(anim, playerState.currentSkin.animations[anim], player.tint);
-            }
-        }
-    }
-
-    function updatePlayerState(state, textures, tint) {
-        playerState.state = state;
-        player.textures = textures;
-        player.tint = tint;
-        player.play();
-    }
-
-    function resetPlayerState() {
-        playerState.state = '';
-        player.textures = playerState.currentSkin.animations.run;
-        player.tint = player.color;
-        player.play();
     }
 
     // Функции HUDbullets, HUDpoints, HUDupdateSkills, HUDremoveShield, HUDcreateShield, HUDupdatePowerUp

@@ -8,6 +8,7 @@
  * - Отображение результатов
  * - Анимация подсчета очков и денег
  * - Кнопка выхода
+ * - Взаимодействие через EventBus (эмиты, без колбэков)
  */
 
 import * as PIXI from 'pixi.js'
@@ -17,63 +18,38 @@ import {soundPlayer} from "../playSound";
  * Менеджер экрана окончания игры
  */
 export class EndScreenManager {
-    constructor(app, gameState, storage, gameWidth, gameHeight, textStyles, resources) {
+    constructor(app, gameState, gameWidth, gameHeight, textStyles, resources, storageManager, eventBus) {
         this.app = app
         this.gameState = gameState
-        this.storage = storage
         this.gameWidth = gameWidth
         this.gameHeight = gameHeight
         this.textStyles = textStyles
         this.resources = resources
-        
-        // Экран окончания
+        this.storageManager = storageManager
+        this.eventBus = eventBus
+
         this.endScreen = null
-        
-        // Callbacks
-        this.restartGameCallback = null
-        this.removeHudCallback = null
-        this.clearTimeoutsCallback = null
+
+        this.eventBus.on('endScreen:create', (payload) => {
+            this.createEndScreen(payload?.toRestart ?? payload ?? false)
+        })
     }
-    
-    /**
-     * Устанавливает колбэки
-     */
-    setCallbacks(callbacks) {
-        if (callbacks.restartGame) this.restartGameCallback = callbacks.restartGame
-        if (callbacks.removeHud) this.removeHudCallback = callbacks.removeHud
-        if (callbacks.clearTimeouts) this.clearTimeoutsCallback = callbacks.clearTimeouts
-    }
-    
+
     /**
      * Создает экран окончания игры
      * @param {boolean} toRestart - перезапустить игру сразу
      */
     async createEndScreen(toRestart = false) {
-        // Остановка музыки
-        if (soundPlayer) {
-            soundPlayer.stop()
-        }
-        
-        // Очистка таймаутов
-        if (this.clearTimeoutsCallback) {
-            this.clearTimeoutsCallback()
-        }
-        
-        // Установка состояния окончания игры
+        this.eventBus.emit('endScreen:stopMusic')
+        this.eventBus.emit('endScreen:clearTimeouts')
         this.gameState.gameEnd = true
-        
-        // Удаление HUD (передается через колбэк)
-        if (this.removeHudCallback) {
-            this.removeHudCallback()
-        }
-        
-        // Если нужно перезапустить
-        if (toRestart && this.restartGameCallback) {
-            this.restartGameCallback()
+        this.eventBus.emit('endScreen:removeHud')
+
+        if (toRestart) {
+            this.eventBus.emit('endScreen:restart')
             return null
         }
-        
-        // Обновление рекорда
+
         if (this.storageManager) {
             this.storageManager.updateRecord(this.gameState.points)
         }
@@ -257,7 +233,7 @@ export class EndScreenManager {
         exit.position.set(center, score.y + 80)
         endScreen.addChild(exit)
         
-        exit.on('pointerdown', () => this.restartGameCallback())
+        exit.on('pointerdown', () => this.eventBus.emit('endScreen:restart'))
         
         return endScreen
     }

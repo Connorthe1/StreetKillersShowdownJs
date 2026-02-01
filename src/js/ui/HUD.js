@@ -308,13 +308,23 @@ export class HUDManager {
     /**
      * Обновляет отображение FPS
      */
-    updateFPS(fps) {
+    updateFPS() {
         const fpsElement = this.hud.getChildByName('fps')
+        const fps = this.app.ticker.FPS
         if (fpsElement) {
             fpsElement.text = Math.floor(fps)
         }
     }
-    
+
+    /**
+     * Обновление HUD за тик (FPS, очки, множитель)
+     */
+    update() {
+        this.updateFPS()
+        this.updatePoints()
+        this.updateMultiplier()
+    }
+
     /**
      * Создает щит (stimpack активен)
      */

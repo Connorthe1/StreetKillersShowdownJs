@@ -80,16 +80,18 @@ export class GroundManager {
     /**
      * Обновляет пол
      */
-    updateFloor(zeroLeft, isBuilding) {
+    updateFloor(zeroLeft) {
         if (!this.ground) return
-        
+
+        const isBuilding = this.eventBus.emit('building:getIsBuilding', null, true) ?? false
+
         const groundBounds = this.ground.getLocalBounds()
         const groundX = groundBounds.x || 0
-        
+
         // Создание нового сегмента пола при необходимости
         if (zeroLeft - groundX > 192) {
             this.floorPosition++
-            
+
             // Удаление старого сегмента
             if (this.ground.children.length > 0) {
                 const oldPart = this.ground.children[0]
@@ -101,7 +103,7 @@ export class GroundManager {
                 }
                 this.ground.removeChildAt(0)
             }
-            
+
             // Создание нового сегмента
             this.createFloor(3, isBuilding)
             

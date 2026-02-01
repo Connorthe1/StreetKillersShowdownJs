@@ -42,6 +42,7 @@ export class BuildingManager {
         eventBus.on('buildings:get', () => {
             return this.getBuildings()
         })
+        eventBus.on('building:getIsBuilding', () => this.isBuilding)
     }
 
     createBuildingChance() {
