@@ -8,6 +8,9 @@ import {PowerUpManager} from "../entities/PowerUp";
 import {EnemyManager} from "../entities/Enemy";
 import {DogEnemyManager} from "../entities/DogEnemy";
 import {BossManager} from "../entities/Boss";
+import {CarBG} from "../environment/classes/CarBG";
+import {GarbageManager} from "../entities/managers/GarbageManager";
+import {WoodBG} from "../environment/classes/WoodBG";
 
 /**
  * Менеджер спавна сущностей
@@ -30,14 +33,15 @@ export class SpawnManager {
         this.wallManager = new WallManager(world, ground, worldCoords, resources, eventBus)
         this.trapManager = new TrapManager(world, gameState, worldCoords, ground, fg, resources, eventBus)
         this.canManager = new CanManager(world, physicsManager, gameState, fg, worldCoords, resources, storage, eventBus)
+        this.carManager = new CarBG(world, resources, worldCoords)
+        this.woodBGManager = new WoodBG(world, resources, worldCoords)
+        this.garbageManager = new GarbageManager(world, resources, eventBus)
 
         this.powerUpManager = new PowerUpManager(world, gameState, fg, storage, worldCoords, resources, eventBus)
 
         this.enemyManager = new EnemyManager(world, gameState, worldCoords, resources, eventBus)
         this.dogEnemyManager = new DogEnemyManager(world, worldCoords, fg, resources, eventBus)
         this.bossManager = new BossManager(world, gameState, worldCoords, resources, sleep, eventBus)
-
-        this.currentBoss = null
 
         eventBus.on('spawn:entity', data => {
             this.spawnEntity()
@@ -78,6 +82,29 @@ export class SpawnManager {
             this.dogEnemyManager.createDogEnemy()
         }
 
+        // Спавн машины на фоне
+        if (Math.random() > 0.5) {
+            this.carManager.create()
+        }
+
+        // Создание деревянных элементов
+        if (Math.random() > 0.5) {
+            this.woodBGManager.create(this.worldCoords.zeroRight, this.worldCoords.firstFloor)
+        }
+
+        // Создание мусора рядом с полом (если в здании)
+        if (Math.random() > 0.75 && !this.buildingManager.getIsBuilding()) {
+            const posX = random(10, 100)
+            const posY = random(35, 45)
+            this.garbageManager.createGarbage(this.worldCoords.zeroRight + posX, this.worldCoords.firstFloor + posY)
+        }
+
+        if (Math.random() > 0.75 && !this.buildingManager.getIsBuilding()) {
+            const posX = random(10, 100)
+            const posY = random(5, 15)
+            this.garbageManager.createGarbage(this.worldCoords.zeroRight + posX, this.worldCoords.firstFloor + posY)
+        }
+
         // Спавн босса или бочки
         if (!this.buildingManager.getIsBuilding() && !this.bossManager.getCurrentBoss() && (this.buildingManager.getAfterBuilding() < this.worldCoords.zeroRight - this.worldCoords.worldWidth / 2)) {
             if (Math.random() < Math.min(this.gameState.points / 40000, 0.1) && this.gameState.points > 2000) {
@@ -95,6 +122,10 @@ export class SpawnManager {
                 return
             }
         }
+    }
+
+    update() {
+        this.carManager.update()
     }
     
     /**

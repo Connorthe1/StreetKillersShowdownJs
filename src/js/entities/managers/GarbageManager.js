@@ -1,5 +1,4 @@
 import { Garbage } from "../classes/Garbage";
-import { EventBus } from "../../utils/EventBus";
 
 export class GarbageManager {
     constructor(world, resources, eventBus) {

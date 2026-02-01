@@ -17,22 +17,22 @@ import { random, randomRGB } from '../../utils/GameUtils.js'
  * Менеджер фоновых машин
  */
 export class CarBG {
-    constructor(resources, worldCoords, posY) {
+    constructor(world, resources, worldCoords) {
+        this.world = world
         this.resources = resources
         this.worldCoords = worldCoords
-        this.posY = posY
 
-        this.body = null
-        this.side = Math.random() < 0.5
-        this.speed = random(4, 10)
-
-        this.create()
+        this.currentCar = null
     }
     
     /**
      * Создает фоновую машину
      */
     create() {
+        if (this.currentCar) return
+        this.side = Math.random() < 0.5
+        this.speed = random(4, 10)
+
         const car = new PIXI.Container()
         const carBack = new PIXI.Sprite(this.resources.bgCarTexture.textures.carBack)
         const carFront = new PIXI.Sprite(this.resources.bgCarTexture.textures.carFront)
@@ -43,12 +43,12 @@ export class CarBG {
         
         // Случайное направление движения
         if (this.side) {
-            car.position.set(this.worldCoords.zeroRight, this.posY - 12)
+            car.position.set(this.worldCoords.zeroRight, this.worldCoords.firstFloor - 24)
         } else {
             // Движение слева направо (зеркальное отображение)
             carBack.scale.set(-1, 1)
             carFront.scale.set(-1, 1)
-            car.position.set(this.worldCoords.zeroLeft - 100, this.posY - 12)
+            car.position.set(this.worldCoords.zeroLeft - 100, this.worldCoords.firstFloor - 24)
         }
 
         car.zIndex = -1
@@ -56,20 +56,38 @@ export class CarBG {
         car.addChild(carBack)
         car.addChild(carFront)
 
-        this.body = car
-        return this.body
+        this.world.addChild(car)
+        this.currentCar = car
     }
     
     /**
      * Обновляет фоновую машину
      */
     update() {
+        if (!this.currentCar) return
+
         if (this.side > 0) {
             // Движение справа налево
-            this.body.x -= this.speed
+            this.currentCar.x -= this.speed
         } else {
             // Движение слева направо
-            this.body.x += this.speed
+            this.currentCar.x += this.speed
+        }
+
+        const carBounds = this.currentCar.body.getBounds ? this.currentCar.body.getBounds() : this.currentCar.body
+
+        if (this.currentCar.side > 0) {
+            // Движение справа налево
+            if (carBounds.x + carBounds.width < 0) {
+                this.world.removeChild(this.currentCar.body)
+                this.currentCar = null
+            }
+        } else {
+            // Движение слева направо
+            if (carBounds.x > this.worldCoords.zeroRight) {
+                this.world.removeChild(this.currentCar.body)
+                this.currentCar = null
+            }
         }
     }
 }

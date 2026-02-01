@@ -13,7 +13,6 @@ import { ParticleManager } from './entities/Particle.js'
 import { BulletManager } from './entities/Bullet.js'
 import { BackgroundManager } from './environment/Background.js'
 import { GroundManager } from './environment/managers/GroundManager.js'
-import { GarbageManager } from './entities/managers/GarbageManager.js'
 import { ZipLineManager } from './environment/managers/ZipLineManager.js'
 import { SpawnManager } from './core/SpawnManager.js'
 import { HUDManager } from './ui/HUD.js'
@@ -92,13 +91,11 @@ let bgSpeed = BG_SPEED
 
 let world
 let ground
-let woodsBackgroundContainer
 let hud
 
 // Менеджеры окружения и сущностей
 let backgroundManager // Инициализируется после создания world
 let groundManager // Инициализируется после создания world
-let garbageManager // Инициализируется после создания world
 let zipLineManager // Инициализируется после создания world
 
 let walls = []
@@ -197,10 +194,6 @@ window.onload = async function () {
         hud.parentGroup = hudLayer
         hud.zOrder = 99
 
-        woodsBackgroundContainer = new PIXI.Container()
-        woodsBackgroundContainer.name = 'woodsBG'
-        world.addChild(woodsBackgroundContainer)
-
         ground = new PIXI.Container()
         ground.name = 'ground'
         world.addChild(ground)
@@ -213,9 +206,7 @@ window.onload = async function () {
 
         backgroundManager = new BackgroundManager(world, worldCoords, gameHeight, resources, gameState)
 
-        garbageManager = new GarbageManager(world, resources, eventBus)
-
-        groundManager = new GroundManager(world, ground, woodsBackgroundContainer, physicsManager, resources, worldCoords, eventBus)
+        groundManager = new GroundManager(world, ground, physicsManager, resources, worldCoords, eventBus)
 
         worldCoords.firstFloor = ground.getLocalBounds().y + 70
         worldCoords.secondFloor = ground.getLocalBounds().y - 120
@@ -395,10 +386,6 @@ window.onload = async function () {
         }
         if (gameState) {
             gameState.updateScore(playerInstance.stimpack)
-        }
-        // Обновление мусора через GarbageManager
-        if (garbageManager) {
-            garbageManager.updateGarbage(worldCoords.zeroLeft)
         }
         // Use the Player module's updatePlayer method
         if (playerInstance) {

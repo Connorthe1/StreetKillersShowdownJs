@@ -2,11 +2,11 @@ import * as PIXI from 'pixi.js'
 import { random } from '../../utils/GameUtils.js'
 
 export class WoodBG {
-    constructor(posX, posY, resources) {
+    constructor(world, resources) {
         this.resources = resources
-        this.body = null
+        this.world = world
 
-        this.create(posX, posY)
+        this.woodsArr = []
     }
 
     create(posX, posY) {
@@ -14,10 +14,35 @@ export class WoodBG {
         const wood = new PIXI.AnimatedSprite(this.resources.woods.animations[`wood${woodType}_part`])
         wood.scale.set(random(0.8, 1.5, true, true))
         wood.anchor.set(0, 1)
-        wood.position.set(posX, posY + 60)
+        wood.position.set(posX, posY + 50)
         wood.animationSpeed = 0.1
         wood.play()
 
-        this.body = wood
+        wood.zIndex = -1
+
+        this.woodsArr.push(wood)
+        this.world.addChild(wood)
+    }
+
+    update() {
+        // Обновление деревянных элементов
+        this.woodsArr.forEach((wood, idx) => {
+            const w = wood.getBounds ? wood.getBounds() : wood
+            const woodX = w.x || (wood.position ? wood.position.x : 0)
+            const woodWidth = w.width || 0
+
+            if (woodX + woodWidth < 0) {
+                this.world.removeChild(wood)
+                this.woodsBGarr.splice(idx, 1)
+            }
+        })
+    }
+
+    clear() {
+        // Очистка деревянных элементов
+        this.woodsBGarr.forEach(wood => {
+            this.world.removeChild(wood)
+        })
+        this.woodsBGarr = []
     }
 }
