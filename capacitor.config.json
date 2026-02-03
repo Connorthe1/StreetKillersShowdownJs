@@ -1,7 +1,7 @@
 {
   "appId": "com.example.app",
   "appName": "sks",
-  "webDir": "src",
+  "webDir": "dist",
   "server": {
     "url": "http://192.168.100.23:8000",
     "cleartext": true

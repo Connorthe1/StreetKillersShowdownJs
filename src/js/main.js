@@ -25,6 +25,7 @@ import { MeleeKillManager } from './ui/MeleeKill.js'
 import { MenuManager } from './ui/Menu.js'
 import { EndScreenManager } from './ui/EndScreen.js'
 import { EventBus } from './utils/EventBus.js'
+import {InteractionSystem} from "./physics/InteractionSystem";
 
 // Экземпляр игрока
 let playerInstance = null
@@ -90,8 +91,8 @@ let bgPosition = 0
 let bgSpeed = BG_SPEED
 
 let world
-let ground
-let hud
+let groundContainer
+let hudContainer
 
 // Менеджеры окружения и сущностей
 let backgroundManager // Инициализируется после создания world
@@ -119,12 +120,13 @@ let currentBoss = null
 let currentCan = null
 let activePowerUp = null
 let activeGrenade = null
+let interactionSystem
 
 // Инициализация менеджера физики
 const physicsManager = new PhysicsManager()
 const eventBus = new EventBus()
 let engine // Для обратной совместимости
-let fg
+let foregroundContainer
 let hudLayer
 
 // Флаги состояния теперь в gameState (isPause, isMenu, gameStart, gameEnd)
@@ -181,58 +183,58 @@ window.onload = async function () {
     function init() {
         world = new PIXI.Container()
         world.name = 'world'
-        app.stage.addChild(world)
         world.sortableChildren = true;
         world.scale.set(GAME_SCALE)
-        fg = new Group(9, true)
-        world.addChild(new Layer(fg));
+        app.stage.addChild(world)
 
-        hud = new PIXI.Container()
-        hud.name = 'hud'
-        app.stage.addChild(hud)
-        hud.sortableChildren = true;
-        hud.parentGroup = hudLayer
-        hud.zOrder = 99
+        hudContainer = new PIXI.Container()
+        hudContainer.name = 'hud'
+        hudContainer.sortableChildren = true;
+        hudContainer.parentGroup = hudLayer
+        hudContainer.zOrder = 99
+        app.stage.addChild(hudContainer)
 
-        ground = new PIXI.Container()
-        ground.name = 'ground'
-        world.addChild(ground)
+        foregroundContainer = new Group(9, true)
+        world.addChild(new Layer(foregroundContainer));
+
+        groundContainer = new PIXI.Container()
+        groundContainer.name = 'ground'
+        world.addChild(groundContainer)
 
         gameState = new GameState(eventBus)
         // Инициализация менеджера частиц
-        particleManager = new ParticleManager(world, physicsManager, ground, resources, gameState, eventBus)
+        particleManager = new ParticleManager(world, physicsManager, groundContainer, resources, gameState, eventBus)
 
         bulletManager = new BulletManager(world, gameState, resources, sleep, eventBus)
 
         backgroundManager = new BackgroundManager(world, worldCoords, gameHeight, resources, gameState)
 
-        groundManager = new GroundManager(world, ground, physicsManager, resources, worldCoords, eventBus)
+        groundManager = new GroundManager(world, groundContainer, physicsManager, resources, worldCoords, eventBus)
 
-        worldCoords.firstFloor = ground.getLocalBounds().y + 70
-        worldCoords.secondFloor = ground.getLocalBounds().y - 120
+        worldCoords.firstFloor = groundContainer.getLocalBounds().y + 70
+        worldCoords.secondFloor = groundContainer.getLocalBounds().y - 120
 
         // Initialize player instance
         playerInstance = new Player(world, gameState, resources, storage, worldCoords, sleep, eventBus)
           // Инициализация менеджера спавна
-        spawnManager = new SpawnManager(gameState, physicsManager, ground, fg, world, worldCoords, resources, sleep, storage, eventBus)
+        spawnManager = new SpawnManager(gameState, physicsManager, groundContainer, foregroundContainer, world, worldCoords, resources, sleep, storage, eventBus)
         
         zipLineManager = new ZipLineManager(world, worldCoords, resources, eventBus)
         
         // Инициализация менеджера HUD
-        hudManager = new HUDManager(app, storage, hud, gameState, gameWidth, gameHeight, textStyles, resources, eventBus)
+        hudManager = new HUDManager(app, storage, hudContainer, gameState, gameWidth, gameHeight, textStyles, resources, eventBus)
         
         // Инициализация менеджера камеры
         cameraManager = new CameraManager(world, gameState, worldCoords, sleep, eventBus)
 
-        meleeKillManager = new MeleeKillManager(hud, gameState, gameWidth, gameHeight, eventBus)
+        meleeKillManager = new MeleeKillManager(hudContainer, gameState, gameWidth, gameHeight, eventBus)
 
         explosionManager = new ExplosionManager(world, resources, eventBus)
 
         grenadeManager = new GrenadeManager(world, physicsManager, worldCoords, resources, sleep, eventBus)
 
         moneyManager = new MoneyManager(world, physicsManager, worldCoords, resources, eventBus)
-        
-        // Инициализация менеджера экрана окончания
+
         endScreenManager = new EndScreenManager(app, gameState, gameWidth, gameHeight, textStyles, resources, storageManager, eventBus)
 
         eventBus.on('endScreen:clearTimeouts', () => {
@@ -242,7 +244,7 @@ window.onload = async function () {
             music.stop()
         })
         eventBus.on('endScreen:removeHud', () => {
-            if (hud && app.stage) app.stage.removeChild(hud)
+            if (hudContainer && app.stage) app.stage.removeChild(hudContainer)
         })
         eventBus.on('endScreen:restart', () => {
             restartGame()
@@ -256,27 +258,16 @@ window.onload = async function () {
         })
 
         eventBus.emit('menu:create')
+
+        interactionSystem = new InteractionSystem()
         
         // Установка алиасов для обратной совместимости
         playerState = playerInstance.playerState
         gun = playerInstance.gun
-        
-        // Функции для синхронизации скоростей
-        const syncSpeeds = () => {
-            playerDefaultSpeed = playerInstance.playerDefaultSpeed
-            playerSpeed = playerInstance.playerSpeed
-            initSpeed = playerInstance.initSpeed
-        }
-        syncSpeeds()
-        // Функции для синхронизации других свойств
-        const syncOther = () => {
-        }
-        syncOther()
-
     }
 
     function startGame() {
-        player = playerInstance.createPlayer(-100, worldCoords.firstFloor, fg)
+        player = playerInstance.createPlayer(-100, worldCoords.firstFloor, foregroundContainer)
         playerInstance.updateGunFromSkin()
 
         if (hudManager) {
@@ -348,8 +339,8 @@ window.onload = async function () {
         bgSpeed = BG_SPEED;
 
         world = null
-        ground = null
-        hud = null
+        groundContainer = null
+        hudContainer = null
 
         walls.length = 0
         // Обновление ссылок на массивы для обратной совместимости
@@ -401,6 +392,9 @@ window.onload = async function () {
         if (bulletManager) {
             bulletManager.updateBullets(worldCoords, gameSpeed)
         }
+        if (spawnManager) {
+            spawnManager.update()
+        }
 
         particleManager.updateAllParticles(worldCoords.zeroLeft, playerInstance)
 
@@ -408,16 +402,10 @@ window.onload = async function () {
         // updateEnemies()
         // updateBoss()
 
-        const detectedWall = detectWall()
-        if (detectedWall && !playerState.inCover) {
-            if (((playerState.state === 'roll' || playerState.state === 'rollEnd') && !playerState.leaveCover) || (detectedWall.forBoss && !currentBoss.params.dead)) {
-                playerState.inBossFight = detectedWall.forBoss
-                playerState.inCover = true
-                setPlayerSpeed(0)
-                player.x = detectedWall.coverX
-                if (playerInstance) playerInstance.playAnim('idle')
-            }
-        }
+        interactionSystem.update({
+            player: playerInstance,
+            spawn: spawnManager,
+        })
     }
 
     // Функции setMeleeSelector и HUDmeleeKill теперь в MeleeKillManager
@@ -646,14 +634,14 @@ window.onload = async function () {
         rewardContainer.addChild(text)
         rewardContainer.position.set(gameWidth / 2, gameHeight / 2)
 
-        hud.addChild(rewardContainer)
+        hudContainer.addChild(rewardContainer)
 
         const move = setInterval(() => {
             rewardContainer.position.y -= 1
             rewardContainer.alpha -= 0.01
             if (rewardContainer.alpha <= 0) {
                 clearInterval(move)
-                hud.removeChild(rewardContainer)
+                hudContainer.removeChild(rewardContainer)
             }
         }, 10)
     }

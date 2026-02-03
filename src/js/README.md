@@ -23,7 +23,7 @@
 - **Particle.js** - Частицы
 - **Building.js** - Здания
 - **Wall.js** - Стены и укрытия
-- **Trap.js** - Ловушки
+- **TrapsManager.js** - Ловушки
 - **PowerUp.js** - Пауэр-апы
 - **Can.js** - Банка
 - **Grenade.js** - Гранаты

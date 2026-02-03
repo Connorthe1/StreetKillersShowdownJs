@@ -43,12 +43,12 @@ export class CarBG {
         
         // Случайное направление движения
         if (this.side) {
-            car.position.set(this.worldCoords.zeroRight, this.worldCoords.firstFloor - 24)
+            car.position.set(this.worldCoords.zeroRight, this.worldCoords.firstFloor - 12)
         } else {
             // Движение слева направо (зеркальное отображение)
             carBack.scale.set(-1, 1)
             carFront.scale.set(-1, 1)
-            car.position.set(this.worldCoords.zeroLeft - 100, this.worldCoords.firstFloor - 24)
+            car.position.set(this.worldCoords.zeroLeft - 100, this.worldCoords.firstFloor - 12)
         }
 
         car.zIndex = -1
@@ -74,7 +74,7 @@ export class CarBG {
             this.currentCar.x += this.speed
         }
 
-        const carBounds = this.currentCar.body.getBounds ? this.currentCar.body.getBounds() : this.currentCar.body
+        const carBounds = this.currentCar.getBounds
 
         if (this.currentCar.side > 0) {
             // Движение справа налево

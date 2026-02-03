@@ -171,11 +171,11 @@ export class WallManager {
         
         this.walls.push(wall)
     }
-    
+
     /**
      * Обновляет стены
      */
-    updateWall() {
+    update() {
         this.walls.forEach((wall, idx) => {
             const wallX = wall.x || (wall.position ? wall.position.x : 0)
             if (wallX + 100 < this.worldCoords.zeroLeft) {
@@ -185,28 +185,6 @@ export class WallManager {
                 this.walls.splice(idx, 1)
             }
         })
-    }
-    
-    /**
-     * Обнаруживает стену для укрытия игрока
-     * @returns {PIXI.Sprite|null} найденная стена или null
-     */
-    detectWall() {
-        if (!this.player) return null
-        
-        const p = this.player.getBounds ? this.player.getBounds() : this.player
-        
-        return this.walls.find(w => {
-            const wall = w.getBounds ? w.getBounds() : w
-            const wallX = wall.x || (wall.position ? wall.position.x : 0)
-            const wallWidth = wall.width || 0
-            
-            if (p.x > (wallX - wallWidth / 2) + w.bound &&
-                p.x < (wallX - wallWidth / 2) + 40 + w.bound) {
-                return w
-            }
-            return false
-        }) || null
     }
     
     bossClear(pos) {

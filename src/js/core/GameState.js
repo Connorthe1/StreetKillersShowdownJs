@@ -1,19 +1,3 @@
-/**
- * GameState.js
- * 
- * Управление состоянием игры
- * 
- * Содержит:
- * - gameState объект (points, kills, score, multiplier, scoreStreak, collectedMoney)
- * - Флаги состояния (isPause, isMenu, gameStart, gameEnd)
- * - Методы для обновления состояния
- * - Методы для работы с очками и множителем
- * - Методы для работы со streak
- */
-
-/**
- * Класс для управления состоянием игры
- */
 export class GameState {
     constructor(eventBus) {
         // Игровые очки и статистика
@@ -35,6 +19,10 @@ export class GameState {
         this.scoreTimerInterval = null;
 
         this.eventBus = eventBus
+
+        eventBus.on('game:addPoints', (data) => {
+            this.addPoints(data)
+        })
     }
 
     reset() {

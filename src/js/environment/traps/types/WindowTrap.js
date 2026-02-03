@@ -1,0 +1,32 @@
+import { Trap } from '../Trap'
+import * as PIXI from 'pixi.js'
+import {soundPlayer} from "../../../playSound";
+
+export class WindowTrap extends Trap {
+    constructor(world, resources, eventBus) {
+        super(world, resources, eventBus)
+    }
+
+    /**
+     * Создаёт спрайт окна и возвращает this для цепочки вызовов.
+     * @param {number} x - позиция по X
+     * @param {number} groundY - Y координата земли
+     * @returns {WindowTrap}
+     */
+    create(x, groundY) {
+        this.sprite = new PIXI.AnimatedSprite(this.resources.windowTexture.animations.window)
+        this.sprite.loop = false
+        this.sprite.animationSpeed = 0.6
+        this.sprite.anchor.set(0.5)
+        this.sprite.position.set(x, groundY - 137)
+        this.sprite.zIndex = 1
+
+        super.addToWorld()
+        return this
+    }
+
+    activate() {
+        super.activate()
+        soundPlayer.glassBreak()
+    }
+}

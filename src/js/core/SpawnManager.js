@@ -2,7 +2,7 @@ import { random } from '../utils/GameUtils.js'
 import {BuildingManager} from "../environment/managers/Building";
 import {PuddleManager} from "../environment/managers/Puddle";
 import {WallManager} from "../environment/managers/Wall";
-import {TrapManager} from "../environment/managers/Trap";
+import {TrapManager} from "../environment/traps/TrapsManager";
 import {CanManager} from "../environment/Can";
 import {PowerUpManager} from "../entities/PowerUp";
 import {EnemyManager} from "../entities/Enemy";
@@ -31,7 +31,7 @@ export class SpawnManager {
         this.buildingManager = new BuildingManager(world, physicsManager, ground, worldCoords, fg, resources, eventBus)
         this.puddleManager = new PuddleManager(gameState, world, worldCoords, resources, eventBus, sleep)
         this.wallManager = new WallManager(world, ground, worldCoords, resources, eventBus)
-        this.trapManager = new TrapManager(world, gameState, worldCoords, ground, fg, resources, eventBus)
+        this.trapManager = new TrapManager(world, gameState, worldCoords, ground, fg, resources, sleep, eventBus)
         this.canManager = new CanManager(world, physicsManager, gameState, fg, worldCoords, resources, storage, eventBus)
         this.carManager = new CarBG(world, resources, worldCoords)
         this.woodBGManager = new WoodBG(world, resources, worldCoords)
@@ -52,6 +52,9 @@ export class SpawnManager {
      * Главная функция спавна сущностей
      */
     spawnEntity() {
+        this.trapManager.createBarrel(this.buildingManager.getAfterBuilding())
+
+        return
         // Спавн лужи
         if (Math.random() < 0.2) {
             this.puddleManager.createPuddle(this.buildingManager.getBuildings())
@@ -111,7 +114,7 @@ export class SpawnManager {
                 this.bossManager.createBoss(random(1, 3))
                 return
             }
-            if (Math.random() < 0.3) {
+            if (Math.random() < 1) {
                 console.log('trap')
                 this.trapManager.createBarrel(this.buildingManager.getAfterBuilding())
                 return
@@ -126,6 +129,7 @@ export class SpawnManager {
 
     update() {
         this.carManager.update()
+        this.trapManager.update()
     }
     
     /**

@@ -579,6 +579,23 @@ export class Player {
         }
     }
 
+    //TODO || (wall.forBoss && !currentBoss.params.dead)
+    handleCover(wall) {
+        if (!this.inCover) {
+            if ((this.isRollState && !this.leaveCover)) {
+                this.inBossFight = wall.forBoss
+                this.inCover = true
+                this.setPlayerSpeed(0)
+                this.sprite.x = wall.coverX
+                this.playAnim('idle')
+            }
+        }
+    }
+
+    isRollState() {
+        return this.state === 'roll' || this.state === 'rollEnd'
+    }
+
     updateDefaultSpeedByScore(score) {
         this.defaultSpeed = this.initSpeed + score
     }
@@ -589,10 +606,6 @@ export class Player {
 
     get playerSpeed() {
         return this.speed
-    }
-
-    get playerDefaultSpeed() {
-        return this.defaultSpeed
     }
     
 }
