@@ -1,15 +1,15 @@
 import { random } from '../utils/GameUtils.js'
 import {BuildingManager} from "../environment/managers/Building";
-import {PuddleManager} from "../environment/managers/Puddle";
+import {PuddleManager} from "../environment/puddles/PuddleManager";
 import {WallManager} from "../environment/managers/Wall";
 import {TrapManager} from "../environment/traps/TrapsManager";
 import {CanManager} from "../environment/Can";
 import {PowerUpManager} from "../entities/PowerUp";
-import {EnemyManager} from "../entities/Enemy";
+import {EnemyManager} from "../entities/enemies/EnemyManager";
 import {DogEnemyManager} from "../entities/DogEnemy";
 import {BossManager} from "../entities/Boss";
 import {CarBG} from "../environment/classes/CarBG";
-import {GarbageManager} from "../entities/managers/GarbageManager";
+import {GarbageManager} from "../entities/garbage/GarbageManager";
 import {WoodBG} from "../environment/classes/WoodBG";
 
 /**
@@ -29,17 +29,17 @@ export class SpawnManager {
         this.storage = storage
 
         this.buildingManager = new BuildingManager(world, physicsManager, ground, worldCoords, fg, resources, eventBus)
-        this.puddleManager = new PuddleManager(gameState, world, worldCoords, resources, eventBus, sleep)
+        this.puddleManager = new PuddleManager(world, worldCoords, resources, eventBus, sleep)
         this.wallManager = new WallManager(world, ground, worldCoords, resources, eventBus)
-        this.trapManager = new TrapManager(world, gameState, worldCoords, ground, fg, resources, sleep, eventBus)
-        this.canManager = new CanManager(world, physicsManager, gameState, fg, worldCoords, resources, storage, eventBus)
+        this.trapManager = new TrapManager(world, worldCoords, ground, fg, resources, sleep, eventBus)
+        this.canManager = new CanManager(world, physicsManager, fg, worldCoords, resources, storage, eventBus)
         this.carManager = new CarBG(world, resources, worldCoords)
         this.woodBGManager = new WoodBG(world, resources, worldCoords)
         this.garbageManager = new GarbageManager(world, resources, eventBus)
 
-        this.powerUpManager = new PowerUpManager(world, gameState, fg, storage, worldCoords, resources, eventBus)
+        this.powerUpManager = new PowerUpManager(world, fg, storage, worldCoords, resources, eventBus)
 
-        this.enemyManager = new EnemyManager(world, gameState, worldCoords, resources, eventBus)
+        this.enemyManager = new EnemyManager(world, gameState, worldCoords, resources, sleep, eventBus)
         this.dogEnemyManager = new DogEnemyManager(world, worldCoords, fg, resources, eventBus)
         this.bossManager = new BossManager(world, gameState, worldCoords, resources, sleep, eventBus)
 
@@ -52,12 +52,12 @@ export class SpawnManager {
      * Главная функция спавна сущностей
      */
     spawnEntity() {
-        this.trapManager.createBarrel(this.buildingManager.getAfterBuilding())
+        this.enemyManager.createEnemy()
 
         return
         // Спавн лужи
         if (Math.random() < 0.2) {
-            this.puddleManager.createPuddle(this.buildingManager.getBuildings())
+            this.puddleManager.create(this.buildingManager.getBuildings())
         }
 
         // Спавн зданий
@@ -90,7 +90,7 @@ export class SpawnManager {
             this.carManager.create()
         }
 
-        // Создание деревянных элементов
+        // Создание деревянных элементов на фоне
         if (Math.random() > 0.5) {
             this.woodBGManager.create(this.worldCoords.zeroRight, this.worldCoords.firstFloor)
         }
@@ -114,7 +114,7 @@ export class SpawnManager {
                 this.bossManager.createBoss(random(1, 3))
                 return
             }
-            if (Math.random() < 1) {
+            if (Math.random() < 0.5) {
                 console.log('trap')
                 this.trapManager.createBarrel(this.buildingManager.getAfterBuilding())
                 return
@@ -130,6 +130,9 @@ export class SpawnManager {
     update() {
         this.carManager.update()
         this.trapManager.update()
+        this.puddleManager.update()
+        this.canManager.update()
+        this.powerUpManager.update()
     }
     
     /**

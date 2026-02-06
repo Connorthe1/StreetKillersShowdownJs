@@ -99,13 +99,10 @@ let backgroundManager // Инициализируется после созда�
 let groundManager // Инициализируется после создания world
 let zipLineManager // Инициализируется после создания world
 
-let walls = []
-let traps = []
 let enemies = []
 // Массивы частиц теперь управляются через ParticleManager
 // Массивы окружения теперь управляются через отдельные менеджеры
 let buildings = []
-let puddles = []
 let particleManager // Инициализируется после создания world
 let spawnManager // Инициализируется после создания world
 let hudManager // Инициализируется после создания hud
@@ -117,8 +114,6 @@ let meleeKillManager // Менеджер ближнего боя
 let menuManager // Менеджер меню
 let endScreenManager // Менеджер экрана окончания
 let currentBoss = null
-let currentCan = null
-let activePowerUp = null
 let activeGrenade = null
 let interactionSystem
 
@@ -342,7 +337,6 @@ window.onload = async function () {
         groundContainer = null
         hudContainer = null
 
-        walls.length = 0
         // Обновление ссылок на массивы для обратной совместимости
         enemies.length = 0
         if (particleManager) {
@@ -353,7 +347,6 @@ window.onload = async function () {
         // Обновление ссылок на массивы для обратной совместимости
         activeGrenade = null
         currentBoss = null
-        activePowerUp = null
         init()
     }
 
@@ -406,126 +399,6 @@ window.onload = async function () {
             player: playerInstance,
             spawn: spawnManager,
         })
-    }
-
-    // Функции setMeleeSelector и HUDmeleeKill теперь в MeleeKillManager
-    // Оставлены для обратной совместимости, но больше не используются
-
-    function updatePuddles() {
-        puddles.forEach((puddle, idx) => {
-            if (puddle.x + puddle.width < worldCoords.zeroLeft) {
-                world.removeChild(puddle)
-                puddles.splice(idx, 1)
-                return;
-            }
-            if (puddle.dead) return
-            if (player.x + 40 > puddle.x + 20 && puddle.x + puddle.width > player.x) {
-                puddle.dead = true
-                if (playerState.state === 'roll' || playerState.state === 'rollEnd') {
-                    addPoints(20)
-                    gameState.scoreStreak += 1
-                    setPlayerSpeed(playerDefaultSpeed) * 1.5
-                    soundPlayer.waterStep()
-                    for (let i = 0; i <= 20; i++) {
-                        if (particleManager) {
-                            particleManager.createParticle({x: puddle.x, y: puddle.y - 10}, 'drop', null, null)
-                        }
-                    }
-                } else {
-                    soundPlayer.waterStep()
-                    for (let i = 0; i <= 14; i++) {
-                        if (particleManager) {
-                            particleManager.createParticle({x: puddle.x - 20, y: puddle.y - 10}, 'drop', null, null)
-                        }
-                    }
-                    sleep(250).then(() => {
-                        soundPlayer.waterStep()
-                        for (let i = 0; i <= 14; i++) {
-                            if (particleManager) {
-                                particleManager.createParticle({x: puddle.x + 20, y: puddle.y - 10}, 'drop', null, null)
-                            }
-                        }
-                    })
-                }
-            }
-        })
-    }
-
-    function updateCan() {
-        currentCan.position = currentCan.body.position
-        currentCan.rotation = currentCan.body.angle
-        if ((currentCan.x > worldCoords.zeroRight + 300) || (currentCan.y > WORLD_HEIGHT) || (currentCan.x < worldCoords.zeroLeft) || (currentCan.health <= 0)) {
-            world.removeChild(currentCan)
-            Matter.World.remove(engine.world, currentCan.body)
-            currentCan = null
-            return
-        }
-        //CAN TOUCHED
-        if (player.x + 40 > currentCan.x + 40 && player.x < currentCan.x + 20 && currentCan.y > player.y && player.y + player.height > currentCan.y && (playerState.state === 'roll' || playerState.state === 'rollEnd') && !currentCan.touched) {
-            currentCan.dealDamage = false
-            soundPlayer.canDrop()
-            Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: random(0.005, 0.01, true, true) , y: -random(0.002, 0.00, true, true)});
-        }
-        //CAN DAMAGE
-        if (!currentCan.dealDamage && currentCan.body.speed > 1) {
-            enemies.forEach(enemy => {
-                const b = enemy.getBounds()
-                const can = currentCan.getBounds()
-                if (can.x > b.x && b.x + b.width > can.x && can.y > b.y && b.y + b.height > can.y && !enemy.params.dead) {
-                    currentCan.dealDamage = true
-                    currentCan.health -= 1
-                    gameState.scoreStreak += 2.5
-                    addPoints(50)
-                    damageEnemy(enemy, Math.floor(currentCan.body.speed))
-                    currentCan.body.speed = 0.5
-                    Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.005, 0.01, true, true) , y: -random(0.002, 0.006, true, true)});
-                }
-            })
-            if (currentDogEnemy) {
-                const b = currentDogEnemy.getBounds()
-                const can = currentCan.getBounds()
-                if (can.x > b.x && b.x + b.width > can.x && can.y > b.y && b.y + b.height > can.y && !currentDogEnemy.params.dead) {
-                    currentCan.dealDamage = true
-                    currentCan.health -= 1
-                    gameState.scoreStreak += 2.5
-                    damageEnemy(currentDogEnemy, Math.floor(currentCan.body.speed))
-                    currentCan.body.speed = 0.5
-                    Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.005, 0.01, true, true) , y: -random(0.002, 0.006, true, true)});
-                }
-            }
-            if (currentBoss) {
-                const b = currentBoss.getBounds()
-                const can = currentCan.getBounds()
-                if (can.x > b.x && b.x + b.width > can.x && can.y > b.y && b.y + b.height > can.y && !currentBoss.params.dead) {
-                    currentCan.dealDamage = true
-                    currentCan.health -= 1
-                    gameState.scoreStreak += 2.5
-                    addPoints(50)
-                    damageEnemy(currentBoss, Math.floor(currentCan.body.speed), true)
-                    currentCan.body.speed = 0.5
-                    Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.005, 0.01, true, true) , y: -random(0.002, 0.006, true, true)});
-                }
-            }
-            traps.forEach(trap => {
-                const b = trap.getBounds()
-                const can = currentCan.getBounds()
-                if (can.x > b.x && b.x + b.width > can.x && can.y > b.y && b.y + b.height > can.y && !trap.dead) {
-                    currentCan.dealDamage = true
-                    currentCan.health -= 1
-                    gameState.scoreStreak += 2.5
-                    addPoints(50)
-                    currentCan.body.speed = 0.5
-                    Matter.Body.applyForce(currentCan.body, {x: currentCan.body.position.x, y: currentCan.body.position.y + 7.5}, {x: -random(0.005, 0.01, true, true) , y: -random(0.002, 0.006, true, true)});
-                    if (trap.type) {
-                        if (trap.type === 'window') soundPlayer.glassBreak()
-                        trap.play()
-                        trap.dead = true
-                    } else {
-                        trapManager.barrelDead(trap)
-                    }
-                }
-            })
-        }
     }
 
     async function enemyShooting(char) {
@@ -928,25 +801,6 @@ window.onload = async function () {
             if (enemy.x + enemy.width < worldCoords.zeroLeft) {
                 world.removeChild(enemy)
                 enemies.splice(idx, 1)
-            }
-        })
-    }
-
-    function detectWall() {
-        let p = player.getBounds()
-        return walls.find(w => {
-            let wall = w.getBounds()
-            if (p.x > (wall.x - wall.width / 2) + w.bound && p.x < (wall.x - wall.width / 2) + 40 + w.bound) {
-                return w
-            }
-        })
-    }
-
-    function updateWall() {
-        walls.forEach((wall, idx) => {
-            if (wall.x + 100 < worldCoords.zeroLeft) {
-                world.removeChild(wall)
-                walls.splice(idx, 1)
             }
         })
     }

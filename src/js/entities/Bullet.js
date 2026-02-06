@@ -39,6 +39,10 @@ export class BulletManager {
         eventBus.on('bullet:shot', ({char, offsetX, offsetY, eventGun, friendly}) => {
             this.shot(char, offsetX, offsetY, eventGun, friendly)
         })
+
+        eventBus.on('bullet:shotRapid', ({char, offsetX, offsetY, eventGun, friendly}) => {
+            this.shot(char, offsetX, offsetY, eventGun, friendly)
+        })
     }
 
     spawnBullet(x, y, char, isFriendly) {
@@ -87,7 +91,8 @@ export class BulletManager {
         shot.scale.y = 1.2
         shot.animationSpeed = 0.2
         shot.zIndex = 11
-        
+
+        console.log(eventGun)
         if (soundPlayer) {
             soundPlayer.gunShot(eventGun, eventGun === 'smg' || eventGun === 'rifle')
         }

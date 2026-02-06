@@ -1,32 +1,20 @@
-/**
- * Enemy.js
- * 
- * Классы врагов и их менеджер
- * 
- * Содержит:
- * - Класс Enemy (базовый класс врага)
- * - Подклассы: ShieldEnemy, SilenceEnemy, ShotgunEnemy, SmgEnemy, DefaultEnemy
- * - Класс EnemyManager (управление всеми врагами)
- * - Методы: createEnemy(), updateEnemies(), damageEnemy(), enemyShooting()
- * - Логика обнаружения игрока
- * - Логика стрельбы врагов
- * - Обработка смерти врагов
- */
-
 import * as PIXI from 'pixi.js'
-import { random } from '../utils/GameUtils.js'
-import { getPercent } from '../utils/GameUtils.js'
-import {default as enemyParams} from '../enemyParams.js'
+import { random } from '../../utils/GameUtils.js'
+import { getPercent } from '../../utils/GameUtils.js'
+import {default as enemyParams} from '../../enemyParams.js'
+import {BarrelTrap} from "../../environment/traps/types/BarrelTrap";
+import {Enemy} from "./Enemy";
 
 /**
  * Менеджер врагов
  */
 export class EnemyManager {
-    constructor(world, gameState, worldCoords, resources, eventBus) {
+    constructor(world, gameState, worldCoords, resources, sleep, eventBus) {
         this.world = world
         this.gameState = gameState
         this.worldCoords = worldCoords
         this.resources = resources
+        this.sleep = sleep
         this.eventBus = eventBus
 
         this.enemies = []
@@ -64,10 +52,8 @@ export class EnemyManager {
         }
         
         // Проверка на дубликаты
-        const findDuplicate = this.enemies.findIndex(
-            enemy => randomPos + 30 > enemy.x && randomPos < enemy.x + enemy.width
-        )
-        if (findDuplicate >= 0) return null
+        const findDuplicate = this.enemies.some(enemy => randomPos + 30 > enemy.sprite.x && randomPos < enemy.sprite.x + enemy.sprite.width)
+        if (findDuplicate) return
         
         // Проверка на босса
         // if (this.currentBoss) {
@@ -104,51 +90,80 @@ export class EnemyManager {
                 enemyType = 'default'
             }
         }
-        
-        // Создание врага
-        const enemy = new PIXI.AnimatedSprite(this.resources.enemiesTexture.animations[`${enemyType}Idle`])
-        enemy.params = {}
-        
-        // Копирование параметров
-        if (enemyParams[enemyType]) {
-            Object.keys(enemyParams[enemyType]).forEach(item => {
-                enemy.params[item] = enemyParams[enemyType][item]
-            })
-        }
-        
-        // Настройка анимаций
-        enemy.params.animset = {}
-        enemy.params.animset.idle = this.resources.enemiesTexture.animations[`${enemyType}Idle`]
-        enemy.params.animset.shot = this.resources.enemiesTexture.animations[`${enemyType}Shot`]
-        enemy.params.animset.death = this.resources.enemiesTexture.animations[`${enemyType}Death`]
-        enemy.params.animset.deathCrit = this.resources.enemiesTexture.animations[`${enemyType}DeathCrit`]
-        
-        if (enemy.params.shield) {
-            enemy.params.animset.idleAlt = this.resources.enemiesTexture.animations[`${enemyType}IdleAlt`]
-            enemy.params.animset.shotAlt = this.resources.enemiesTexture.animations[`${enemyType}ShotAlt`]
-            enemy.params.animset.knock = this.resources.enemiesTexture.animations[`${enemyType}Knock`]
-        }
-        
-        enemy.anchor.set(0.5)
-        
-        if (canCover) {
-            enemy.params.canCover = true
-            enemy.params.inCover = true
-            enemy.anchor.y = 0.7
-            enemy.tint = 11776947
-        }
-        
-        enemy.scale.set(2)
-        enemy.animationSpeed = 0.2
-        enemy.zIndex = 8
-        enemy.position.set(randomPos, isSecondFloor ? this.worldCoords.secondFloor : this.worldCoords.firstFloor)
-        enemy.secondFloor = isSecondFloor
-        
-        this.world.addChild(enemy)
-        enemy.play()
+
+        const enemy = new Enemy(this.world, this.resources, this.worldCoords, this.sleep, this.gameState, this.eventBus).create({x: randomPos, y: isSecondFloor ? this.worldCoords.secondFloor : this.worldCoords.firstFloor}, canCover, enemyType)
+        console.log(enemy)
         this.enemies.push(enemy)
-        
-        return enemy
+    }
+
+    /**
+     * Обновляет всех врагов
+     * @param {number} gameSpeed - скорость игры
+     * @param {boolean} meleeKill - активен ли ближний бой
+     */
+    updateEnemies(gameSpeed, meleeKill = false) {
+        this.enemies.forEach((enemy, idx) => {
+            if (!enemy.params.dead) {
+                // Обнаружение игрока
+
+                // Проверка коллизии с пулями игрока
+                if (this.playerBullets) {
+                    this.playerBullets.forEach((bullet, bulletIdx) => {
+                        if (enemy.x - enemy.width / 2 < bullet.x + bullet.width &&
+                            enemy.x + enemy.width / 2 > bullet.x &&
+                            enemy.y - enemy.height / 2 < bullet.y &&
+                            enemy.y + enemy.height / 2 > bullet.y) {
+
+                            if (enemy.params.inCover) return
+
+                            if (this.world) {
+                                this.world.removeChild(bullet)
+                            }
+                            this.playerBullets.splice(bulletIdx, 1)
+
+                            const damage = this.gun ?
+                                (enemy.x - this.player.x < getPercent(this.WORLD_WIDTH, 30) ?
+                                    this.gun.damage * 2 : this.gun.damage) : 10
+
+                            this.damageEnemy(enemy, damage)
+                        }
+                    })
+                }
+
+                // Проверка коллизии с игроком
+                if (!enemy.skip &&
+                    this.player.x > enemy.x - 30 &&
+                    this.player.x + 40 < enemy.x + enemy.width) {
+
+                    if (!meleeKill &&
+                        (this.playerState.state === 'roll' || this.playerState.state === 'rollEnd')) {
+                        if (this.playerState.invincible) {
+                            this.damageEnemy(enemy, 10)
+                        } else {
+                            if (this.HUDmeleeKillCallback) {
+                                this.HUDmeleeKillCallback(enemy)
+                            }
+                        }
+                    } else {
+                        if (enemy.params.inCover) return
+                        this.gameState.points -= 250 * this.gameState.multiplier
+                        if (this.gameState.points < 0) {
+                            this.gameState.points = 0
+                        }
+                        this.gameState.decreaseStreakBy(20)
+                    }
+                    enemy.skip = true
+                }
+            }
+
+            // Удаление врагов за левой границей
+            if (enemy.x + enemy.width < this.zeroLeft) {
+                if (this.world) {
+                    this.world.removeChild(enemy)
+                }
+                this.enemies.splice(idx, 1)
+            }
+        })
     }
     
     /**
@@ -271,98 +286,6 @@ export class EnemyManager {
         }
         
         enemy.play()
-    }
-    
-    /**
-     * Обновляет всех врагов
-     * @param {number} gameSpeed - скорость игры
-     * @param {boolean} meleeKill - активен ли ближний бой
-     */
-    updateEnemies(gameSpeed, meleeKill = false) {
-        if (!this.player) return
-        
-        this.enemies.forEach((enemy, idx) => {
-            if (!enemy.params.dead) {
-                // Обнаружение игрока
-                if (!enemy.params.detect) {
-                    const checkTraps = this.traps ? this.traps.find(trap => {
-                        if (!trap.dead && trap.type) {
-                            if (trap.x > enemy.x - this.WORLD_WIDTH && trap.x < enemy.x) {
-                                return true
-                            }
-                        }
-                        return false
-                    }) : null
-                    
-                    if (!checkTraps) {
-                        const detectRange = getPercent(this.WORLD_WIDTH, enemy.params.detectRange)
-                        if (enemy.x - this.player.x < detectRange && enemy.y - 20 <= this.player.y) {
-                            enemy.params.detect = true
-                            if (this.shotCallback) {
-                                this.shotCallback(enemy)
-                            }
-                        }
-                    }
-                }
-                
-                // Проверка коллизии с пулями игрока
-                if (this.playerBullets) {
-                    this.playerBullets.forEach((bullet, bulletIdx) => {
-                        if (enemy.x - enemy.width / 2 < bullet.x + bullet.width &&
-                            enemy.x + enemy.width / 2 > bullet.x &&
-                            enemy.y - enemy.height / 2 < bullet.y &&
-                            enemy.y + enemy.height / 2 > bullet.y) {
-                            
-                            if (enemy.params.inCover) return
-                            
-                            if (this.world) {
-                                this.world.removeChild(bullet)
-                            }
-                            this.playerBullets.splice(bulletIdx, 1)
-                            
-                            const damage = this.gun ? 
-                                (enemy.x - this.player.x < getPercent(this.WORLD_WIDTH, 30) ? 
-                                    this.gun.damage * 2 : this.gun.damage) : 10
-                            
-                            this.damageEnemy(enemy, damage)
-                        }
-                    })
-                }
-                
-                // Проверка коллизии с игроком
-                if (!enemy.skip && 
-                    this.player.x > enemy.x - 30 && 
-                    this.player.x + 40 < enemy.x + enemy.width) {
-                    
-                    if (!meleeKill && 
-                        (this.playerState.state === 'roll' || this.playerState.state === 'rollEnd')) {
-                        if (this.playerState.invincible) {
-                            this.damageEnemy(enemy, 10)
-                        } else {
-                            if (this.HUDmeleeKillCallback) {
-                                this.HUDmeleeKillCallback(enemy)
-                            }
-                        }
-                    } else {
-                        if (enemy.params.inCover) return
-                        this.gameState.points -= 250 * this.gameState.multiplier
-                        if (this.gameState.points < 0) {
-                            this.gameState.points = 0
-                        }
-                        this.gameState.decreaseStreakBy(20)
-                    }
-                    enemy.skip = true
-                }
-            }
-            
-            // Удаление врагов за левой границей
-            if (enemy.x + enemy.width < this.zeroLeft) {
-                if (this.world) {
-                    this.world.removeChild(enemy)
-                }
-                this.enemies.splice(idx, 1)
-            }
-        })
     }
 
     bossClear(pos) {

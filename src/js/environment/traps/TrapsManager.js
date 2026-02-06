@@ -6,9 +6,8 @@ import { WindowTrap } from "./types/WindowTrap";
  * Менеджер ловушек
  */
 export class TrapManager {
-    constructor(world, gameState, worldCoords, ground, fg, resources, sleep, eventBus) {
+    constructor(world, worldCoords, ground, fg, resources, sleep, eventBus) {
         this.world = world
-        this.gameState = gameState
         this.ground = ground
         this.fg = fg
         this.worldCoords = worldCoords

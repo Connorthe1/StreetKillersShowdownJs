@@ -32,14 +32,13 @@ export class WallManager {
 
     createWall(pos = null, forBoss = false, afterBuilding = 0) {
         const randomPos = pos || this.worldCoords.zeroRight + random(100, 250)
-        
-        // Спавн врага рядом со стеной (если не для босса)
-        // if (!pos && !forBoss && this.createEnemyCallback) {
-        //     const rand = random(1, 10)
-        //     if (rand > 5) {
-        //         this.createEnemyCallback(randomPos + 60, true)
-        //     }
-        // }
+
+        if (!pos && !forBoss) {
+            const rand = random(1, 10)
+            if (rand > 1) {
+                this.eventBus.emit('enemy:create', {pos: randomPos + 60, canCover: true})
+            }
+        }
         
         // Проверка на здания
         if (afterBuilding > randomPos - 100) {

@@ -1,29 +1,15 @@
-/**
- * Can.js
- * 
- * Менеджер банок (Can)
- * 
- * Содержит:
- * - Создание банки (createCan)
- * - Обновление банки (updateCan)
- * - Физика банки (Matter.js)
- * - Коллизии с врагами, боссами, ловушками
- * - Взаимодействие с игроком (удар ногой)
- * - Урон от банки врагам
- */
-
 import * as PIXI from 'pixi.js'
 import * as Matter from 'matter-js'
 import { random } from '../utils/GameUtils.js'
+import {soundPlayer} from "../playSound";
 
 /**
  * Менеджер банок
  */
 export class CanManager {
-    constructor(world, physicsManager, gameState, fg, worldCoords, resources, storage, eventBus) {
+    constructor(world, physicsManager, fg, worldCoords, resources, storage, eventBus) {
         this.world = world
         this.physicsManager = physicsManager
-        this.gameState = gameState
         this.worldCoords = worldCoords
         this.fg = fg
         this.resources = resources
@@ -31,130 +17,60 @@ export class CanManager {
         this.eventBus = eventBus
 
         // Текущая банка
-        this.currentCan = null
+        this.sprite = null
+        // Физическое тело
+        this.body = null
+
+        this.health = this.storage.upgrades.can + 1
+        this.dealDamage = false
+        this.collisionOffset = {left: -40, right: 20}
     }
     
     /**
      * Создает банку
      */
-    createCan() {
-        if (this.currentCan) return
+    create() {
+        if (this.sprite) return
+
         const can = new PIXI.Sprite(this.resources.canTexture.textures.pixelCan)
         can.width = 8
         can.height = 16
         can.position.set(this.worldCoords.zeroRight, this.worldCoords.firstFloor + 20)
         can.anchor.set(0, 0.5)
-        can.health = this.storage.upgrades.can + 1
         can.parentGroup = this.fg
         can.zOrder = 6
-        can.body = Matter.Bodies.rectangle(this.worldCoords.zeroRight, this.worldCoords.firstFloor + 20, 8, 16, {isStatic: false, restitution: 0.2, frictionAir: 0.01, chamfer: { radius: [5,5,0,0] }});
 
-        this.world.addChild(can)
-        const engine = this.physicsManager.getEngine()
-        Matter.World.add(engine.world, can.body);
-        this.currentCan = can
+        this.body = Matter.Bodies.rectangle(this.worldCoords.zeroRight, this.worldCoords.firstFloor + 20, 8, 16, {isStatic: false, restitution: 0.2, frictionAir: 0.01, chamfer: { radius: [5,5,0,0] }});
+        this.sprite = can
 
-        return can
+        this.addToWorld()
     }
     
     /**
      * Обновляет банку
      */
-    updateCan() {
-        if (!this.currentCan) return
+    update() {
+        if (!this.sprite) return
         
         // Обновление позиции и поворота из физики
-        this.currentCan.position = this.currentCan.body.position
-        this.currentCan.rotation = this.currentCan.body.angle
+        this.sprite.position = this.body.position
+        this.sprite.rotation = this.body.angle
         
         // Удаление банки, если она вышла за границы или потеряла здоровье
-        if ((this.currentCan.x > this.worldCoords.zeroRight + 300) ||
-            (this.currentCan.y > this.worldCoords.worldHeight) ||
-            (this.currentCan.x < this.worldCoords.zeroLeft) ||
-            (this.currentCan.health <= 0)) {
-            this.removeCan()
-            return
-        }
-        
-        // Взаимодействие с игроком (удар ногой)
-        if (this.player && this.playerState) {
-            if (this.player.x + 40 > this.currentCan.x + 40 &&
-                this.player.x < this.currentCan.x + 20 &&
-                this.currentCan.y > this.player.y &&
-                this.player.y + this.player.height > this.currentCan.y &&
-                (this.playerState.state === 'roll' || this.playerState.state === 'rollEnd') &&
-                !this.currentCan.touched) {
-                this.currentCan.dealDamage = false
-                this.currentCan.touched = true
-                
-                if (this.soundPlayer) {
-                    this.soundPlayer.canDrop()
-                }
-                
-                // Применение силы к банке
-                Matter.Body.applyForce(
-                    this.currentCan.body,
-                    { x: this.currentCan.body.position.x, y: this.currentCan.body.position.y + 7.5 },
-                    { x: random(0.005, 0.01, true, true), y: -random(0.002, 0.00, true, true) }
-                )
-            }
-        }
-        
-        // Урон от банки врагам (только если банка движется и еще не нанесла урон)
-        if (!this.currentCan.dealDamage && this.currentCan.body.speed > 1) {
-            // Коллизия с обычными врагами
-            if (this.enemies) {
-                this.enemies.forEach(enemy => {
-                    if (this.checkCollision(this.currentCan, enemy)) {
-                        if (!enemy.params || !enemy.params.dead) {
-                            this.handleCanHitEnemy(enemy, false)
-                        }
-                    }
-                })
-            }
-            
-            // Коллизия с собакой-врагом
-            if (this.currentDogEnemy) {
-                if (this.checkCollision(this.currentCan, this.currentDogEnemy)) {
-                    if (!this.currentDogEnemy.params || !this.currentDogEnemy.params.dead) {
-                        this.handleCanHitEnemy(this.currentDogEnemy, false)
-                    }
-                }
-            }
-            
-            // Коллизия с боссом
-            if (this.currentBoss) {
-                if (this.checkCollision(this.currentCan, this.currentBoss)) {
-                    if (!this.currentBoss.params || !this.currentBoss.params.dead) {
-                        this.handleCanHitEnemy(this.currentBoss, true)
-                    }
-                }
-            }
-            
-            // Коллизия с ловушками
-            if (this.traps) {
-                this.traps.forEach(trap => {
-                    if (this.checkCollision(this.currentCan, trap)) {
-                        if (!trap.dead) {
-                            this.handleCanHitTrap(trap)
-                        }
-                    }
-                })
-            }
+        if ((this.sprite.x > this.worldCoords.zeroRight + 300) ||
+            (this.sprite.y > this.worldCoords.worldHeight) ||
+            (this.sprite.x < this.worldCoords.zeroLeft) ||
+            (this.health <= 0)) {
+            this.destroy()
         }
     }
-    
-    /**
-     * Проверяет коллизию между банкой и объектом
-     */
-    checkCollision(can, target) {
-        const canBounds = can.getBounds ? can.getBounds() : can
-        const targetBounds = target.getBounds ? target.getBounds() : target
-        
-        return canBounds.x > targetBounds.x &&
-            targetBounds.x + targetBounds.width > canBounds.x &&
-            canBounds.y > targetBounds.y &&
-            targetBounds.y + targetBounds.height > canBounds.y
+
+    handlePlayer(player) {
+        if (player.isRollState() && !this.sprite.touched) {
+            this.dealDamage = false
+            soundPlayer.canDrop()
+            Matter.Body.applyForce(this.body, {x: this.body.position.x, y: this.body.position.y + 7.5}, {x: random(0.005, 0.01, true, true) , y: -random(0.002, 0.00, true, true)});
+        }
     }
     
     /**
@@ -228,42 +144,25 @@ export class CanManager {
             }
         }
     }
+
+
+    addToWorld() {
+        this.world.addChild(this.sprite)
+
+        const engine = this.physicsManager.getEngine()
+        Matter.World.add(engine.world, this.body);
+    }
     
     /**
      * Удаляет банку
      */
-    removeCan() {
-        if (!this.currentCan) return
+    destroy() {
+        if (!this.sprite) return
+
+        this.world.removeChild(this.sprite)
+        this.physicsManager.removeBody(this.body)
         
-        if (this.world) {
-            this.world.removeChild(this.currentCan)
-        }
-        
-        if (this.currentCan.body && this.physicsManager) {
-            this.physicsManager.removeBody(this.currentCan.body)
-        }
-        
-        this.currentCan = null
-    }
-    
-    /**
-     * Получает текущую банку
-     */
-    getCurrentCan() {
-        return this.currentCan
-    }
-    
-    /**
-     * Проверяет, существует ли банка
-     */
-    hasCan() {
-        return this.currentCan !== null
-    }
-    
-    /**
-     * Очищает банку
-     */
-    clear() {
-        this.removeCan()
+        this.sprite = null
+        this.body = null
     }
 }

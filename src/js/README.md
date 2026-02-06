@@ -17,7 +17,7 @@
 
 ### `/entities` - Игровые сущности
 - **Bullet.js** - Пули
-- **Enemy.js** - Враги
+- **EnemyManager.js** - Враги
 - **Boss.js** - Боссы
 - **DogEnemy.js** - Враг-собака
 - **Particle.js** - Частицы
@@ -29,7 +29,7 @@
 - **Grenade.js** - Гранаты
 - **Money.js** - Деньги
 - **Garbage.js** - Мусор
-- **Puddle.js** - Лужи
+- **PuddleManager.js** - Лужи
 - **ZipLineManager.js** - Зиплайны
 - **CarBG.js** - Фоновые машины
 

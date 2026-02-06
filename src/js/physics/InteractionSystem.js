@@ -2,6 +2,11 @@ export class InteractionSystem {
     update({ player, spawn }) {
         this.check(player, spawn.wallManager.walls, 'player:wall');
         this.check(player, spawn.trapManager.traps, 'player:trap');
+        this.check(player, spawn.puddleManager.puddles, 'player:puddle');
+        if (spawn.canManager.sprite) this.check(player, spawn.canManager, 'player:can');
+        if (spawn.powerUpManager.sprite) this.check(player, spawn.powerUpManager, 'player:powerUp');
+        this.check(spawn.trapManager.traps, spawn.enemyManager.enemies, 'trap:enemy');
+        this.check(player, spawn.enemyManager.enemies, 'player:enemy');
     }
 
     check(a, b, event) {
@@ -24,15 +29,34 @@ export class InteractionSystem {
             case 'player:wall':
                 return this.collideWall
             case 'player:trap':
-                return this.collideX
+                return this.collideXFromStart
+            case 'player:puddle':
+                return this.collideXWidth
+            case 'player:can':
+                return this.collideXFromStart
+            case 'player:powerUp':
+                return this.collideXFromStart
+            case 'trap:enemy':
+                return this.collideWatch
+            case 'player:enemy':
+                return this.collideWatch
         }
     }
 
-    collideX(a, b) {
+    collideXFromStart(a, b) {
         const aBounds = a.sprite ? a.sprite.getBounds() : a.getBounds()
         const bBounds = b.sprite ? b.sprite.getBounds() : b.getBounds()
 
         if (aBounds.x > bBounds.x + (b.collisionOffset ? b.collisionOffset.left : 0) && aBounds.x < bBounds.x + (b.collisionOffset ? b.collisionOffset.right : 0)) {
+            return true
+        }
+    }
+
+    collideXWidth(a, b) {
+        const aBounds = a.sprite ? a.sprite.getBounds() : a.getBounds()
+        const bBounds = b.sprite ? b.sprite.getBounds() : b.getBounds()
+
+        if (aBounds.x > bBounds.x + (b.collisionOffset ? b.collisionOffset.left : 0) && aBounds.x < bBounds.x + bBounds.width + (b.collisionOffset ? b.collisionOffset.right : 0)) {
             return true
         }
     }
@@ -46,12 +70,39 @@ export class InteractionSystem {
         }
     }
 
+    collideWatch(a, b) {
+        const aBounds = a.sprite ? a.sprite.getBounds() : a.getBounds()
+        const bBounds = b.sprite ? b.sprite.getBounds() : b.getBounds()
+
+        const distance = (bBounds.x + bBounds.width) - aBounds.x
+
+        if (distance && distance < b.getDetectRange()) {
+            return true
+        }
+    }
+
     handle(type, a, b) {
         switch (type) {
             case 'player:wall':
                 a.handleCover(b)
                 break;
             case 'player:trap':
+                b.activate(a)
+                break;
+            case 'player:puddle':
+                b.activate(a)
+                break;
+            case 'player:can':
+                b.handlePlayer(a)
+                break;
+            case 'player:powerUp':
+                a.handlePowerUp(b)
+                b.activate()
+                break
+            case 'trap:enemy':
+                b.setBarrier()
+                break;
+            case 'player:enemy':
                 b.activate(a)
                 break;
         }

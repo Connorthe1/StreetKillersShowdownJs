@@ -581,15 +581,17 @@ export class Player {
 
     //TODO || (wall.forBoss && !currentBoss.params.dead)
     handleCover(wall) {
-        if (!this.inCover) {
-            if ((this.isRollState && !this.leaveCover)) {
-                this.inBossFight = wall.forBoss
-                this.inCover = true
-                this.setPlayerSpeed(0)
-                this.sprite.x = wall.coverX
-                this.playAnim('idle')
-            }
+        if (!this.inCover && this.isRollState() && !this.leaveCover) {
+            this.inBossFight = wall.forBoss
+            this.inCover = true
+            this.setPlayerSpeed(0)
+            this.sprite.x = wall.coverX
+            this.playAnim('idle')
         }
+    }
+
+    handlePuddle() {
+        this.setPlayerSpeed(this.defaultSpeed * 1.5)
     }
 
     isRollState() {
@@ -602,6 +604,35 @@ export class Player {
 
     setPlayerSpeed(speed) {
         this.speed = speed
+    }
+
+    handlePowerUp(powerUp) {
+        const findAlreadyActive = this.activePowerUps.find(item => item.type === powerUp.options.type)
+
+        if (findAlreadyActive) {
+            // Обновление времени существования
+            findAlreadyActive.expired = Date.now() + ((5 + (5 * this.storage.upgrades[powerUp.options.type])) * 1000)
+        } else {
+            // Добавление нового пауэр-апа
+            this.playerState.activePowerUps.push({
+                type: powerUp.options.type,
+                expired: Date.now() + ((5 + (5 * this.storage.upgrades[powerUp.options.type])) * 1000)
+            })
+
+            this.eventBus.emit('hud:updatePowerUps', this.activePowerUps)
+
+            // Применение эффектов пауэр-апа
+            switch (powerUp.options.type) {
+                case 'boostAmmo':
+                    this.gun.currentAmmo = this.gun.ammo * 2
+                    this.gun.ammo *= 2
+                    this.eventBus.emit('hud:createBulletsDisplay', this.gun)
+                    break
+                case 'boostGun':
+                    this.gun.damage *= 2
+                    break
+            }
+        }
     }
 
     get playerSpeed() {

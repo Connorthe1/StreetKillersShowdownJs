@@ -23,6 +23,10 @@ export class GameState {
         eventBus.on('game:addPoints', (data) => {
             this.addPoints(data)
         })
+
+        eventBus.on('game:addScore', (data) => {
+            this.increaseStreak(data)
+        })
     }
 
     reset() {
