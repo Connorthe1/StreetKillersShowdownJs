@@ -4,12 +4,12 @@ import {Puddle} from "./Puddle";
  * Менеджер луж
  */
 export class PuddleManager {
-    constructor(world, worldCoords, resources, eventBus, sleep) {
+    constructor(world, worldCoords, resources, eventBus, timer) {
         this.world = world
         this.worldCoords = worldCoords
         this.resources = resources
         this.eventBus = eventBus
-        this.sleep = sleep
+        this.timer = timer
 
         // Массив луж
         this.puddles = []
@@ -36,16 +36,16 @@ export class PuddleManager {
             }
         }
         
-        this.puddles.push(new Puddle(this.world, this.sleep, this.resources, this.eventBus).create(this.worldCoords))
+        this.puddles.push(new Puddle(this.world, this.timer, this.resources, this.eventBus).create(this.worldCoords))
     }
 
     /**
      * Обновляет лужи
      */
     update() {
-        this.puddles.forEach(trap => trap.update())
+        this.puddles.forEach(puddle => puddle.update())
 
-        this.puddles = this.puddles.filter(trap => trap.toDestroy === false)
+        this.puddles = this.puddles.filter(puddle => puddle.toDestroy === false)
     }
     
     /**

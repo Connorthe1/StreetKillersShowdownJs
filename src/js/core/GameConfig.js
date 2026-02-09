@@ -20,7 +20,7 @@ import * as PIXI from 'pixi.js'
  * Константы игры
  */
 export const GAME_SCALE = 1
-export const DEFAULT_GAME_SPEED = 5
+export const DEFAULT_GAME_SPEED = 1
 export const SLOW_GAME_SPEED = 0.1
 export const BULLET_SPEED = 30
 export const FENCE_CHANCE = 4

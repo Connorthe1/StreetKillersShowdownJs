@@ -1,61 +1,82 @@
-/**
- * MeleeKill.js
- * 
- * Менеджер ближнего боя
- * 
- * Содержит:
- * - Создание UI для ближнего боя (createMeleeKillUI)
- * - Обновление UI (движение селектора)
- * - Обработка результата ближнего боя (handleMeleeKill)
- * - Управление стриком ближнего боя
- */
-
 import * as PIXI from 'pixi.js'
-import {DEFAULT_GAME_SPEED, SLOW_GAME_SPEED} from "../core/GameConfig";
+import {DEFAULT_GAME_SPEED} from "../core/GameConfig";
 
 /**
  * Менеджер ближнего боя
  */
 export class MeleeKillManager {
-    constructor(hud, gameState, gameWidth, gameHeight, eventBus) {
+    constructor(hud, gameState, gameWidth, gameHeight, timer, eventBus) {
         this.hud = hud
         this.gameState = gameState
         this.gameWidth = gameWidth
         this.gameHeight = gameHeight
+        this.timer = timer
         this.eventBus = eventBus
 
         // UI ближнего боя
         this.meleeKill = null
+        this.enemy = null
         
         // Состояние селектора
         this.selectorSide = true // true = вправо, false = влево
         this.selectorSpeed = 0.5 // скорость движения селектора (из Player.js)
         this.streak = 0 // стрик ближнего боя
-        this.streakTimer = null
 
         eventBus.on('melee:isActive', () => {
             return this.hasMeleeKill();
         });
 
-        eventBus.on('melee:handleMeleeKill', data => {
-            this.handleMeleeKill(data.skip, data.noDamage)
+        eventBus.on('melee:activate', enemy => {
+            if (this.meleeKill) return
+            this.activate(enemy)
         })
+
+        eventBus.on('melee:handleMeleeKill', data => {
+            this.result(data.skip, data.noDamage)
+        })
+    }
+
+    /**
+     * Обновляет UI ближнего боя (движение селектора)
+     */
+    update() {
+        if (!this.meleeKill) return
+
+        // Проверка на смерть врага
+        if (!this.enemy.isAlive) {
+            this.result(true, true)
+            return
+        }
+
+        const UiBounds = this.meleeKill.getLocalBounds()
+        const selector = this.meleeKill.getChildAt(2)
+
+        // Движение селектора
+        if (this.selectorSide) {
+            selector.x += ((this.selectorSpeed + this.streak) * DEFAULT_GAME_SPEED)
+        } else {
+            selector.x -= ((this.selectorSpeed + this.streak) * DEFAULT_GAME_SPEED)
+        }
+
+        // Отскок от краев
+        if (selector.x + selector.width >= UiBounds.x + UiBounds.width) {
+            this.selectorSide = false
+        }
+        if (selector.x <= UiBounds.x) {
+            this.selectorSide = true
+        }
     }
     
     /**
      * Создает UI для ближнего боя
      * @param {PIXI.Sprite} enemy - враг для ближнего боя
      */
-    createMeleeKillUI(enemy) {
+    activate(enemy) {
         // Пауза анимации кувырка
-        if (this.playerState.rollId) {
-            this.playerState.rollId.pause()
-        }
+        this.eventBus.emit('player:rollPause')
         
         // Замедление игры
-        if (this.updateGameSpeedCallback) {
-            this.updateGameSpeedCallback(SLOW_GAME_SPEED)
-        }
+        this.eventBus.emit('gameSpeed:slow')
         
         // Создание контейнера UI
         this.meleeKill = new PIXI.Container()
@@ -96,9 +117,9 @@ export class MeleeKillManager {
             (redBar.x - redBar.width / 2)
         )
         selector.position.set(selectorPosition, this.gameHeight / 2)
-        
+
         // Сохранение ссылки на врага
-        this.meleeKill.enemy = enemy
+        this.enemy = enemy
         
         // Добавление элементов в контейнер
         this.meleeKill.addChild(redBar)
@@ -109,46 +130,11 @@ export class MeleeKillManager {
         this.hud.addChild(this.meleeKill)
         
         // Таймер для автоматического завершения
-        if (this.sleepCallback) {
-            this.streakTimer = setTimeout(() => {
-                if (this.meleeKill) {
-                    this.handleMeleeKill(true, false)
-                }
-            }, 2500)
-        }
+        this.timer.sleep(2500, 'melee:timer').then(() => {
+            if (this.meleeKill) this.result(true, false)
+        })
         
         return this.meleeKill
-    }
-    
-    /**
-     * Обновляет UI ближнего боя (движение селектора)
-     */
-    updateMeleeKill() {
-        if (!this.meleeKill) return
-        
-        // Проверка на смерть врага
-        if (this.meleeKill.enemy && this.meleeKill.enemy.params && this.meleeKill.enemy.params.dead) {
-            this.handleMeleeKill(true, true)
-            return
-        }
-        
-        const UiBounds = this.meleeKill.getLocalBounds()
-        const selector = this.meleeKill.getChildAt(2)
-        
-        // Движение селектора
-        if (this.selectorSide) {
-            selector.x += ((this.selectorSpeed + this.streak) * DEFAULT_GAME_SPEED)
-        } else {
-            selector.x -= ((this.selectorSpeed + this.streak) * DEFAULT_GAME_SPEED)
-        }
-        
-        // Отскок от краев
-        if (selector.x + selector.width >= UiBounds.x + UiBounds.width) {
-            this.selectorSide = false
-        }
-        if (selector.x <= UiBounds.x) {
-            this.selectorSide = true
-        }
     }
     
     /**
@@ -156,9 +142,7 @@ export class MeleeKillManager {
      * @param {boolean} skip - пропустить проверку (автоматический провал)
      * @param {boolean} noDamage - не наносить урон игроку
      */
-    handleMeleeKill(skip = false, noDamage = false) {
-        if (!this.meleeKill) return
-        
+    result(skip = false, noDamage = false) {
         if (!skip) {
             const greenBarPosition = this.meleeKill.getChildAt(1).getBounds()
             const selectorPosition = this.meleeKill.getChildAt(2).getBounds()
@@ -168,111 +152,44 @@ export class MeleeKillManager {
                 selectorPosition.x + selectorPosition.width / 2 < greenBarPosition.x + greenBarPosition.width) {
                 
                 // Успешный удар
-                if (this.damageEnemyCallback && this.meleeKill.enemy) {
-                    this.damageEnemyCallback(this.meleeKill.enemy, 100)
-                }
-                
-                // Урон ловушкам под игроком
-                if (this.traps && this.player) {
-                    this.traps.forEach(trap => {
-                        const t = trap.getLocalBounds ? trap.getLocalBounds() : trap
-                        if (this.player.x > t.x && this.player.x < t.x + t.width) {
-                            trap.dead = true
-                        }
-                    })
-                }
                 
                 // Очки и стрик
-                if (this.addPointsCallback) {
-                    this.addPointsCallback(50 + this.streak * 10)
-                }
-                if (this.gameState) {
-                    this.gameState.scoreStreak += 3 + this.streak
-                }
+                this.eventBus.emit('game:addPoints', 50 + this.streak * 10)
+                this.eventBus.emit('game:addScore', 3 + this.streak)
+
                 this.streak += 1.5
-                
-                // Анимация ближнего боя
-                if (this.gun && this.gun.melee) {
-                    if (this.playAnimCallback) {
-                        this.playAnimCallback('melee')
-                    }
-                    if (this.sleepCallback) {
-                        this.sleepCallback(150).then(() => {
-                            if (this.playerState.inCover) {
-                                if (this.playAnimCallback) {
-                                    this.playAnimCallback('idle')
-                                }
-                                return
-                            }
-                            this.playerState.state = ''
-                            if (this.eventsCallback) {
-                                this.eventsCallback({ code: 'Space' })
-                            }
-                        })
-                    }
-                }
+
             } else {
                 // Провал - урон игроку
-                if (this.damagePlayerCallback) {
-                    this.damagePlayerCallback()
-                }
+                // damagePlayer()
             }
         } else {
             // Автоматический провал
-            if (!noDamage && this.damagePlayerCallback) {
-                this.damagePlayerCallback()
-            }
+            // if (!noDamage) damagePlayer()
         }
         
         // Восстановление скорости игры
-        if (this.updateGameSpeedCallback) {
-            this.updateGameSpeedCallback(this.defaultGameSpeed)
-        }
-        
+        this.eventBus.emit('gameSpeed:default')
+
         // Удаление UI
-        if (this.hud && this.meleeKill) {
-            this.hud.removeChild(this.meleeKill)
-        }
-        this.meleeKill = null
-        
-        // Очистка таймера
-        if (this.streakTimer) {
-            clearTimeout(this.streakTimer)
-            this.streakTimer = null
-        }
+        this.clear()
+
+        // Возобновление анимации кувырка
+        if (!skip) this.eventBus.emit('player:rollResume')
+        this.eventBus.emit('player:meleeEnd')
         
         // Уменьшение стрика через 10 секунд
-        if (this.sleepCallback) {
-            this.sleepCallback(10000).then(() => {
-                if (this.streak > 0) {
-                    this.streak -= 1.5
-                }
-            })
-        }
-        
-        // Возобновление анимации кувырка
-        if (!skip && this.playerState.rollId) {
-            this.playerState.rollId.resume(200, 700)
-        }
+        this.timer.sleep(10000, 'melee:streak').then(() => {
+            if (this.streak > 0) {
+                this.streak -= 1.5
+            }
+        })
     }
-    
-    /**
-     * Получает текущий UI ближнего боя
-     */
-    getMeleeKill() {
-        return this.meleeKill
-    }
-    
-    /**
-     * Проверяет, активен ли ближний бой
-     */
+
     hasMeleeKill() {
         return this.meleeKill !== null
     }
-    
-    /**
-     * Очищает ближний бой
-     */
+
     clear() {
         if (this.meleeKill) {
             if (this.hud) {
@@ -280,10 +197,7 @@ export class MeleeKillManager {
             }
             this.meleeKill = null
         }
-        if (this.streakTimer) {
-            clearTimeout(this.streakTimer)
-            this.streakTimer = null
-        }
+        this.timer.cancel('melee:timer')
     }
 }
 

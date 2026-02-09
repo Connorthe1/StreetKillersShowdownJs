@@ -3,11 +3,11 @@ import enemyParams from "../../enemyParams";
 import {getPercent, random} from "../../utils/GameUtils";
 
 export class Enemy {
-    constructor(world, resources, worldCoords, sleep, gameState, eventBus) {
+    constructor(world, resources, worldCoords, timer, gameState, eventBus) {
         this.world = world
         this.resources = resources
         this.worldCoords = worldCoords
-        this.sleep = sleep
+        this.timer = timer
         this.gameState = gameState
         this.eventBus = eventBus
 
@@ -15,6 +15,7 @@ export class Enemy {
         this.isAlive = true
         this.toDestroy = false
         this.seesBarrier = false
+        this.skip = false
         this.params = {}
         this.animset = {}
     }
@@ -59,11 +60,15 @@ export class Enemy {
         return this
     }
 
-    activate(player) {
-        if (!this.params.detect && !this.seesBarrier) {
+    activate() {
+        if (!this.params.detect && !this.seesBarrier && !this.skip) {
             this.params.detect = true
             this.shot()
         }
+    }
+
+    handleMelee() {
+        this.skip = true
     }
 
     async shot() {
@@ -93,11 +98,11 @@ export class Enemy {
             this.sprite.anchor.y = 0.5
         }
         //prepare
-        await this.sleep(Math.max(random(this.params.warningMin, this.params.warningMax, true, true) - (this.gameState.points / 100), 100))
+        await this.timer.sleep(Math.max(random(this.params.warningMin, this.params.warningMax, true, true) - (this.gameState.points / 100), 100))
         if (!this.isAlive) return
         warning.tint = 16711680
         //shoot
-        await this.sleep(200)
+        await this.timer.sleep(200)
         if (!this.isAlive) return
         this.world.removeChild(warning)
 
@@ -105,16 +110,17 @@ export class Enemy {
             this.world.removeChild(this.params.longDetector)
         }
 
-        const shotParams = {char: this.sprite, offsetX: this.params.offsetX || 0, offsetY: this.params.offsetY || 0, gun: this.params.gun}
+        const shotParams = {character: this, offsetX: this.params.offsetX || 0, offsetY: this.params.offsetY || 0}
 
         if (this.params.rapidFire) {
             const fireTimes = random(1, this.params.rapidFire)
             this.shotAnim(fireTimes)
-            await this.shotRapid(shotParams, fireTimes, 100)
+            this.shotRapid(shotParams, fireTimes, 100)
+            // await this.timer.sleep(100 * fireTimes)
         } else {
             this.shotAnim(1)
             this.eventBus.emit('bullet:shot', shotParams)
-            await this.sleep(200)
+            // await this.timer.sleep(200)
         }
         //reload
         if (this.params.canCover) {
@@ -122,30 +128,24 @@ export class Enemy {
             this.sprite.tint = 11776947
             this.sprite.anchor.y = 0.7
         }
-        await this.sleep(Math.max(random(this.params.reloadMin, this.params.reloadMax, true, true) - (this.gameState.points / 100), 200))
+        await this.timer.sleep(Math.max(random(this.params.reloadMin, this.params.reloadMax, true, true) - (this.gameState.points / 100), 200))
         if (!this.isAlive) return
         this.params.detect = false
     }
 
-    shotRapid(params, times, cd) {
-        const shotTime = cd ? cd :200
-        const repeat = setInterval(() => {
-            if (this.gameState.isPause) return
-            if (!this.isAlive) return
-            this.eventBus.emit('bullet:shot', params)
-        }, shotTime)
-        return new Promise(function(resolve) {
-            this.sleep(times * shotTime).then(() => {
-                clearInterval(repeat)
-                resolve()
-            })
-        });
+    async shotRapid(params, times, cd) {
+        const rapidParams = {
+            ...params,
+            times,
+            cd
+        }
+        this.eventBus.emit('bullet:shotRapid', rapidParams)
     }
 
     shotAnim(times) {
         this.sprite.textures = this.animset.shot
         this.sprite.play()
-        this.sleep(times * 200).then(() => {
+        this.timer.sleep(times * 200).then(() => {
             if (!this.isAlive) return
             this.sprite.textures = this.animset.idle
             this.sprite.play()
@@ -175,8 +175,8 @@ export class Enemy {
         this.world.addChild(this.sprite)
     }
 
-    setBarrier() {
-        this.seesBarrier = true
+    setBarrier(value) {
+        this.seesBarrier = value
     }
 
     getDetectRange() {

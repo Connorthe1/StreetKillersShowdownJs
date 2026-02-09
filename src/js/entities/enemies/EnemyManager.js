@@ -9,18 +9,18 @@ import {Enemy} from "./Enemy";
  * Менеджер врагов
  */
 export class EnemyManager {
-    constructor(world, gameState, worldCoords, resources, sleep, eventBus) {
+    constructor(world, gameState, worldCoords, resources, timer, eventBus) {
         this.world = world
         this.gameState = gameState
         this.worldCoords = worldCoords
         this.resources = resources
-        this.sleep = sleep
+        this.timer = timer
         this.eventBus = eventBus
 
         this.enemies = []
 
         eventBus.on('enemy:create', data => {
-            this.createEnemy(data.pos, data.canCover, data.enemyType)
+            this.create(data.pos, data.canCover, data.enemyType)
         })
 
         eventBus.on('enemy:bossClear', pos => {
@@ -28,7 +28,7 @@ export class EnemyManager {
         })
     }
 
-    createEnemy(pos = null, canCover = false, enemyType = null) {
+    create(pos = null, canCover = false, enemyType = null) {
         let randomPos = pos || Math.floor(this.worldCoords.zeroLeft + this.worldCoords.worldWidth + Math.floor(Math.random() * (250 - 50 + 1) + 50))
         let isSecondFloor = false
 
@@ -91,8 +91,7 @@ export class EnemyManager {
             }
         }
 
-        const enemy = new Enemy(this.world, this.resources, this.worldCoords, this.sleep, this.gameState, this.eventBus).create({x: randomPos, y: isSecondFloor ? this.worldCoords.secondFloor : this.worldCoords.firstFloor}, canCover, enemyType)
-        console.log(enemy)
+        const enemy = new Enemy(this.world, this.resources, this.worldCoords, this.timer, this.gameState, this.eventBus).create({x: randomPos, y: isSecondFloor ? this.worldCoords.secondFloor : this.worldCoords.firstFloor}, canCover, enemyType)
         this.enemies.push(enemy)
     }
 
@@ -101,7 +100,7 @@ export class EnemyManager {
      * @param {number} gameSpeed - скорость игры
      * @param {boolean} meleeKill - активен ли ближний бой
      */
-    updateEnemies(gameSpeed, meleeKill = false) {
+    updateEnemies() {
         this.enemies.forEach((enemy, idx) => {
             if (!enemy.params.dead) {
                 // Обнаружение игрока
@@ -129,41 +128,18 @@ export class EnemyManager {
                         }
                     })
                 }
-
-                // Проверка коллизии с игроком
-                if (!enemy.skip &&
-                    this.player.x > enemy.x - 30 &&
-                    this.player.x + 40 < enemy.x + enemy.width) {
-
-                    if (!meleeKill &&
-                        (this.playerState.state === 'roll' || this.playerState.state === 'rollEnd')) {
-                        if (this.playerState.invincible) {
-                            this.damageEnemy(enemy, 10)
-                        } else {
-                            if (this.HUDmeleeKillCallback) {
-                                this.HUDmeleeKillCallback(enemy)
-                            }
-                        }
-                    } else {
-                        if (enemy.params.inCover) return
-                        this.gameState.points -= 250 * this.gameState.multiplier
-                        if (this.gameState.points < 0) {
-                            this.gameState.points = 0
-                        }
-                        this.gameState.decreaseStreakBy(20)
-                    }
-                    enemy.skip = true
-                }
-            }
-
-            // Удаление врагов за левой границей
-            if (enemy.x + enemy.width < this.zeroLeft) {
-                if (this.world) {
-                    this.world.removeChild(enemy)
-                }
-                this.enemies.splice(idx, 1)
             }
         })
+
+        // this.gameState.points -= 250 * this.gameState.multiplier
+        // if (this.gameState.points < 0) {
+        //     this.gameState.points = 0
+        // }
+        // this.gameState.decreaseStreakBy(20)
+
+        this.enemies.forEach(enemy => enemy.update())
+
+        this.enemies = this.enemies.filter(enemy => enemy.toDestroy === false)
     }
     
     /**
@@ -289,10 +265,9 @@ export class EnemyManager {
     }
 
     bossClear(pos) {
-        this.enemies.forEach((enemy, idx) => {
+        this.enemies.forEach((enemy) => {
             if (enemy.x > pos - 400 && enemy.x < pos + 50) {
-                this.world.removeChild(enemy)
-                this.enemies.splice(idx, 1)
+                enemy.destroy()
             }
         })
     }

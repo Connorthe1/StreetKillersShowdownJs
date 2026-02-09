@@ -57,28 +57,12 @@ export class BackgroundManager {
     /**
      * Обновляет фон
      */
-    updateBg(zeroLeft, playerSpeed) {
+    updateBg(zeroLeft, playerSpeed, gameSpeed) {
         if (!this.background) return
         
         if (this.gameState.gameStart) {
-            // Прокрутка фона
-            let speed = 1
-            if (playerSpeed !== null && playerSpeed !== undefined) {
-                if (typeof playerSpeed === 'object' && playerSpeed.value !== undefined) {
-                    speed = playerSpeed.value
-                } else if (typeof playerSpeed === 'number') {
-                    speed = playerSpeed
-                }
-            }
-            const gameSpeed = this.gameSpeed !== null && this.gameSpeed !== undefined ? 
-                this.gameSpeed.value || this.gameSpeed : 1
-            
-            this.bgPosition -= (this.bgSpeed * speed) * gameSpeed
-            
-            // Обновление позиции фона
-            if (zeroLeft !== null && zeroLeft !== undefined) {
-                this.background.x = zeroLeft + this.worldCoords.worldWidth / 2
-            }
+            this.bgPosition -= (this.bgSpeed * playerSpeed) * gameSpeed
+            this.background.x = zeroLeft + this.worldCoords.worldWidth / 2
             this.background.tilePosition.x = this.bgPosition
         }
     }

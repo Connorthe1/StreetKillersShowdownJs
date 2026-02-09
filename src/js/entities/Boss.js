@@ -12,27 +12,36 @@
  */
 
 import * as PIXI from 'pixi.js'
-import { random } from '../utils/GameUtils.js'
+import {getPercent, random} from '../utils/GameUtils.js'
 import enemyParams from "../enemyParams";
 
 /**
  * Менеджер боссов
  */
 export class BossManager {
-    constructor(world, gameState, worldCoords, resources, sleep, eventBus) {
+    constructor(world, gameState, worldCoords, resources, timer, eventBus) {
         this.world = world
         this.gameState = gameState
         this.worldCoords = worldCoords
         this.resources = resources
+        this.timer = timer
         this.eventBus = eventBus
-        this.sleep = sleep
 
         // Текущий босс
-        this.currentBoss = null
+        this.sprite = null
+        this.isAlive = true
+        this.params = null
+        this.animset = null
+        this.skip = false
+        this.isWalking = false
+
+        eventBus.on('boss:activate', () => {
+           this.shot()
+        })
     }
 
-    createBoss(bossType = null, pos = null) {
-        if (this.currentBoss) return
+    create(bossType = null, pos = null) {
+        if (this.sprite) return
 
         let randomPos = pos || Math.floor(this.worldCoords.zeroRight + random(300, 750))
         
@@ -48,7 +57,7 @@ export class BossManager {
         // Определение типа босса
         let type
         const randType = bossType || random(1, 4)
-        switch (randType) {
+        switch (1) {
             case 1:
                 type = 'bossGun'
                 break
@@ -71,7 +80,7 @@ export class BossManager {
         } else {
             this.eventBus.emit('wall:create', {pos: randomPos - (this.worldCoords.worldWidth / 1.8), forBoss: true})
         }
-        
+
         // Получение текстур босса
         const bossTextureSet = this.resources[type]
         
@@ -84,163 +93,100 @@ export class BossManager {
             this.worldCoords.firstFloor - (type === 'bossVan' ? 36 : 10)
         )
         
-        boss.params = {
-            animset: bossTextureSet.animations
-        }
-        
+        boss.zIndex = 10
+        boss.play()
+
+        this.animset = bossTextureSet.animations
+        this.params = { id: type }
+
         // Копирование параметров
         if (enemyParams[type]) {
             Object.keys(enemyParams[type]).forEach(item => {
-                boss.params[item] = enemyParams[type][item]
+                this.params[item] = enemyParams[type][item]
             })
         }
-        
-        boss.zIndex = 10
-        boss.type = type
-        this.currentBoss = boss
 
-        this.world.addChild(boss)
-        boss.play()
+        this.sprite = boss
+        this.addToWorld()
     }
-    
-    /**
-     * Обновляет босса
-     * @param {number} gameSpeed - скорость игры
-     */
-    updateBoss(gameSpeed) {
-        if (!this.currentBoss) return
+
+    activate() {
+        // if (!this.params.detect) {
+        //     this.params.detect = true
+        //     this.shot()
+        // }
+    }
+
+    update(gameSpeed) {
+        if (!this.sprite) return
+
+        if (this.isWalking && this.isAlive) {
+            this.sprite.x -= 0.5 * gameSpeed
+        }
         
         // Удаление босса за левой границей
-        if (this.currentBoss.x + this.currentBoss.width < this.zeroLeft) {
-            if (this.world) {
-                this.world.removeChild(this.currentBoss)
-            }
-            this.currentBoss = null
-            return
+        if (this.isOutOfBounds()) {
+            this.destroy()
+            return;
         }
-        
+
         // Проверка смерти босса
-        if (this.currentBoss.params.dead) {
-            if (this.playerState) {
-                this.playerState.inBossFight = false
-            }
-            return
-        }
-        
-        // Обнаружение игрока
-        if (!this.currentBoss.params.detect && this.player) {
-            if (this.currentBoss.x - this.player.x < this.WORLD_WIDTH) {
-                this.currentBoss.params.detect = true
-                this.bossShooting()
-            }
-        }
-        
-        // Ближний бой с боссом
-        if (!this.currentBoss.skip && 
-            this.currentBoss.params.melee && 
-            this.player && 
-            this.player.x + 20 > this.currentBoss.x) {
-            this.currentBoss.skip = true
-            if (this.playerState) {
-                this.playerState.inBossFight = false
-            }
-            if (this.damagePlayerCallback) {
-                this.damagePlayerCallback()
-            }
-        }
-        
-        // Проверка коллизии с пулями игрока
-        if (this.playerBullets && this.player) {
-            this.playerBullets.forEach((bullet, idx) => {
-                const b = bullet.getBounds ? bullet.getBounds() : bullet
-                const boss = this.currentBoss.getBounds ? this.currentBoss.getBounds() : this.currentBoss
-                
-                if (b.x + b.width > boss.x && 
-                    boss.x + boss.width > b.x && 
-                    b.y + b.height > boss.y && 
-                    boss.y + boss.height > b.y) {
-                    
-                    if (this.world) {
-                        this.world.removeChild(bullet)
-                    }
-                    this.playerBullets.splice(idx, 1)
-                    
-                    if (this.damageEnemyCallback && this.gun) {
-                        const damage = this.currentBoss.x - this.player.x < 200 ? 
-                            this.gun.damage * 2 : this.gun.damage
-                        this.damageEnemyCallback(
-                            this.currentBoss, 
-                            damage, 
-                            this.currentBoss.type !== 'bossSmg'
-                        )
-                    }
-                }
-            })
+        if (!this.isAlive) {
+            this.eventBus.emit('player:bossEnd')
         }
     }
     
     /**
      * Стрельба босса (асинхронная функция)
      */
-    async bossShooting() {
-        if (!this.currentBoss || !this.particles || !this.sleepCallback) return
-        
+    async shot() {
         // Создание предупреждения
-        const warning = new PIXI.Sprite(this.particles.textures.detection)
+        const warning = new PIXI.Sprite(this.resources.particles.textures.detection)
         warning.zIndex = 20
         warning.anchor.set(0.5)
         warning.tint = 16776960
         warning.scale.x = 1.5
         warning.scale.y = 2
-        warning.position.set(this.currentBoss.x, this.currentBoss.y - 40)
-        this.currentBoss.params.warning = warning
-        
-        if (this.world) {
-            this.world.addChild(warning)
-        }
+        warning.position.set(this.sprite.x, this.sprite.y - 40)
+
+        this.params.warning = warning
+        this.world.addChild(warning)
         
         let fireTimes = 1
-        if (this.currentBoss.params.rapidFire) {
-            fireTimes = Math.floor(Math.random() * (this.currentBoss.params.rapidFire - 1 + 1)) + 1
+        if (this.params.rapidFire) {
+            fireTimes = Math.floor(Math.random() * (this.params.rapidFire - 1 + 1)) + 1
         }
-        
-        let walking = null
         
         // Подготовка
         const warningTime = Math.max(
             random(
-                this.currentBoss.params.warningMin, 
-                this.currentBoss.params.warningMax, 
+                this.params.warningMin,
+                this.params.warningMax,
                 true, 
                 true
             ) - (this.gameState.points / 100), 
             100
         )
-        await this.sleepCallback(warningTime)
+        await this.timer.sleep(warningTime)
         
-        if (!this.currentBoss || this.currentBoss.params.dead) return
+        if (!this.sprite || !this.isAlive) return
         
         warning.tint = 16711680
         
         // Выстрел
-        await this.sleepCallback(200)
+        await this.timer.sleep(warningTime)
+
+        this.world.removeChild(warning)
         
-        if (this.world) {
-            this.world.removeChild(warning)
-        }
-        
-        if (!this.currentBoss || this.currentBoss.params.dead) return
+        if (!this.sprite || !this.isAlive) return
         
         // Разные паттерны атак для разных типов боссов
-        switch (this.currentBoss.type) {
+        switch (this.params.id) {
             case 'bossVan':
                 await this.handleBossVanAttack(fireTimes)
                 break
             case 'bossGun':
-                await this.handleBossGunAttack(fireTimes, () => { walking = this.startBossWalking() })
-                if (walking) {
-                    this.walkingInterval = walking
-                }
+                await this.handleBossGunAttack(fireTimes)
                 break
             case 'bossSmg':
                 await this.handleBossSmgAttack(fireTimes)
@@ -249,146 +195,113 @@ export class BossManager {
                 await this.handleBossLauncherAttack(fireTimes)
                 break
         }
+
+        if (!this.sprite || !this.isAlive) return
         
         // Перезарядка
         const reloadTime = Math.max(
             random(
-                this.currentBoss.params.reloadMin, 
-                this.currentBoss.params.reloadMax, 
+                this.params.reloadMin,
+                this.params.reloadMax,
                 true, 
                 true
             ) - (this.gameState.points / 100), 
             100
         )
-        await this.sleepCallback(reloadTime)
+        await this.timer.sleep(reloadTime)
         
-        if (!this.currentBoss || this.currentBoss.params.dead) return
+        if (!this.sprite || !this.isAlive) return
         
         // Остановка ходьбы
-        if (this.walkingInterval) {
-            clearInterval(this.walkingInterval)
-            this.walkingInterval = null
-            if (this.currentBoss && !this.currentBoss.params.dead) {
-                this.currentBoss.textures = this.currentBoss.params.animset.idle
-                this.currentBoss.play()
-            }
+        if (this.params.id === 'bossGun') {
+            this.isWalking = false
+            this.sprite.textures = this.animset.idle
+            this.sprite.play()
         }
-        
-        // Рекурсивный вызов для следующего цикла стрельбы
-        if (this.currentBoss && !this.currentBoss.params.dead) {
-            this.bossShooting()
-        }
+
+        this.shot()
     }
     
     /**
      * Обработка атаки босса-фургона
      */
     async handleBossVanAttack(fireTimes) {
-        if (!this.currentBoss || this.currentBoss.params.dead) return
+        if (!this.sprite || !this.isAlive) return
         
-        this.currentBoss.textures = this.currentBoss.params.animset.fromIdle
-        this.currentBoss.play()
-        await this.sleepCallback(200)
+        this.sprite.textures = this.animset.fromIdle
+        this.sprite.play()
+        await this.timer.sleep(200)
         
-        if (!this.currentBoss || this.currentBoss.params.dead) return
+        if (!this.sprite || !this.isAlive) return
         
-        this.currentBoss.textures = this.currentBoss.params.animset.shot
-        this.currentBoss.play()
+        this.sprite.textures = this.animset.shot
+        this.sprite.play()
+
+        this.eventBus.emit('bullet:shotRapid', {character: this, offsetX: 36, offsetY: 12, times: fireTimes})
+        await this.timer.sleep(50)
+
+        this.eventBus.emit('bullet:shotRapid', {character: this, offsetX: 34, offsetY: 40, times: fireTimes})
+        await this.timer.sleep(100)
+
+        this.eventBus.emit('bullet:shotRapid', {character: this, offsetX: 106, offsetY: 20, times: fireTimes})
+
+        await this.timer.sleep(fireTimes * 200)
         
-        if (this.shotRapidCallback) {
-            this.shotRapidCallback(this.currentBoss, 36, 12, fireTimes, 'smg')
-            await this.sleepCallback(50)
-            this.shotRapidCallback(this.currentBoss, 34, 40, fireTimes, 'smg')
-            await this.sleepCallback(100)
-            await this.shotRapidCallback(this.currentBoss, 106, 20, fireTimes, 'smg')
-        }
+        if (!this.sprite || !this.isAlive) return
         
-        if (!this.currentBoss || this.currentBoss.params.dead) return
+        this.sprite.textures = this.animset.toIdle
+        this.sprite.play()
+        await this.timer.sleep(200)
         
-        this.currentBoss.textures = this.currentBoss.params.animset.toIdle
-        this.currentBoss.play()
-        await this.sleepCallback(200)
+        if (!this.sprite || !this.isAlive) return
         
-        if (!this.currentBoss || this.currentBoss.params.dead) return
-        
-        this.currentBoss.textures = this.currentBoss.params.animset.idle
-        this.currentBoss.play()
+        this.sprite.textures = this.animset.idle
+        this.sprite.play()
     }
     
     /**
      * Обработка атаки босса с винтовкой
      */
-    async handleBossGunAttack(fireTimes, setWalkingCallback) {
-        if (!this.currentBoss || this.currentBoss.params.dead) return
+    async handleBossGunAttack(fireTimes) {
+        if (!this.sprite || !this.isAlive) return
+
+        this.eventBus.emit('bullet:shotRapid', {character: this, offsetX: 6, offsetY: 14, times: fireTimes})
         
-        if (this.enemyShotAnimCallback) {
-            this.enemyShotAnimCallback(this.currentBoss, fireTimes)
+        if (this.params.walk && this.isAlive) {
+            this.isWalking = true
+            this.sprite.textures = this.animset.walk
+            this.sprite.play()
         }
-        
-        if (this.shotRapidCallback) {
-            await this.shotRapidCallback(this.currentBoss, 6, 14, fireTimes, 'rifle')
-        }
-        
-        await this.sleepCallback(100)
-        
-        if (this.currentBoss.params.walk && !this.currentBoss.params.dead) {
-            this.currentBoss.textures = this.currentBoss.params.animset.walk
-            this.currentBoss.play()
-            if (setWalkingCallback) {
-                setWalkingCallback()
-            }
-        }
+
+        await this.timer.sleep(fireTimes * 200)
     }
     
     /**
      * Обработка атаки босса с SMG
      */
     async handleBossSmgAttack(fireTimes) {
-        if (!this.currentBoss || this.currentBoss.params.dead) return
+        if (!this.sprite || !this.isAlive) return
         
-        if (this.enemyShotAnimCallback) {
-            this.enemyShotAnimCallback(this.currentBoss, fireTimes)
-        }
-        
-        if (this.shotRapidCallback) {
-            await this.shotRapidCallback(this.currentBoss, 0, -2, fireTimes, 'smg', 150)
-        }
+        this.shotAnim(fireTimes)
+
+        this.eventBus.emit('bullet:shotRapid', {character: this, offsetX: 0, offsetY: -2, times: fireTimes, cd: 150})
+
+        await this.timer.sleep(fireTimes * 150)
     }
     
     /**
      * Обработка атаки босса с гранатометом
      */
     async handleBossLauncherAttack(fireTimes) {
-        if (!this.currentBoss || this.currentBoss.params.dead) return
+        if (!this.sprite || !this.isAlive) return
+
+        this.shotAnim(fireTimes)
         
-        if (this.enemyShotAnimCallback) {
-            this.enemyShotAnimCallback(this.currentBoss, fireTimes)
-        }
+        // if (this.shotGrenadeCallback) {
+        //     this.shotGrenadeCallback(this.sprite, 0, 0)
+        // }
         
-        if (this.shotGrenadeCallback) {
-            this.shotGrenadeCallback(this.currentBoss, 0, 0)
-        }
-        
-        await this.sleepCallback(200)
-    }
-    
-    /**
-     * Запускает ходьбу босса
-     */
-    startBossWalking() {
-        if (!this.currentBoss || this.currentBoss.params.dead) return null
-        
-        return setInterval(() => {
-            if (this.gameState.isPause) return
-            if (!this.currentBoss || this.currentBoss.params.dead) {
-                if (this.walkingInterval) {
-                    clearInterval(this.walkingInterval)
-                    this.walkingInterval = null
-                }
-                return
-            }
-            this.currentBoss.x -= 1
-        }, 10)
+        await this.timer.sleep(200)
     }
     
     /**
@@ -457,23 +370,40 @@ export class BossManager {
             }
         }, 10)
     }
-    
-    /**
-     * Получает текущего босса
-     */
-    getCurrentBoss() {
-        return this.currentBoss
+
+    shotAnim(times) {
+        this.sprite.textures = this.animset.shot
+        this.sprite.play()
+        this.timer.sleep(times * 200).then(() => {
+            if (!this.isAlive) return
+            this.sprite.textures = this.animset.idle
+            this.sprite.play()
+        })
     }
 
-    clear() {
-        if (this.walkingInterval) {
-            clearInterval(this.walkingInterval)
-            this.walkingInterval = null
+    handleMelee() {
+        this.skip = true
+    }
+
+    getDetectRange() {
+        return getPercent(this.worldCoords.worldWidth, this.params.detectRange)
+    }
+
+    isOutOfBounds() {
+        const boss = this.sprite.getBounds()
+
+        return boss.x + boss.width < 0
+    }
+
+    addToWorld() {
+        this.world.addChild(this.sprite)
+    }
+
+    destroy() {
+        if (this.sprite) {
+            this.world.removeChild(this.sprite)
         }
-        
-        if (this.currentBoss && this.world) {
-            this.world.removeChild(this.currentBoss)
-        }
-        this.currentBoss = null
+        this.params = null
+        this.sprite = null
     }
 }

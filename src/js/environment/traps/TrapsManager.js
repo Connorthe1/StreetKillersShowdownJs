@@ -6,13 +6,13 @@ import { WindowTrap } from "./types/WindowTrap";
  * Менеджер ловушек
  */
 export class TrapManager {
-    constructor(world, worldCoords, ground, fg, resources, sleep, eventBus) {
+    constructor(world, worldCoords, ground, fg, resources, timer, eventBus) {
         this.world = world
         this.ground = ground
         this.fg = fg
         this.worldCoords = worldCoords
         this.resources = resources
-        this.sleep = sleep
+        this.timer = timer
         this.eventBus = eventBus
 
         // Массив ловушек
@@ -43,7 +43,7 @@ export class TrapManager {
         if (hasOverlap) return
 
         const groundY = this.getGroundY()
-        const barrel = new BarrelTrap(this.world, this.resources, this.eventBus, this.fg, this.sleep).create(randomPos, groundY)
+        const barrel = new BarrelTrap(this.world, this.resources, this.eventBus, this.fg, this.timer).create(randomPos, groundY)
         this.registerTrap(barrel)
     }
 

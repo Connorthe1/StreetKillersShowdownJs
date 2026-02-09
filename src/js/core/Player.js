@@ -17,14 +17,14 @@ import { soundPlayer } from "../playSound";
  * Класс игрока
  */
 export class Player {
-    constructor(world, gameState, resources, storage, worldCoords, sleep, eventBus) {
+    constructor(world, gameState, resources, storage, worldCoords, timer, eventBus) {
         // GameState для управления уроном
         this.world = world
         this.gameState = gameState
         this.resources = resources
         this.storage = storage
         this.worldCoords = worldCoords
-        this.sleep = sleep
+        this.timer = timer
         this.eventBus = eventBus
 
         // Спрайт игрока
@@ -38,7 +38,6 @@ export class Player {
         this.inCover = false
         this.inZipLine = false
         this.activePowerUps = []
-        this.rollId = null
         this.secondFloor = false
         this.stimpack = false
         this.skillCD = false
@@ -46,15 +45,16 @@ export class Player {
         this.leaveCover = false
         this.afterRoll = true
         this.triggerDelay = false
+        this.isMeleeActive = false
 
         // Скорости
 
-        // Обычная скорость в забеге
-        this.defaultSpeed = 1
-        // Текущая скорость
-        this.speed = 1
         // Базовая скорость
-        this.initSpeed = 1
+        this.initSpeed = 5
+        // Обычная скорость в забеге
+        this.defaultSpeed = this.initSpeed
+        // Текущая скорость
+        this.speed = this.defaultSpeed
         
         // Параметры оружия
         this.gun = {
@@ -80,6 +80,23 @@ export class Player {
         eventBus.on('player:event', key => {
             this.event(key)
         })
+
+        eventBus.on('player:rollPause', () => {
+            this.timer.pause('player:roll')
+        })
+
+        eventBus.on('player:rollResume', () => {
+            this.timer.extend('player:roll', 200, 600)
+            this.timer.resume('player:roll')
+        })
+
+        eventBus.on('player:meleeEnd', () => {
+            this.isMeleeActive = false
+        })
+
+        eventBus.on('player:bossEnd', () => {
+            this.inBossFight = false
+        })
     }
 
     // Создает спрайт игрока
@@ -104,7 +121,7 @@ export class Player {
         return player
     }
 
-    updatePlayer(gameSpeed, delta) {
+    update(gameSpeed, delta) {
         if (this.activePowerUps.length > 0) {
             this.activePowerUps.forEach((powerUp, idx) => {
                 if (Date.now() > powerUp.expired) {
@@ -123,12 +140,14 @@ export class Player {
                 }
             })
         }
+
         if (this.gameState.gameStart) {
             const dtX = 1 - Math.exp(-delta / 5)
             const dtY = 1 - Math.exp(-delta / 20)
             this.world.pivot.x = ((this.sprite.x - 60) - this.world.pivot.x) * dtX + this.world.pivot.x;
             this.world.pivot.y = (-this.world.pivot.y) * dtY + this.world.pivot.y;
         }
+
         this.sprite.x += (0.5 * this.speed) * gameSpeed;
 
         this.worldCoords.zeroLeft = (this.sprite.x - 100)
@@ -215,34 +234,29 @@ export class Player {
             this.setPlayerSpeed(0)
 
             // Задержка перед окончанием игры
-            this.sleep(1000).then(() => {
+            this.timer.sleep(1000).then(() => {
                 this.endGame()
-            })
+            });
         } else {
             // Восстановление после урона
-            if (this.sleep) {
-                this.sleep(200).then(() => {
-                    this.invincible = false
-                    if (this.sprite) {
-                        if (this.inCover) {
-                            this.sprite.tint = this.sprite.shadow
-                        } else {
-                            this.sprite.tint = this.sprite.color
-                        }
-                    }
-                })
-            }
+            this.timer.sleep(200).then(() => {
+                this.invincible = false
+                if (this.inCover) {
+                    this.sprite.tint = this.sprite.shadow
+                } else {
+                    this.sprite.tint = this.sprite.color
+                }
+            });
         }
     }
 
     event(key) {
-        if (this.health === 0 || this.gameState.gameEnd || this.gameState.isPause || this.gameState.isMenu || !this.gameState.gameStart) return
-        if (this.inZipLine) return
-        const isMeleeActive = this.eventBus.emit('melee:isActive', null, true);
+        if (this.health === 0 || this.gameState.gameEnd || this.gameState.isPause || this.gameState.isMenu || !this.gameState.gameStart || this.inZipLine) return
+
         switch (key) {
             //RELOAD
             case 'KeyR':
-                if ((!this.state || this.state === 'rollEnd') && this.gun.currentAmmo < this.gun.ammo && !isMeleeActive) {
+                if ((!this.state || this.state === 'rollEnd') && this.gun.currentAmmo < this.gun.ammo && !this.isMeleeActive) {
                     soundPlayer.gunReload(this.gun.type)
                     this.playAnim('reload')
                     this.setPlayerSpeed(0)
@@ -276,7 +290,7 @@ export class Player {
                 break
             //ROLL
             case 'Space':
-                if (!this.state && !this.inBossFight && !isMeleeActive) {
+                if (!this.state && !this.inBossFight && !this.isMeleeActive) {
                     this.gameState.increaseStreak(1)
                     soundPlayer.slide()
                     this.playAnim('roll')
@@ -290,25 +304,33 @@ export class Player {
                         this.leaveCover = false
                         if (this.inZipLine || this.state !== 'roll') return
                         this.playAnim('rollEnd')
-                        this.sleep(550, true).then(() => {
-                            console.log('resolve')
+                        this.timer.sleep(550, 'player:roll').then(() => {
                             if (this.inCover || this.inZipLine) {
                                 this.gameState.increaseStreak(1)
                             } else {
-                                if (isMeleeActive) return
+                                if (this.isMeleeActive) return
                                 this.setPlayerSpeed(this.defaultSpeed)
                                 this.playAnim()
                             }
-                            this.rollId = null
                         })
-                        if (isMeleeActive) this.rollId.pause()
+                        if (this.isMeleeActive) this.timer.pause('player:roll')
                     };
                 }
                 break
             //SHOT
             case 'KeyF':
-                if (isMeleeActive) {
+                if (this.isMeleeActive) {
                     this.eventBus.emit('melee:handleMeleeKill', {skip: false, noDamage: false})
+
+                    // Анимация ближнего боя
+                    if (this.gun.melee) {
+                        this.playAnim('melee')
+                        this.timer.sleep(150, 'player:melee').then(() => {
+                            if (this.inCover) return this.playAnim('idle')
+                            this.state = ''
+                            this.event({code:'Space'})
+                        })
+                    }
                     return
                 }
                 if ((!this.state || this.state === 'rollEnd') && !this.triggerDelay) {
@@ -317,7 +339,7 @@ export class Player {
                         return;
                     }
                     this.triggerDelay = true
-                    this.sleep(this.gun.shotTrigger).then(() => {
+                    this.timer.sleep(this.gun.shotTrigger, 'player:trigger').then(() => {
                         this.triggerDelay = false
                     })
                     if (this.inCover) {
@@ -329,10 +351,10 @@ export class Player {
                     this.eventBus.emit('hud:removeBullet')
 
                     this.playAnim('shot')
-                    this.eventBus.emit('bullet:shot', {char: this, offsetX: this.gun.offsetX, offsetY: this.gun.offsetY, eventGun: this.gun.type, friendly: true})
+                    this.eventBus.emit('bullet:shot', {character: this, offsetX: this.gun.offsetX, offsetY: this.gun.offsetY, gunParams: this.gun, friendly: true})
                     if (this.stimpack) {
-                        this.sleep(100).then(() => {
-                            this.eventBus.emit('bullet:shot', {char: this, offsetX: this.gun.offsetX, offsetY: this.gun.offsetY, eventGun: this.gun.type, friendly: true})
+                        this.timer.sleep(100, 'player:doubleShot').then(() => {
+                            this.eventBus.emit('bullet:shot', {character: this, offsetX: this.gun.offsetX, offsetY: this.gun.offsetY, gunParams: this.gun, friendly: true})
                         })
                     }
                     if (!this.gun.noStop) {
@@ -369,7 +391,7 @@ export class Player {
                 if (grenadeManager) {
                     grenadeManager.grenadeBounce()
                 }
-                this.sleep(6000).then(() => {
+                this.timer.sleep(6000, 'player:skillCD').then(() => {
                     this.eventBus.emit('hud:setSkillsAlpha', 1)
                     this.skillCD = false
                 })
@@ -386,7 +408,7 @@ export class Player {
 
                 this.stimpack = true
                 soundPlayer.useSkill()
-                this.sleep(15000).then(() => {
+                this.timer.sleep(15000, 'player:skillCD').then(() => {
                     this.eventBus.emit('hud:removeShield')
                     this.eventBus.emit('hud:setSkillsAlpha', 1)
 
@@ -481,7 +503,6 @@ export class Player {
             inCover: this.inCover,
             inZipLine: this.inZipLine,
             activePowerUps: this.activePowerUps,
-            rollId: this.rollId,
             secondFloor: this.secondFloor,
             currentSkin: this.currentSkin,
             stimpack: this.stimpack,
@@ -581,12 +602,16 @@ export class Player {
 
     //TODO || (wall.forBoss && !currentBoss.params.dead)
     handleCover(wall) {
-        if (!this.inCover && this.isRollState() && !this.leaveCover) {
+        if (!this.inCover && this.isRollState() && !this.leaveCover || (wall.forBoss && !this.inBossFight)) {
             this.inBossFight = wall.forBoss
             this.inCover = true
             this.setPlayerSpeed(0)
             this.sprite.x = wall.coverX
             this.playAnim('idle')
+
+            if (this.inBossFight) {
+                this.eventBus.emit('boss:activate')
+            }
         }
     }
 
@@ -631,6 +656,20 @@ export class Player {
                 case 'boostGun':
                     this.gun.damage *= 2
                     break
+            }
+        }
+    }
+
+    handleMelee(enemy, distance) {
+        const MELEE_RANGE = 40
+        if (distance >= MELEE_RANGE || enemy.skip) return
+        if (this.inBossFight || this.isRollState()) {
+            enemy.handleMelee()
+            if (this.invincible) {
+                // Damage Sphere
+            } else {
+                this.isMeleeActive = true
+                this.eventBus.emit('melee:activate', enemy)
             }
         }
     }

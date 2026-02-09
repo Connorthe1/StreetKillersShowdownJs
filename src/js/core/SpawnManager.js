@@ -16,22 +16,22 @@ import {WoodBG} from "../environment/classes/WoodBG";
  * Менеджер спавна сущностей
  */
 export class SpawnManager {
-    constructor(gameState, physicsManager, ground, fg, world, worldCoords, resources, sleep, storage, eventBus) {
+    constructor(gameState, physicsManager, ground, fg, world, worldCoords, resources, timer, storage, eventBus) {
         this.gameState = gameState
         this.world = world
         this.worldCoords = worldCoords
         this.resources = resources
         this.eventBus = eventBus
-        this.sleep = sleep
+        this.timer = timer
         this.physicsManager = physicsManager
         this.ground = ground
         this.fg = fg
         this.storage = storage
 
         this.buildingManager = new BuildingManager(world, physicsManager, ground, worldCoords, fg, resources, eventBus)
-        this.puddleManager = new PuddleManager(world, worldCoords, resources, eventBus, sleep)
+        this.puddleManager = new PuddleManager(world, worldCoords, resources, eventBus, timer)
         this.wallManager = new WallManager(world, ground, worldCoords, resources, eventBus)
-        this.trapManager = new TrapManager(world, worldCoords, ground, fg, resources, sleep, eventBus)
+        this.trapManager = new TrapManager(world, worldCoords, ground, fg, resources, timer, eventBus)
         this.canManager = new CanManager(world, physicsManager, fg, worldCoords, resources, storage, eventBus)
         this.carManager = new CarBG(world, resources, worldCoords)
         this.woodBGManager = new WoodBG(world, resources, worldCoords)
@@ -39,9 +39,9 @@ export class SpawnManager {
 
         this.powerUpManager = new PowerUpManager(world, fg, storage, worldCoords, resources, eventBus)
 
-        this.enemyManager = new EnemyManager(world, gameState, worldCoords, resources, sleep, eventBus)
+        this.enemyManager = new EnemyManager(world, gameState, worldCoords, resources, timer, eventBus)
         this.dogEnemyManager = new DogEnemyManager(world, worldCoords, fg, resources, eventBus)
-        this.bossManager = new BossManager(world, gameState, worldCoords, resources, sleep, eventBus)
+        this.bossManager = new BossManager(world, gameState, worldCoords, resources, timer, eventBus)
 
         eventBus.on('spawn:entity', data => {
             this.spawnEntity()
@@ -52,7 +52,8 @@ export class SpawnManager {
      * Главная функция спавна сущностей
      */
     spawnEntity() {
-        this.enemyManager.createEnemy()
+        this.bossManager.create()
+        // this.enemyManager.create()
 
         return
         // Спавн лужи
@@ -67,17 +68,17 @@ export class SpawnManager {
 
         // Спавн банки
         if (Math.random() < 0.1) {
-            this.canManager.createCan()
+            this.canManager.create()
         }
 
         // Спавн пауэр-апа
         if (Math.random() < 0.05) {
-            this.powerUpManager.createPowerUp()
+            this.powerUpManager.create()
         }
 
         // Спавн врага
         if (Math.random() < 0.5) {
-            this.enemyManager.createEnemy()
+            this.enemyManager.create()
         }
 
         // Спавн врага-собаки
@@ -111,7 +112,7 @@ export class SpawnManager {
         // Спавн босса или бочки
         if (!this.buildingManager.getIsBuilding() && !this.bossManager.getCurrentBoss() && (this.buildingManager.getAfterBuilding() < this.worldCoords.zeroRight - this.worldCoords.worldWidth / 2)) {
             if (Math.random() < Math.min(this.gameState.points / 40000, 0.1) && this.gameState.points > 2000) {
-                this.bossManager.createBoss(random(1, 3))
+                this.bossManager.create(random(1, 3))
                 return
             }
             if (Math.random() < 0.5) {
@@ -127,12 +128,13 @@ export class SpawnManager {
         }
     }
 
-    update() {
+    update(gameSpeed) {
         this.carManager.update()
         this.trapManager.update()
         this.puddleManager.update()
         this.canManager.update()
         this.powerUpManager.update()
+        this.bossManager.update(gameSpeed)
     }
     
     /**

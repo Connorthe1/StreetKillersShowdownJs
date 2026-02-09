@@ -3,10 +3,10 @@ import * as PIXI from 'pixi.js'
 import {soundPlayer} from "../../../playSound";
 
 export class BarrelTrap extends Trap {
-    constructor(world, resources, eventBus, fg, sleep) {
+    constructor(world, resources, eventBus, fg, timer) {
         super(world, resources, eventBus)
         this.fg = fg
-        this.sleep = sleep
+        this.timer = timer
         this.collisionOffset = {left: 20, right: 50}
     }
 
@@ -18,7 +18,7 @@ export class BarrelTrap extends Trap {
         soundPlayer.damageMetal()
         soundPlayer.beep()
 
-        await this.sleep(100)
+        await this.timer.sleep(100, 'barrel:delay')
 
         this.sprite.children[0].textures = this.resources.bochka.animations.bochkaTopDead
         this.sprite.children[1].textures = this.resources.bochka.animations.bochkaDownDead

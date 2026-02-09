@@ -3,9 +3,9 @@ import * as PIXI from "pixi.js";
 import {soundPlayer} from "../../playSound";
 
 export class Puddle {
-    constructor(world, sleep, resources, eventBus) {
+    constructor(world, timer, resources, eventBus) {
         this.world = world
-        this.sleep = sleep
+        this.timer = timer
         this.resources = resources
         this.eventBus = eventBus
 
@@ -48,7 +48,7 @@ export class Puddle {
             }
 
             // Вторая волна частиц с задержкой
-            this.sleep(250).then(() => {
+            this.timer.sleep(250).then(() => {
                 soundPlayer.waterStep()
                 for (let i = 0; i <= 14; i++) {
                     this.eventBus.emit('particle:default', { coords: { x: this.sprite.x + 10, y: this.sprite.y - 10 }, type: 'drop' })

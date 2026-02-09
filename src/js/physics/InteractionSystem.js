@@ -7,6 +7,7 @@ export class InteractionSystem {
         if (spawn.powerUpManager.sprite) this.check(player, spawn.powerUpManager, 'player:powerUp');
         this.check(spawn.trapManager.traps, spawn.enemyManager.enemies, 'trap:enemy');
         this.check(player, spawn.enemyManager.enemies, 'player:enemy');
+        if (spawn.bossManager.sprite) this.check(player, spawn.bossManager, 'player:boss');
     }
 
     check(a, b, event) {
@@ -17,8 +18,9 @@ export class InteractionSystem {
 
         for (const a of aList) {
             for (const b of bList) {
-                if (collide(a, b)) {
-                    this.handle(event, a, b);
+                const collideResult = collide(a, b)
+                if (collideResult) {
+                    this.handle(event, a, b, collideResult);
                 }
             }
         }
@@ -39,6 +41,8 @@ export class InteractionSystem {
             case 'trap:enemy':
                 return this.collideWatch
             case 'player:enemy':
+                return this.collideWatch
+            case 'player:boss':
                 return this.collideWatch
         }
     }
@@ -74,14 +78,16 @@ export class InteractionSystem {
         const aBounds = a.sprite ? a.sprite.getBounds() : a.getBounds()
         const bBounds = b.sprite ? b.sprite.getBounds() : b.getBounds()
 
-        const distance = (bBounds.x + bBounds.width) - aBounds.x
+        const distance = bBounds.x - aBounds.x
+        const result = distance >= 0 && distance < b.getDetectRange()
 
-        if (distance && distance < b.getDetectRange()) {
-            return true
+        return {
+            distance,
+            result
         }
     }
 
-    handle(type, a, b) {
+    handle(type, a, b, collideResult = null) {
         switch (type) {
             case 'player:wall':
                 a.handleCover(b)
@@ -100,10 +106,19 @@ export class InteractionSystem {
                 b.activate()
                 break
             case 'trap:enemy':
-                b.setBarrier()
+                b.setBarrier(collideResult.result)
                 break;
             case 'player:enemy':
-                b.activate(a)
+                if (collideResult.result) {
+                    b.activate(collideResult)
+                    a.handleMelee(b, collideResult.distance)
+                }
+                break;
+            case 'player:boss':
+                if (collideResult.result) {
+                    b.activate(collideResult)
+                    a.handleMelee(b, collideResult.distance)
+                }
                 break;
         }
     }

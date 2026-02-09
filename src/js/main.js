@@ -26,22 +26,13 @@ import { MenuManager } from './ui/Menu.js'
 import { EndScreenManager } from './ui/EndScreen.js'
 import { EventBus } from './utils/EventBus.js'
 import {InteractionSystem} from "./physics/InteractionSystem";
+import {GameTimer} from "./core/GameTimer";
 
 // Экземпляр игрока
 let playerInstance = null
 
 // Алиасы для обратной совместимости (будут установлены после инициализации playerInstance)
 let playerState, playerDefaultSpeed, playerSpeed, initSpeed, player, gun
-
-// Функция для синхронизации playerSpeed с playerInstance
-function setPlayerSpeed(speed) {
-    if (playerInstance) {
-        playerInstance.speed = speed
-        playerSpeed = playerInstance.playerSpeed
-    } else {
-        playerSpeed = speed
-    }
-}
 
 window.Telegram.WebApp.ready()
 window.Telegram.WebApp.expand()
@@ -61,10 +52,7 @@ if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phon
 // Инициализация конфигурации игры
 const gameConfig = initGameConfig(gameWidth, gameHeight)
 const { WORLD_WIDTH, WORLD_HEIGHT, textStyles } = gameConfig
-let defaultGameSpeed = DEFAULT_GAME_SPEED
-let slowGameSpeed = SLOW_GAME_SPEED
-let gameSpeed = DEFAULT_GAME_SPEED
-const gameSpeedTODO = {
+const gameSpeed = {
     current: DEFAULT_GAME_SPEED,
     default: DEFAULT_GAME_SPEED,
     slow: SLOW_GAME_SPEED
@@ -116,6 +104,7 @@ let endScreenManager // Менеджер экрана окончания
 let currentBoss = null
 let activeGrenade = null
 let interactionSystem
+let timer
 
 // Инициализация менеджера физики
 const physicsManager = new PhysicsManager()
@@ -196,11 +185,13 @@ window.onload = async function () {
         groundContainer.name = 'ground'
         world.addChild(groundContainer)
 
+        timer = new GameTimer();
+
         gameState = new GameState(eventBus)
         // Инициализация менеджера частиц
         particleManager = new ParticleManager(world, physicsManager, groundContainer, resources, gameState, eventBus)
 
-        bulletManager = new BulletManager(world, gameState, resources, sleep, eventBus)
+        bulletManager = new BulletManager(world, gameState, resources, timer, eventBus)
 
         backgroundManager = new BackgroundManager(world, worldCoords, gameHeight, resources, gameState)
 
@@ -210,9 +201,9 @@ window.onload = async function () {
         worldCoords.secondFloor = groundContainer.getLocalBounds().y - 120
 
         // Initialize player instance
-        playerInstance = new Player(world, gameState, resources, storage, worldCoords, sleep, eventBus)
+        playerInstance = new Player(world, gameState, resources, storage, worldCoords, timer, eventBus)
           // Инициализация менеджера спавна
-        spawnManager = new SpawnManager(gameState, physicsManager, groundContainer, foregroundContainer, world, worldCoords, resources, sleep, storage, eventBus)
+        spawnManager = new SpawnManager(gameState, physicsManager, groundContainer, foregroundContainer, world, worldCoords, resources, timer, storage, eventBus)
         
         zipLineManager = new ZipLineManager(world, worldCoords, resources, eventBus)
         
@@ -220,9 +211,9 @@ window.onload = async function () {
         hudManager = new HUDManager(app, storage, hudContainer, gameState, gameWidth, gameHeight, textStyles, resources, eventBus)
         
         // Инициализация менеджера камеры
-        cameraManager = new CameraManager(world, gameState, worldCoords, sleep, eventBus)
+        cameraManager = new CameraManager(world, gameState, worldCoords, eventBus)
 
-        meleeKillManager = new MeleeKillManager(hudContainer, gameState, gameWidth, gameHeight, eventBus)
+        meleeKillManager = new MeleeKillManager(hudContainer, gameState, gameWidth, gameHeight, timer, eventBus)
 
         explosionManager = new ExplosionManager(world, resources, eventBus)
 
@@ -243,6 +234,12 @@ window.onload = async function () {
         })
         eventBus.on('endScreen:restart', () => {
             restartGame()
+        })
+        eventBus.on('gameSpeed:default', () => {
+            gameSpeed.current = gameSpeed.default
+        })
+        eventBus.on('gameSpeed:slow', () => {
+            gameSpeed.current = gameSpeed.slow
         })
 
         // Инициализация менеджера меню
@@ -305,11 +302,11 @@ window.onload = async function () {
         app.ticker.maxFPS = 60
         app.ticker.minFPS = 60
         app.ticker.add(ticker)
-        if (Math.floor(app.ticker.FPS) <= 35) {
-            defaultGameSpeed = 2
-            slowGameSpeed = 0.2
-        }
-        gameSpeed = defaultGameSpeed
+        // if (Math.floor(app.ticker.FPS) <= 35) {
+        //     defaultGameSpeed = 2
+        //     slowGameSpeed = 0.2
+        // }
+        gameSpeed.current = gameSpeed.default
         gameState.startScoreTimer()
     }
 
@@ -321,7 +318,7 @@ window.onload = async function () {
         app.ticker.remove(ticker)
         worldCoords.zeroLeft = 0
         worldCoords.zeroRight = WORLD_WIDTH
-        gameSpeed = defaultGameSpeed
+        gameSpeed.current = gameSpeed.default
 
         gameState.reset()
         player = null
@@ -352,41 +349,42 @@ window.onload = async function () {
 
     function ticker(delta) {
         if (gameState.gameEnd || gameState.isPause) return
+        timer.update(app.ticker.elapsedMS);
+
         if (player && player.x > 10) {
             gameState.gameStart = true
         }
-        if (playerState.rollId !== null && playerState.state !== 'rollEnd') {
-            console.log('stopRoll')
-            playerState.rollId.stop()
-            playerState.rollId = null
-        }
+
         if (hudManager) {
             hudManager.update()
         }
         physicsManager.update();
         // Обновление ближнего боя через MeleeKillManager
         if (meleeKillManager) {
-            meleeKillManager.updateMeleeKill()
+            meleeKillManager.update()
         }
         if (gameState) {
             gameState.updateScore(playerInstance.stimpack)
         }
         // Use the Player module's updatePlayer method
         if (playerInstance) {
-            playerInstance.updatePlayer(gameSpeed, delta)
+            playerInstance.update(gameSpeed.current, delta)
         }
         // Обновление фона и пола через менеджеры
         if (backgroundManager) {
-            backgroundManager.updateBg(worldCoords.zeroLeft, playerInstance.speed)
+            backgroundManager.updateBg(worldCoords.zeroLeft, playerInstance.speed, gameSpeed.current)
         }
         if (groundManager) {
             groundManager.updateFloor(worldCoords.zeroLeft)
         }
         if (bulletManager) {
-            bulletManager.updateBullets(worldCoords, gameSpeed)
+            bulletManager.updateBullets(worldCoords, gameSpeed.current)
         }
         if (spawnManager) {
-            spawnManager.update()
+            spawnManager.update(gameSpeed.current)
+        }
+        if (cameraManager) {
+            cameraManager.update(app.ticker.elapsedMS)
         }
 
         particleManager.updateAllParticles(worldCoords.zeroLeft, playerInstance)
