@@ -52,8 +52,9 @@ export class SpawnManager {
      * Главная функция спавна сущностей
      */
     spawnEntity() {
-        this.bossManager.create()
-        // this.enemyManager.create()
+        // this.bossManager.create()
+        this.enemyManager.create()
+        this.trapManager.createBarrel()
 
         return
         // Спавн лужи
@@ -135,6 +136,7 @@ export class SpawnManager {
         this.canManager.update()
         this.powerUpManager.update()
         this.bossManager.update(gameSpeed)
+        this.enemyManager.update()
     }
     
     /**

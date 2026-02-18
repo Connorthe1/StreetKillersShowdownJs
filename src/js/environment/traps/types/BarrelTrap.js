@@ -10,8 +10,8 @@ export class BarrelTrap extends Trap {
         this.collisionOffset = {left: 20, right: 50}
     }
 
-    async activate(player) {
-        if (!this.isAlive || player.isRollState()) return
+    async activate() {
+        if (!this.isAlive) return
 
         this.isAlive = false
 
@@ -28,8 +28,20 @@ export class BarrelTrap extends Trap {
         for (let i = 0; i < 20; i++) {
             this.eventBus.emit('particle:default', {coords: this.sprite.children[0], type: 'spark'})
         }
-        // this.createExplodeCallback(barrel.children[0], -20, 10, false)
-        // this.createExplodeCallback(barrel.children[1], 20, 30, false, true)
+
+        this.eventBus.emit('explode:create', {
+            target: this.sprite.children[0],
+            offsetX: -20,
+            offsetY: 10,
+            isBig: false
+        })
+        this.eventBus.emit('explode:create', {
+            target: this.sprite.children[1],
+            offsetX: 20,
+            offsetY: 30,
+            isBig: false,
+            silence: true
+        })
     }
 
     /**

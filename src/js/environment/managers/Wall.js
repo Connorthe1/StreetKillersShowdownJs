@@ -30,7 +30,7 @@ export class WallManager {
         })
     }
 
-    createWall(pos = null, forBoss = false, afterBuilding = 0) {
+    createWall(pos = null, forBoss = null, afterBuilding = 0) {
         const randomPos = pos || this.worldCoords.zeroRight + random(100, 250)
 
         if (!pos && !forBoss) {
@@ -74,7 +74,7 @@ export class WallManager {
         }
         
         if (forBoss) {
-            wall.forBoss = true
+            wall.forBoss = forBoss
         }
         
         wall.anchor.set(0.5)

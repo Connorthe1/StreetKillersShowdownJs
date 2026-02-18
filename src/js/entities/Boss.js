@@ -14,6 +14,7 @@
 import * as PIXI from 'pixi.js'
 import {getPercent, random} from '../utils/GameUtils.js'
 import enemyParams from "../enemyParams";
+import {soundPlayer} from "../playSound";
 
 /**
  * Менеджер боссов
@@ -36,7 +37,7 @@ export class BossManager {
         this.isWalking = false
 
         eventBus.on('boss:activate', () => {
-           this.shot()
+           this.activate()
         })
     }
 
@@ -57,7 +58,7 @@ export class BossManager {
         // Определение типа босса
         let type
         const randType = bossType || random(1, 4)
-        switch (1) {
+        switch (3) {
             case 1:
                 type = 'bossGun'
                 break
@@ -76,9 +77,9 @@ export class BossManager {
         
         // Создание укрытия/стены для босса
         if (bossType === 4) {
-            this.eventBus.emit('wall:create', {pos: randomPos - (this.worldCoords.worldWidth / 1.8), type:0, forBoss: true})
+            this.eventBus.emit('wall:create', {pos: randomPos - (this.worldCoords.worldWidth / 1.8), type: 0, forBoss: this})
         } else {
-            this.eventBus.emit('wall:create', {pos: randomPos - (this.worldCoords.worldWidth / 1.8), forBoss: true})
+            this.eventBus.emit('wall:create', {pos: randomPos - (this.worldCoords.worldWidth / 1.8), forBoss: this})
         }
 
         // Получение текстур босса
@@ -111,10 +112,8 @@ export class BossManager {
     }
 
     activate() {
-        // if (!this.params.detect) {
-        //     this.params.detect = true
-        //     this.shot()
-        // }
+        if (!this.isAlive) return
+        this.shot()
     }
 
     update(gameSpeed) {
@@ -219,7 +218,7 @@ export class BossManager {
             this.sprite.play()
         }
 
-        this.shot()
+        this.activate()
     }
     
     /**
@@ -303,72 +302,75 @@ export class BossManager {
         
         await this.timer.sleep(200)
     }
+
+    damage(bullet) {
+        if (!this.isAlive) return
+
+        this.params.health -= bullet.damage
+
+        this.gameState.increaseStreak(0.5)
+        this.gameState.addPoints(5)
+
+        soundPlayer.damageMetal()
+
+        const particleType = 'spark' || 'blood'
+
+        for (let i = 0; i < random(8, 20); i++) {
+            this.eventBus.emit('particle:default', {coords: this.sprite, type: particleType, floor: this.sprite.y === this.worldCoords.secondFloor})
+        }
+
+        // Смерть
+        if (this.params.health <= 0) {
+            this.death()
+        }
+
+    }
+
+    death() {
+        if (this.params.warning) {
+            this.world.removeChild(this.params.warning)
+        }
+
+        // Взрывы при смерти
+        if (this.params.deathType) {
+            switch (this.params.deathType) {
+                case 'smallExplode':
+                    this.eventBus.emit('explode:create', {target: this.sprite, offsetX: 0, offsetY: 0, isBig: false})
+                    break
+                case 'bigExplode':
+                    this.eventBus.emit('explode:create', {target: this.sprite, offsetX: -28, offsetY: -24, isBig: true})
+                    break
+            }
+        }
+
+        this.eventBus.emit('camera:shake', {intensity: 1, duration: 400})
+
+        this.isAlive = false
+
+        this.gameState.increaseStreak(this.params.points / 10)
+        this.gameState.addPoints(this.params.points + 10)
+
+        this.sprite.loop = false
+
+        // Критический урон
+        this.sprite.textures = this.animset.deathCrit || this.animset.death
+
+        for (let i = 0; i < random(8, 20); i++) {
+            this.eventBus.emit('particle:default', {coords: this.sprite, type: 'blood', floor: this.sprite.y === this.worldCoords.secondFloor})
+        }
+
+        this.sprite.play()
+        this.bossReward()
+
+    }
     
     /**
      * Награда за победу над боссом
      */
     bossReward() {
-        if (!this.hud || !this.activeItems || !this.menuIcons || !this.textStyles) {
-            console.warn('Required resources not available for boss reward')
-            return
-        }
-        
-        const rewardContainer = new PIXI.Container()
         const rand = random(1, 3)
-        let icon
-        let text
-        
-        switch (rand) {
-            case 1:
-                icon = new PIXI.Sprite(this.activeItems.textures.stimpack)
-                text = new PIXI.Text('+1', this.textStyles.default80)
-                icon.scale.set(2)
-                if (this.storage) {
-                    this.storage.activeItems.stimpack += 1
-                }
-                if (this.HUDupdateSkillsCallback) {
-                    this.HUDupdateSkillsCallback()
-                }
-                break
-            case 2:
-                icon = new PIXI.Sprite(this.activeItems.textures.handGrenadeIcon)
-                text = new PIXI.Text('+1', this.textStyles.default80)
-                icon.scale.set(1.5)
-                if (this.storage) {
-                    this.storage.activeItems.grenades += 1
-                }
-                if (this.HUDupdateSkillsCallback) {
-                    this.HUDupdateSkillsCallback()
-                }
-                break
-            case 3:
-                icon = new PIXI.Sprite(this.menuIcons.textures.money)
-                text = new PIXI.Text('+500', this.textStyles.default80)
-                icon.scale.set(1.5)
-                this.gameState.collectedMoney += 500
-                break
-        }
-        
-        icon.anchor.set(0.5)
-        text.anchor.set(0.5)
-        icon.position.set(0, 0)
-        text.position.set(0, icon.y + icon.height / 2 + 30)
-        rewardContainer.addChild(icon)
-        rewardContainer.addChild(text)
-        rewardContainer.position.set(this.gameWidth / 2, this.gameHeight / 2)
-        
-        this.hud.addChild(rewardContainer)
-        
-        const move = setInterval(() => {
-            rewardContainer.position.y -= 1
-            rewardContainer.alpha -= 0.01
-            if (rewardContainer.alpha <= 0) {
-                clearInterval(move)
-                if (this.hud) {
-                    this.hud.removeChild(rewardContainer)
-                }
-            }
-        }, 10)
+
+        this.eventBus.emit('hud:bossReward', rand)
     }
 
     shotAnim(times) {
@@ -400,10 +402,12 @@ export class BossManager {
     }
 
     destroy() {
-        if (this.sprite) {
-            this.world.removeChild(this.sprite)
-        }
-        this.params = null
+        this.world.removeChild(this.sprite)
         this.sprite = null
+        this.isAlive = true
+        this.params = null
+        this.animset = null
+        this.skip = false
+        this.isWalking = false
     }
 }

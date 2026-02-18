@@ -60,7 +60,7 @@ export class Player {
         this.gun = {
             ammo: 5,
             currentAmmo: 5,
-            damage: 10,
+            damage: 1,
             fireRate: 100,
             type: 'pistol',
             angle: 0.4,
@@ -68,7 +68,8 @@ export class Player {
             offsetY: 12,
             shotTrigger: 0,
             reloadAnim: 0.2,
-            reloadTime: 1000,
+            reloadTime: 1100,
+            shotDelay: 150,
             noStop: false,
             melee: false
         }
@@ -182,14 +183,13 @@ export class Player {
     /**
      * Наносит урон игроку
      */
-    damagePlayer() {
+    damage() {
         if (!this.sprite) return
+        // Установка неуязвимости
+        this.invincible = true
         
         // Тряска камеры
         this.eventBus.emit('camera:shake', {intensity: 4, duration: 600})
-        
-        // Установка неуязвимости
-        this.invincible = true
         
         // Проверка наличия щита (boostShield)
         if (this.activePowerUps.some(item => item.type === 'boostShield')) {
@@ -600,10 +600,9 @@ export class Player {
         }
     }
 
-    //TODO || (wall.forBoss && !currentBoss.params.dead)
     handleCover(wall) {
-        if (!this.inCover && this.isRollState() && !this.leaveCover || (wall.forBoss && !this.inBossFight)) {
-            this.inBossFight = wall.forBoss
+        if ((!this.inCover && this.isRollState() && !this.leaveCover) || (wall.forBoss && wall.forBoss.isAlive && !this.inBossFight)) {
+            this.inBossFight = wall.forBoss?.isAlive ?? false
             this.inCover = true
             this.setPlayerSpeed(0)
             this.sprite.x = wall.coverX
@@ -621,6 +620,10 @@ export class Player {
 
     isRollState() {
         return this.state === 'roll' || this.state === 'rollEnd'
+    }
+
+    isCoverPeek() {
+        return this.inCover && this.state === 'shot'
     }
 
     updateDefaultSpeedByScore(score) {
@@ -673,10 +676,5 @@ export class Player {
             }
         }
     }
-
-    get playerSpeed() {
-        return this.speed
-    }
-    
 }
 

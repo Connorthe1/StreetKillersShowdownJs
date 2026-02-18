@@ -2,13 +2,16 @@ import * as PIXI from 'pixi.js'
 import {soundPlayer} from "../playSound";
 
 /**
- * Менеджер взрывов
+ * Менеджер взрывов.
+ * Хранит активные взрывы с зоной урона (квадрат) для коллизий в InteractionSystem.
  */
 export class ExplosionManager {
     constructor(world, resources, eventBus) {
         this.world = world
         this.resources = resources
         this.eventBus = eventBus
+
+        this.activeExplosion = null
 
         eventBus.on('explode:create', data => {
             this.createExplode(data.target, data.offsetX, data.offsetY, data.isBig, data.silence)
@@ -32,7 +35,7 @@ export class ExplosionManager {
         explode.anchor.set(0.5)
         explode.height = explode.height * 3
         explode.width = explode.width * 3
-        explode.animationSpeed = isBig ? 0.25 : 0.4
+        explode.animationSpeed = isBig ? 0.15 : 0.25
         
         // Определение позиции
         let x, y
@@ -49,18 +52,29 @@ export class ExplosionManager {
         
         explode.position.set(x, y)
         
+        // Зона урона — квадрат с настраиваемым размером (половина стороны)
+        const size = isBig ? 120 : 60
+
+        this.activeExplosion = {
+            x,
+            y,
+            width: size,
+            height: size,
+            right: x + size / 2,
+            left: x - size / 2,
+            top: y - size / 2,
+            bottom: y + size / 2
+        }
+        
         // Добавление в мир
         this.world.addChild(explode)
         explode.play()
         
         // Удаление после завершения анимации
         explode.onComplete = () => {
-            if (this.world) {
-                this.world.removeChild(explode)
-            }
+            this.world.removeChild(explode)
+            this.activeExplosion = null
         }
-        
-        return explode
     }
 }
 

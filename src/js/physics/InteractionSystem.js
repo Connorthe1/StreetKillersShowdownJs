@@ -1,5 +1,5 @@
 export class InteractionSystem {
-    update({ player, spawn }) {
+    update({ player, spawn, bullets, explosion }) {
         this.check(player, spawn.wallManager.walls, 'player:wall');
         this.check(player, spawn.trapManager.traps, 'player:trap');
         this.check(player, spawn.puddleManager.puddles, 'player:puddle');
@@ -7,7 +7,18 @@ export class InteractionSystem {
         if (spawn.powerUpManager.sprite) this.check(player, spawn.powerUpManager, 'player:powerUp');
         this.check(spawn.trapManager.traps, spawn.enemyManager.enemies, 'trap:enemy');
         this.check(player, spawn.enemyManager.enemies, 'player:enemy');
-        if (spawn.bossManager.sprite) this.check(player, spawn.bossManager, 'player:boss');
+        this.check(bullets.playerBullets, spawn.enemyManager.enemies, 'bullet:enemy');
+        if (spawn.bossManager.sprite) this.check(bullets.playerBullets, spawn.bossManager, 'bullet:boss');
+        this.check(bullets.enemyBullets, player, 'bullet:player');
+        this.check(bullets.playerBullets, spawn.trapManager.traps, 'bullet:trap');
+
+        // Коллизии взрывов (квадратная зона) со всеми целями
+        if (explosion.activeExplosion) {
+            this.check(explosion.activeExplosion, player, 'explosion:player');
+            this.check(explosion.activeExplosion, spawn.enemyManager.enemies, 'explosion:enemy');
+            if (spawn.bossManager.sprite) this.check(explosion.activeExplosion, spawn.bossManager, 'explosion:boss');
+            this.check(explosion.activeExplosion, spawn.trapManager.traps, 'explosion:trap');
+        }
     }
 
     check(a, b, event) {
@@ -30,20 +41,50 @@ export class InteractionSystem {
         switch (type) {
             case 'player:wall':
                 return this.collideWall
-            case 'player:trap':
-                return this.collideXFromStart
             case 'player:puddle':
                 return this.collideXWidth
             case 'player:can':
-                return this.collideXFromStart
             case 'player:powerUp':
+            case 'player:trap':
                 return this.collideXFromStart
             case 'trap:enemy':
-                return this.collideWatch
             case 'player:enemy':
                 return this.collideWatch
-            case 'player:boss':
-                return this.collideWatch
+            case 'bullet:enemy':
+            case 'bullet:player':
+            case 'bullet:boss':
+            case 'bullet:trap':
+                return this.collideBullets
+            case 'explosion:player':
+            case 'explosion:enemy':
+            case 'explosion:boss':
+            case 'explosion:trap':
+                return this.collideExplosionArea
+        }
+    }
+
+    collideExplosionArea(explosion, target) {
+        const targetBounds = target.sprite ? target.sprite.getBounds() : target.getBounds()
+
+        if (targetBounds.left < explosion.right &&
+            targetBounds.right > explosion.left &&
+            targetBounds.bottom < explosion.top &&
+            targetBounds.top > explosion.bottom) {
+            return true
+        }
+
+        return true
+    }
+
+    collideBullets(bullet, target) {
+        const bulletBounds = bullet.sprite ? bullet.sprite.getBounds() : bullet.getBounds()
+        const targetBounds = target.sprite ? target.sprite.getBounds() : target.getBounds()
+
+        if (bulletBounds.x > targetBounds.left + 20 &&
+            bulletBounds.x < targetBounds.right &&
+            bulletBounds.y + 10 > targetBounds.top &&
+            bulletBounds.y - 10 < targetBounds.bottom) {
+            return true
         }
     }
 
@@ -93,7 +134,8 @@ export class InteractionSystem {
                 a.handleCover(b)
                 break;
             case 'player:trap':
-                b.activate(a)
+                if (!b.isAlive || a.isRollState()) return
+                b.activate()
                 break;
             case 'player:puddle':
                 b.activate(a)
@@ -111,14 +153,45 @@ export class InteractionSystem {
             case 'player:enemy':
                 if (collideResult.result) {
                     b.activate(collideResult)
-                    a.handleMelee(b, collideResult.distance)
+                    if (b.isAlive) a.handleMelee(b, collideResult.distance)
                 }
                 break;
-            case 'player:boss':
-                if (collideResult.result) {
-                    b.activate(collideResult)
-                    a.handleMelee(b, collideResult.distance)
+            case 'bullet:enemy':
+                if (b.isAlive) {
+                    a.destroy()
+                    b.damage(a)
                 }
+                break;
+            case 'bullet:boss':
+                if (b.isAlive) {
+                    a.destroy()
+                    b.damage(a)
+                }
+                break;
+            case 'bullet:player':
+                if (a.skip) return
+                if (b.isRollState() || !b.isCoverPeek() || b.invincible) return a.setSkip()
+                a.destroy()
+                b.damage()
+                break;
+            case 'bullet:trap':
+                if (b.isAlive) {
+                    a.destroy()
+                    b.activate(a)
+                }
+                break;
+            case 'explosion:player':
+                if (b.isRollState() || b.invincible) return
+                b.damage(a)
+                break;
+            case 'explosion:enemy':
+                if (b.isAlive) b.damage(a)
+                break;
+            case 'explosion:boss':
+                if (b.isAlive) b.damage(a)
+                break;
+            case 'explosion:trap':
+                if (b.damage) b.damage(a); else b.destroy?.()
                 break;
         }
     }

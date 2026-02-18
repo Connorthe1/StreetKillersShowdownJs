@@ -95,51 +95,12 @@ export class EnemyManager {
         this.enemies.push(enemy)
     }
 
-    /**
-     * Обновляет всех врагов
-     * @param {number} gameSpeed - скорость игры
-     * @param {boolean} meleeKill - активен ли ближний бой
-     */
-    updateEnemies() {
-        this.enemies.forEach((enemy, idx) => {
-            if (!enemy.params.dead) {
-                // Обнаружение игрока
-
-                // Проверка коллизии с пулями игрока
-                if (this.playerBullets) {
-                    this.playerBullets.forEach((bullet, bulletIdx) => {
-                        if (enemy.x - enemy.width / 2 < bullet.x + bullet.width &&
-                            enemy.x + enemy.width / 2 > bullet.x &&
-                            enemy.y - enemy.height / 2 < bullet.y &&
-                            enemy.y + enemy.height / 2 > bullet.y) {
-
-                            if (enemy.params.inCover) return
-
-                            if (this.world) {
-                                this.world.removeChild(bullet)
-                            }
-                            this.playerBullets.splice(bulletIdx, 1)
-
-                            const damage = this.gun ?
-                                (enemy.x - this.player.x < getPercent(this.WORLD_WIDTH, 30) ?
-                                    this.gun.damage * 2 : this.gun.damage) : 10
-
-                            this.damageEnemy(enemy, damage)
-                        }
-                    })
-                }
-            }
-        })
-
-        // this.gameState.points -= 250 * this.gameState.multiplier
-        // if (this.gameState.points < 0) {
-        //     this.gameState.points = 0
-        // }
-        // this.gameState.decreaseStreakBy(20)
-
-        this.enemies.forEach(enemy => enemy.update())
-
-        this.enemies = this.enemies.filter(enemy => enemy.toDestroy === false)
+    update() {
+        this.enemies = this.enemies.reduce((acc, enemy) => {
+            enemy.update()
+            if (!enemy.toDestroy) acc.push(enemy)
+            return acc
+        }, [])
     }
     
     /**

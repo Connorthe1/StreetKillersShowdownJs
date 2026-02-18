@@ -1,16 +1,14 @@
 import { soundPlayer } from './playSound.js'
 import * as PIXI from 'pixi.js'
 import { Layer, Group, Stage } from '@pixi/layers';
-import * as Matter from 'matter-js'
 import { Player } from './core/Player.js'
-import { getPercent, random } from './utils/GameUtils.js'
 import { GAME_SCALE, DEFAULT_GAME_SPEED, SLOW_GAME_SPEED, BG_SPEED, initGameConfig } from './core/GameConfig.js'
 import { GameState } from './core/GameState.js'
 import { StorageManager } from './storage/StorageManager.js'
 import { ResourceLoader } from './resources/ResourceLoader.js'
 import { PhysicsManager } from './physics/PhysicsManager.js'
 import { ParticleManager } from './entities/Particle.js'
-import { BulletManager } from './entities/Bullet.js'
+import { BulletManager } from './entities/BulletManager.js'
 import { BackgroundManager } from './environment/Background.js'
 import { GroundManager } from './environment/managers/GroundManager.js'
 import { ZipLineManager } from './environment/managers/ZipLineManager.js'
@@ -30,9 +28,6 @@ import {GameTimer} from "./core/GameTimer";
 
 // Экземпляр игрока
 let playerInstance = null
-
-// Алиасы для обратной совместимости (будут установлены после инициализации playerInstance)
-let playerState, playerDefaultSpeed, playerSpeed, initSpeed, player, gun
 
 window.Telegram.WebApp.ready()
 window.Telegram.WebApp.expand()
@@ -153,12 +148,6 @@ window.onload = async function () {
 
     // Загрузка всех ресурсов
     const resources = await resourceLoader.loadAllAssets()
-    
-    // Извлечение ресурсов для обратной совместимости
-    const {
-        particles,
-        activeItems, menuIcons,
-    } = resources
 
     // Удаление загрузочного экрана
     resourceLoader.removeLoaderScreen(app)
@@ -252,19 +241,15 @@ window.onload = async function () {
         eventBus.emit('menu:create')
 
         interactionSystem = new InteractionSystem()
-        
-        // Установка алиасов для обратной совместимости
-        playerState = playerInstance.playerState
-        gun = playerInstance.gun
     }
 
     function startGame() {
-        player = playerInstance.createPlayer(-100, worldCoords.firstFloor, foregroundContainer)
+        playerInstance.createPlayer(-100, worldCoords.firstFloor, foregroundContainer)
         playerInstance.updateGunFromSkin()
 
         if (hudManager) {
             hudManager.createBulletsDisplay(playerInstance.gun)
-            hudManager.createMainHUD(playerState)
+            hudManager.createMainHUD(playerInstance.playerState)
             hudManager.createPauseMenu({
                 storage: storage,
                 hasMeleeKill: () => meleeKillManager.hasMeleeKill(),
@@ -296,7 +281,7 @@ window.onload = async function () {
         music = soundPlayer.startMusic()
         
         // Инициализация обработчика ввода (для свайпов)
-        const inputHandler = new InputHandler(app.renderer.view, gameState, playerState, storage, eventBus)
+        const inputHandler = new InputHandler(app.renderer.view, gameState, playerInstance.playerState, storage, eventBus)
 
         // Старый обработчик оставлен для обратной совместимости
         app.ticker.maxFPS = 60
@@ -321,7 +306,6 @@ window.onload = async function () {
         gameSpeed.current = gameSpeed.default
 
         gameState.reset()
-        player = null
         bulletManager.clear()
 
         distance = 0
@@ -351,7 +335,7 @@ window.onload = async function () {
         if (gameState.gameEnd || gameState.isPause) return
         timer.update(app.ticker.elapsedMS);
 
-        if (player && player.x > 10) {
+        if (playerInstance.sprite && playerInstance.sprite.x > 10) {
             gameState.gameStart = true
         }
 
@@ -389,431 +373,12 @@ window.onload = async function () {
 
         particleManager.updateAllParticles(worldCoords.zeroLeft, playerInstance)
 
-        // updateWall()
-        // updateEnemies()
-        // updateBoss()
-
         interactionSystem.update({
             player: playerInstance,
             spawn: spawnManager,
+            bullets: bulletManager,
+            explosion: explosionManager,
         })
-    }
-
-    async function enemyShooting(char) {
-        const warning = new PIXI.Sprite(particles.textures.detection)
-        warning.zIndex = 20
-        warning.anchor.set(0.5)
-        warning.tint = 16776960
-        warning.scale.x = 1.5
-        warning.scale.y = 2
-        warning.position.set(char.x, char.y - 40)
-        char.params.warning = warning
-        if (char.params.longRange) {
-            const longDetector = PIXI.Sprite.from(PIXI.Texture.WHITE);
-            longDetector.zIndex = 20
-            longDetector.anchor.set(1)
-            longDetector.tint = 16711680
-            longDetector.scale.x = 14
-            longDetector.scale.y = 0.1
-            longDetector.position.set(char.x - char.width / 2 + 10, char.y - 6)
-            char.params.longDetector = longDetector
-            world.addChild(longDetector)
-        }
-        world.addChild(warning)
-        if (char.params.canCover) {
-            char.params.inCover = false
-            char.tint = player.color
-            char.anchor.y = 0.5
-        }
-        //prepare
-        await sleep(Math.max(random(char.params.warningMin, char.params.warningMax, true, true) - (gameState.points / 100), 100))
-        if (char.params.dead) return
-        warning.tint = 16711680
-        //shoot
-        await sleep(200)
-        if (char.params.dead) return
-        world.removeChild(warning)
-        if (char.params.longRange) {
-            world.removeChild(char.params.longDetector)
-        }
-        if (char.params.rapidFire) {
-            const fireTimes = random(1, char.params.rapidFire)
-            enemyShotAnim(char, fireTimes)
-            await shotRapid(char, char.params.offsetX || 0, char.params.offsetY || 0, fireTimes, char.params.gun, 100)
-        } else {
-            enemyShotAnim(char, 1)
-            shot(char, char.params.offsetX || 0, char.params.offsetY || 0, char.params.gun)
-            await sleep(200)
-        }
-        //reload
-        if (char.params.canCover) {
-            char.params.inCover = true
-            char.tint = 11776947
-            char.anchor.y = 0.7
-        }
-        await sleep(Math.max(random(char.params.reloadMin, char.params.reloadMax, true, true) - (gameState.points / 100), 200))
-        if (char.params.dead) return
-        char.params.detect = false
-    }
-
-    function enemyShotAnim(char, times) {
-        char.textures = char.params.animset.shot
-        char.play()
-        sleep(times * 200).then(() => {
-            if (char.params.dead) return
-            char.textures = char.params.animset.idle
-            char.play()
-        })
-    }
-
-    function bossReward() {
-        const rewardContainer = new PIXI.Container()
-        const rand = random(1,3)
-        let icon
-        let text
-        switch (true) {
-            case rand === 1:
-                icon = new PIXI.Sprite(activeItems.textures.stimpack)
-                text = new PIXI.Text('+1', textStyles.default80)
-                icon.scale.set(2)
-                storage.activeItems.stimpack += 1
-                if (hudManager) {
-                    hudManager.updateSkills(storage)
-                }
-            break
-            case rand === 2:
-                icon = new PIXI.Sprite(activeItems.textures.handGrenadeIcon)
-                text = new PIXI.Text('+1', textStyles.default80)
-                icon.scale.set(1.5)
-                storage.activeItems.grenades += 1
-                if (hudManager) {
-                    hudManager.updateSkills(storage)
-                }
-            break
-            case rand === 3:
-                icon = new PIXI.Sprite(menuIcons.textures.money)
-                text = new PIXI.Text('+500', textStyles.default80)
-                icon.scale.set(1.5)
-                gameState.collectedMoney += 500
-            break
-        }
-        icon.anchor.set(0.5)
-        text.anchor.set(0.5)
-        icon.position.set(0,0)
-        text.position.set(0, icon.y + icon.height / 2 + 30)
-        rewardContainer.addChild(icon)
-        rewardContainer.addChild(text)
-        rewardContainer.position.set(gameWidth / 2, gameHeight / 2)
-
-        hudContainer.addChild(rewardContainer)
-
-        const move = setInterval(() => {
-            rewardContainer.position.y -= 1
-            rewardContainer.alpha -= 0.01
-            if (rewardContainer.alpha <= 0) {
-                clearInterval(move)
-                hudContainer.removeChild(rewardContainer)
-            }
-        }, 10)
-    }
-
-    async function bossShooting() {
-        const warning = new PIXI.Sprite(particles.textures.detection)
-        warning.zIndex = 20
-        warning.anchor.set(0.5)
-        warning.tint = 16776960
-        warning.scale.x = 1.5
-        warning.scale.y = 2
-        warning.position.set(currentBoss.x, currentBoss.y - 40)
-        currentBoss.params.warning = warning
-        world.addChild(warning)
-        let fireTimes = 1
-        if (currentBoss.params.rapidFire) {
-            fireTimes = Math.floor(Math.random() * (currentBoss.params.rapidFire - 1 + 1)) + 1
-        }
-        let walking
-        //prepare
-        await sleep(Math.max(random(currentBoss.params.warningMin, currentBoss.params.warningMax, true, true) - (gameState.points / 100), 100))
-        if (!currentBoss || currentBoss.params.dead) return
-        warning.tint = 16711680
-        //shoot
-        await sleep(200)
-        world.removeChild(warning)
-        if (!currentBoss || currentBoss.params.dead) return
-        switch (true) {
-            case currentBoss.type === 'bossVan':
-                currentBoss.textures = currentBoss.params.animset.fromIdle
-                currentBoss.play()
-                await sleep(200)
-                if (!currentBoss || currentBoss.params.dead) return
-                currentBoss.textures = currentBoss.params.animset.shot
-                currentBoss.play()
-                shotRapid(currentBoss, 36, 12, fireTimes, 'smg')
-                await sleep(50)
-                shotRapid(currentBoss, 34, 40, fireTimes, 'smg')
-                await sleep(100)
-                await shotRapid(currentBoss, 106, 20, fireTimes, 'smg')
-                if (!currentBoss || currentBoss.params.dead) return
-                currentBoss.textures = currentBoss.params.animset.toIdle
-                currentBoss.play()
-                await sleep(200)
-                if (!currentBoss || currentBoss.params.dead) return
-                currentBoss.textures = currentBoss.params.animset.idle
-                currentBoss.play()
-            break
-            case currentBoss.type === 'bossGun':
-                enemyShotAnim(currentBoss, fireTimes)
-                await shotRapid(currentBoss, 6, 14, fireTimes, 'rifle')
-                await sleep(100)
-                if (currentBoss.params.walk) {
-                    if (!currentBoss || currentBoss.params.dead) return
-                    currentBoss.textures = currentBoss.params.animset.walk
-                    currentBoss.play()
-                    walking = setInterval(() => {
-                        if (gameState.isPause) return
-                        if (!currentBoss || currentBoss.params.dead) return
-                        currentBoss.x -= 1
-                    }, 10)
-                }
-            break
-            case currentBoss.type === 'bossSmg':
-                enemyShotAnim(currentBoss, fireTimes)
-                await shotRapid(currentBoss, 0, -2, fireTimes, 'smg', 150)
-            break
-            case currentBoss.type === 'bossLauncher':
-                enemyShotAnim(currentBoss, fireTimes)
-                if (grenadeManager) {
-                    grenadeManager.shotGrenade(currentBoss, 0, 0)
-                }
-                await sleep(200)
-            break
-        }
-        //reload
-        await sleep(Math.max(random(currentBoss.params.reloadMin, currentBoss.params.reloadMax, true, true) - (gameState.points / 100), 100))
-        if (!currentBoss || currentBoss.params.dead) return
-        if (currentBoss.params.walk) {
-            clearInterval(walking)
-            currentBoss.textures = currentBoss.params.animset.idle
-            currentBoss.play()
-        }
-        bossShooting()
-    }
-
-    async function shotRapid(char, offsetX, offsetY, times, gun, cd) {
-        const shotTime = cd ? cd :200
-        const repeat = setInterval(() => {
-            if (isPause) return
-            if (char.params.dead) return
-            shot(char, offsetX, offsetY, gun)
-        }, shotTime)
-        return new Promise(function(resolve) {
-            sleep(times * shotTime).then(() => {
-                clearInterval(repeat)
-                resolve()
-            })
-        });
-    }
-
-    // Функции updateGrenades, shotGrenade, activateGrenade теперь в GrenadeManager
-    // Оставлены для обратной совместимости, но больше не используются
-
-    function updateBoss() {
-        if (currentBoss.x + currentBoss.width < worldCoords.zeroLeft) {
-            world.removeChild(currentBoss)
-            currentBoss = null
-            return
-        }
-        if (currentBoss.params.dead) {
-            playerState.inBossFight = false
-            return
-        }
-        if (!currentBoss.params.detect) {
-            if (currentBoss.x - player.x < (WORLD_WIDTH)) {
-                currentBoss.params.detect = true
-                bossShooting()
-            }
-        }
-        if (!currentBoss.skip && currentBoss.params.melee) {
-            if (player.x + 20 > currentBoss.x) {
-                currentBoss.skip = true
-                playerState.inBossFight = false
-                if (playerInstance) {
-                    playerInstance.damagePlayer()
-                }
-            }
-        }
-        bulletManager.playerBullets.forEach((bullet, idx) => {
-            const b = bullet.getBounds()
-            const boss = currentBoss.getBounds()
-            if (b.x + b.width > boss.x && boss.x + boss.width > b.x && b.y + b.height > boss.y && boss.y + boss.height > b.y) {
-                world.removeChild(bullet)
-                bulletManager.playerBullets.splice(idx, 1)
-                if (currentBoss.x - player.x < 200) {
-                    damageEnemy(currentBoss,gun.damage * 2, currentBoss.type !== 'bossSmg')
-                } else {
-                    damageEnemy(currentBoss, gun.damage, currentBoss.type !== 'bossSmg')
-                }
-            }
-        })
-    }
-
-    // Функции updateDogEnemy и createDogEnemy теперь в DogEnemyManager
-    // Оставлены для обратной совместимости, но больше не используются
-
-    function damageEnemy(enemy, damage, isBoss) {
-        enemy.params.health -= damage
-        addPoints(5)
-        gameState.scoreStreak += 0.5
-        //particles
-        if (isBoss || (enemy.params.shield && !enemy.params.knocked)) {
-            soundPlayer.damageMetal()
-        } else {
-            soundPlayer.damageFlesh()
-        }
-        for (let i = 0; i < random(8,20); i++) {
-            if (particleManager) {
-                particleManager.createParticle(enemy, isBoss || (enemy.params.shield && !enemy.params.knocked) ? 'spark' : 'blood', enemy.secondFloor, null)
-            }
-        }
-        //dead
-        if (enemy.params.health <= 0) {
-            if (enemy.params.detect) {
-                world.removeChild(enemy.params.warning)
-                if (enemy.params.longDetector) {
-                    world.removeChild(enemy.params.longDetector)
-                }
-            }
-            if (enemy.params.deathType) {
-                switch (true) {
-                    case enemy.params.deathType === 'smallExplode':
-                        if (explosionManager) {
-                            explosionManager.createExplode(enemy, 0, 0, false)
-                        }
-                    break
-                    case enemy.params.deathType === 'bigExplode':
-                        if (explosionManager) {
-                            explosionManager.createExplode(enemy, -28, -24, true)
-                        }
-                    break
-                }
-            }
-            if (cameraManager) {
-                cameraManager.cameraShake(1, 400)
-            }
-            enemy.params.dead = true
-            gameState.scoreStreak += enemy.params.points / 10
-            addPoints(enemy.params.points)
-            enemy.loop = false
-            if (damage > gun.damage || isBoss) {
-                addPoints(10)
-                enemy.textures = enemy.params.animset.deathCrit || enemy.params.animset.death
-                for (let i = 0; i < random(8,20); i++) {
-                    if (particleManager) {
-                        particleManager.createParticle(enemy, 'blood', enemy.secondFloor, null)
-                    }
-                }
-            } else {
-                enemy.textures = enemy.params.animset.death
-            }
-            if (enemy.params.moneyDrop) {
-                for (let i = 0; i <= random(0,enemy.params.moneyDrop); i++) {
-                    if (moneyManager) {
-                        moneyManager.spawnDropMoney(enemy)
-                    }
-                }
-            }
-            if (isBoss) bossReward()
-            enemy.play()
-            return
-        }
-        //shield
-        if (enemy.params.shield && !enemy.params.knocked && enemy.params.health <= 2) {
-            enemy.params.knocked = true
-            enemy.textures = enemy.params.animset.knock
-            enemy.play()
-            enemy.params.animset.idle = enemy.params.animset.idleAlt
-            enemy.params.animset.shot = enemy.params.animset.shotAlt
-            sleep(150).then(() => {
-                if (enemy.params.health <= 0) return
-                enemy.textures = enemy.params.animset.idle
-                enemy.play()
-            })
-        }
-    }
-
-    function updateEnemies() {
-        enemies.forEach((enemy, idx) => {
-            if (!enemy.params.dead) {
-                //detect player
-                if (!enemy.params.detect) {
-                    const checkTraps = traps.find(trap => {
-                        if (!trap.dead && trap.type) {
-                            if (trap.x > enemy.x - (WORLD_WIDTH) && trap.x < enemy.x) {
-                                return true
-                            }
-                        } else {
-                            return false
-                        }
-                    })
-                    if (!checkTraps) {
-                        if (enemy.x - player.x < getPercent(WORLD_WIDTH,enemy.params.detectRange) && enemy.y - 20 <= player.y) {
-                            enemy.params.detect = true
-                            enemyShooting(enemy)
-                        }
-                    }
-                }
-                //check player bullets
-                bulletManager.playerBullets.forEach((bullet, idx) => {
-                    if (enemy.x - enemy.width / 2 < bullet.x + bullet.width && enemy.x + enemy.width / 2 > bullet.x && enemy.y - enemy.height / 2 < bullet.y && enemy.y + enemy.height / 2 > bullet.y) {
-                        if (enemy.params.inCover) return
-                        world.removeChild(bullet)
-                        bulletManager.playerBullets.splice(idx, 1)
-                        if (enemy.x - player.x < getPercent(WORLD_WIDTH, 30)) {
-                            damageEnemy(enemy,gun.damage * 2)
-                        } else {
-                            damageEnemy(enemy,gun.damage)
-                        }
-                    }
-                })
-                //check player collision
-                if (!enemy.skip && (player.x > enemy.x - 30 && player.x + 40 < enemy.x + enemy.width)) {
-                    if ((!meleeKillManager || !meleeKillManager.hasMeleeKill()) && (playerState.state === 'roll' || playerState.state === 'rollEnd')) {
-                        if (playerState.invincible) {
-                            damageEnemy(enemy, 10)
-                        } else {
-                            if (meleeKillManager) {
-                                meleeKillManager.createMeleeKillUI(enemy)
-                            }
-                        }
-                    } else {
-                        if (enemy.params.inCover) return
-                        gameState.points -= 250 * gameState.multiplier
-                        if (gameState.points < 0) {
-                            gameState.points = 0
-                        }
-                        gameState.scoreStreak -= 20
-                    }
-                    enemy.skip = true
-                }
-            }
-            if (enemy.x + enemy.width < worldCoords.zeroLeft) {
-                world.removeChild(enemy)
-                enemies.splice(idx, 1)
-            }
-        })
-    }
-
-    function shot(char, offsetX, offsetY, eventGun, friendly) {
-        if (bulletManager) {
-            bulletManager.shot(
-                char,
-                offsetX,
-                offsetY,
-                eventGun,
-                friendly,
-                sleep
-            )
-        }
     }
 
     // Функции HUDbullets, HUDpoints, HUDupdateSkills, HUDremoveShield, HUDcreateShield, HUDupdatePowerUp

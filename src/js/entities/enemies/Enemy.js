@@ -1,6 +1,7 @@
 import * as PIXI from "pixi.js";
 import enemyParams from "../../enemyParams";
 import {getPercent, random} from "../../utils/GameUtils";
+import {soundPlayer} from "../../playSound";
 
 export class Enemy {
     constructor(world, resources, worldCoords, timer, gameState, eventBus) {
@@ -61,7 +62,7 @@ export class Enemy {
     }
 
     activate() {
-        if (!this.params.detect && !this.seesBarrier && !this.skip) {
+        if (!this.params.detect && !this.seesBarrier && !this.skip && this.isAlive) {
             this.params.detect = true
             this.shot()
         }
@@ -150,6 +151,97 @@ export class Enemy {
             this.sprite.textures = this.animset.idle
             this.sprite.play()
         })
+    }
+
+    damage(bullet) {
+        if (!this.isAlive) return
+
+        const damage = this.sprite.x - bullet.owner.sprite.x < getPercent(this.worldCoords.worldWidth, 30) ? bullet.damage * 2 : bullet.damage
+
+        this.params.health -= damage
+
+        this.gameState.increaseStreak(0.5)
+        this.gameState.addPoints(5)
+
+        // Звуки
+        if (this.params.shield && !this.params.knocked) {
+            soundPlayer.damageMetal()
+        } else {
+            soundPlayer.damageFlesh()
+        }
+
+        // Частицы
+        const particleType = this.params.shield && !this.params.knocked ? 'spark' : 'blood'
+        for (let i = 0; i < random(8, 20); i++) {
+            this.eventBus.emit('particle:default', {coords: this.sprite, type: particleType, floor: this.sprite.y === this.worldCoords.secondFloor})
+        }
+
+
+        // Смерть
+        if (this.params.health <= 0) {
+            this.death(damage > bullet.owner.gun.damage)
+            return
+        }
+
+        // Обработка щита
+        if (this.params.shield && !this.params.knocked && this.params.health <= 2) {
+            this.params.knocked = true
+            this.textures = this.animset.knock
+            this.sprite.play()
+            this.animset.idle = this.animset.idleAlt
+            this.animset.shot = this.animset.shotAlt
+
+            this.timer.sleep(150).then(() => {
+                if (this.params.health <= 0) return
+                this.sprite.textures = this.animset.idle
+                this.sprite.play()
+            })
+        }
+    }
+
+    /**
+     * Обрабатывает смерть врага
+     */
+    death(isCrit) {
+        // Удаление предупреждений
+        if (this.params.warning) {
+            this.world.removeChild(this.params.warning)
+        }
+        if (this.params.longDetector) {
+            this.world.removeChild(this.params.longDetector)
+        }
+
+        // Тряска камеры
+        this.eventBus.emit('camera:shake', {intensity: 1, duration: 400})
+
+        this.isAlive = false
+
+        this.gameState.increaseStreak(this.params.points / 10)
+        this.gameState.addPoints(this.params.points)
+
+        this.sprite.loop = false
+
+        // Критический урон
+        if (isCrit) {
+            this.gameState.addPoints(10)
+
+            this.sprite.textures = this.animset.deathCrit || this.animset.death
+
+            for (let i = 0; i < random(8, 20); i++) {
+                this.eventBus.emit('particle:default', {coords: this.sprite, type: 'blood', floor: this.sprite.y === this.worldCoords.secondFloor})
+            }
+        } else {
+            this.sprite.textures = this.animset.death
+        }
+
+        // Выпадение денег
+        // if (enemy.params.moneyDrop && this.spawnDropMoneyCallback) {
+        //     for (let i = 0; i <= random(0, enemy.params.moneyDrop); i++) {
+        //         this.spawnDropMoneyCallback(enemy)
+        //     }
+        // }
+
+        this.sprite.play()
     }
 
     update() {

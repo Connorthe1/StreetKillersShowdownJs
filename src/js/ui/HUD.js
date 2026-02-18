@@ -12,6 +12,7 @@
  */
 
 import * as PIXI from 'pixi.js'
+import {random} from "../utils/GameUtils";
 
 /**
  * Менеджер HUD
@@ -27,6 +28,8 @@ export class HUDManager {
         this.app = app
         this.storage = storage
         this.eventBus = eventBus
+
+        this.bossReward = null
 
         eventBus.on('hud:createBulletsDisplay', gun => {
             this.createBulletsDisplay(gun)
@@ -59,6 +62,10 @@ export class HUDManager {
         eventBus.on('hud:removeHP', () => {
             this.removeHP()
         })
+
+        eventBus.on('hud:bossReward', type => {
+            this.createBossReward(type)
+        })
     }
     
     /**
@@ -90,6 +97,50 @@ export class HUDManager {
             magazine.removeChildAt(0)
             magazine.x -= 16
         }
+    }
+
+    createBossReward(type) {
+        const rewardContainer = new PIXI.Container()
+        let icon
+        let text
+
+        switch (type) {
+            case 1:
+                icon = new PIXI.Sprite(this.resources.activeItems.textures.stimpack)
+                text = new PIXI.Text('+1', this.textStyles.default80)
+                icon.scale.set(2)
+                if (this.storage) {
+                    this.storage.activeItems.stimpack += 1
+                }
+                this.updateSkills()
+                break
+            case 2:
+                icon = new PIXI.Sprite(this.resources.activeItems.textures.handGrenadeIcon)
+                text = new PIXI.Text('+1', this.textStyles.default80)
+                icon.scale.set(1.5)
+                if (this.storage) {
+                    this.storage.activeItems.grenades += 1
+                }
+                this.updateSkills()
+                break
+            case 3:
+                icon = new PIXI.Sprite(this.resources.menuIcons.textures.money)
+                text = new PIXI.Text('+500', this.textStyles.default80)
+                icon.scale.set(1.5)
+                this.gameState.collectedMoney += 500
+                break
+        }
+
+        icon.anchor.set(0.5)
+        text.anchor.set(0.5)
+        icon.position.set(0, 0)
+        text.position.set(0, icon.y + icon.height / 2 + 30)
+        rewardContainer.addChild(icon)
+        rewardContainer.addChild(text)
+        rewardContainer.position.set(this.gameWidth / 2, this.gameHeight / 2)
+
+        this.bossReward = rewardContainer
+        this.hud.addChild(rewardContainer)
     }
     
     /**
@@ -323,6 +374,16 @@ export class HUDManager {
         this.updateFPS()
         this.updatePoints()
         this.updateMultiplier()
+
+        if (this.bossReward) {
+            this.bossReward.position.y -= 1
+            this.bossReward.alpha -= 0.01
+
+            if (this.bossReward.alpha <= 0) {
+                this.hud.removeChild(this.bossReward)
+                this.bossReward = null
+            }
+        }
     }
 
     /**
