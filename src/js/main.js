@@ -206,7 +206,7 @@ window.onload = async function () {
 
         explosionManager = new ExplosionManager(world, resources, eventBus)
 
-        grenadeManager = new GrenadeManager(world, physicsManager, worldCoords, resources, sleep, eventBus)
+        grenadeManager = new GrenadeManager(world, physicsManager, worldCoords, resources, timer, eventBus)
 
         moneyManager = new MoneyManager(world, physicsManager, worldCoords, resources, eventBus)
 
@@ -252,7 +252,7 @@ window.onload = async function () {
             hudManager.createMainHUD(playerInstance.playerState)
             hudManager.createPauseMenu({
                 storage: storage,
-                hasMeleeKill: () => meleeKillManager.hasMeleeKill(),
+                hasMeleeKill: () => meleeKillManager.meleeKill,
                 pauseGame: () => {
                     const allAnimated = world.children.filter(item => item.animationSpeed)
                     allAnimated.forEach(item => item.stop())
@@ -370,6 +370,9 @@ window.onload = async function () {
         if (cameraManager) {
             cameraManager.update(app.ticker.elapsedMS)
         }
+        if (grenadeManager) {
+            grenadeManager.update()
+        }
 
         particleManager.updateAllParticles(worldCoords.zeroLeft, playerInstance)
 
@@ -378,41 +381,9 @@ window.onload = async function () {
             spawn: spawnManager,
             bullets: bulletManager,
             explosion: explosionManager,
+            melee: meleeKillManager
         })
     }
-
-    // Функции HUDbullets, HUDpoints, HUDupdateSkills, HUDremoveShield, HUDcreateShield, HUDupdatePowerUp
-    // теперь в HUD. Оставлены для обратной совместимости, но больше не используются.
-
-    // Функция HUDpause теперь в HUD.createPauseMenu(). Оставлена для обратной совместимости, но больше не используется.
-
-    // async function getData() {
-    //     return
-    //     try {
-    //         await bridge.send('VKWebAppInit')
-    //         const checkAcc = await bridge.send('VKWebAppStorageGetKeys', {count: 1})
-    //         console.log(checkAcc)
-    //         if (checkAcc.keys.length === 0) {
-    //             await bridge.send("VKWebAppStorageSet", {key: 'storage', value: JSON.stringify(baseStorage)})
-    //         }
-    //         const getStorageFromVk = await bridge.send("VKWebAppStorageGet",{keys: ['storage']})
-    //         console.log(getStorageFromVk)
-    //         const parse = JSON.parse(getStorageFromVk.keys[0].value)
-    //         storage = parse
-    //         console.log(parse)
-    //     } catch (e) {
-    //         console.log(e)
-    //     }
-    // }
-
-    async function getData() {
-        await storageManager.load()
-        // Обновляем ссылку на storage после загрузки
-        storage = storageManager.getStorage()
-    }
-
-    // Функция createSwipes теперь в InputHandler
-    // Оставлена для обратной совместимости, но больше не используется
 }
 
 async function sleep(time, isRoll) {

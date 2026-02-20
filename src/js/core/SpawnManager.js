@@ -40,7 +40,7 @@ export class SpawnManager {
         this.powerUpManager = new PowerUpManager(world, fg, storage, worldCoords, resources, eventBus)
 
         this.enemyManager = new EnemyManager(world, gameState, worldCoords, resources, timer, eventBus)
-        this.dogEnemyManager = new DogEnemyManager(world, worldCoords, fg, resources, eventBus)
+        this.dogEnemyManager = new DogEnemyManager(world, gameState, worldCoords, fg, resources, eventBus)
         this.bossManager = new BossManager(world, gameState, worldCoords, resources, timer, eventBus)
 
         eventBus.on('spawn:entity', data => {
@@ -54,7 +54,8 @@ export class SpawnManager {
     spawnEntity() {
         // this.bossManager.create()
         this.enemyManager.create()
-        this.trapManager.createBarrel()
+        this.dogEnemyManager.create()
+        // this.trapManager.createBarrel()
 
         return
         // Спавн лужи
@@ -63,7 +64,7 @@ export class SpawnManager {
         }
 
         // Спавн зданий
-        if (!this.bossManager.getCurrentBoss()) {
+        if (!this.bossManager.hasActiveBoss()) {
             this.buildingManager.createBuildingChance()
         }
 
@@ -84,7 +85,7 @@ export class SpawnManager {
 
         // Спавн врага-собаки
         if (Math.random() < 0.05 && this.gameState.points > 2000) {
-            this.dogEnemyManager.createDogEnemy()
+            this.dogEnemyManager.create()
         }
 
         // Спавн машины на фоне
@@ -111,7 +112,7 @@ export class SpawnManager {
         }
 
         // Спавн босса или бочки
-        if (!this.buildingManager.getIsBuilding() && !this.bossManager.getCurrentBoss() && (this.buildingManager.getAfterBuilding() < this.worldCoords.zeroRight - this.worldCoords.worldWidth / 2)) {
+        if (!this.buildingManager.getIsBuilding() && !this.bossManager.hasActiveBoss() && (this.buildingManager.getAfterBuilding() < this.worldCoords.zeroRight - this.worldCoords.worldWidth / 2)) {
             if (Math.random() < Math.min(this.gameState.points / 40000, 0.1) && this.gameState.points > 2000) {
                 this.bossManager.create(random(1, 3))
                 return
@@ -137,6 +138,7 @@ export class SpawnManager {
         this.powerUpManager.update()
         this.bossManager.update(gameSpeed)
         this.enemyManager.update()
+        this.dogEnemyManager.update(gameSpeed)
     }
     
     /**

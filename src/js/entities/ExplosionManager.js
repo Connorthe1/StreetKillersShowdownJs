@@ -53,21 +53,24 @@ export class ExplosionManager {
         explode.position.set(x, y)
         
         // Зона урона — квадрат с настраиваемым размером (половина стороны)
-        const size = isBig ? 120 : 60
+        const size = isBig ? 60 : 30
+
+        this.world.addChild(explode)
+
+        const bounds = explode.getBounds()
 
         this.activeExplosion = {
-            x,
-            y,
+            x: bounds.x,
+            y: bounds.y,
             width: size,
             height: size,
-            right: x + size / 2,
-            left: x - size / 2,
-            top: y - size / 2,
-            bottom: y + size / 2
+            right: bounds.right - (bounds.width / 2) + (size / 2),
+            left: bounds.left - (bounds.width / 2) - (size / 2),
+            top: bounds.top - (bounds.height / 2) - (size / 2),
+            bottom: bounds.bottom - (bounds.height / 2) + (size / 2)
         }
         
         // Добавление в мир
-        this.world.addChild(explode)
         explode.play()
         
         // Удаление после завершения анимации
@@ -75,6 +78,10 @@ export class ExplosionManager {
             this.world.removeChild(explode)
             this.activeExplosion = null
         }
+    }
+
+    destroy() {
+        this.activeExplosion = null
     }
 }
 

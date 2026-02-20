@@ -303,10 +303,10 @@ export class BossManager {
         await this.timer.sleep(200)
     }
 
-    damage(bullet) {
+    damage(source) {
         if (!this.isAlive) return
 
-        this.params.health -= bullet.damage
+        this.params.health -= source.damage
 
         this.gameState.increaseStreak(0.5)
         this.gameState.addPoints(5)
@@ -399,6 +399,10 @@ export class BossManager {
 
     addToWorld() {
         this.world.addChild(this.sprite)
+    }
+
+    hasActiveBoss() {
+        return !!(this.sprite && this.isAlive)
     }
 
     destroy() {

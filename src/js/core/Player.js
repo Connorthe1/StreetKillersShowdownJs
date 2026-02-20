@@ -98,6 +98,10 @@ export class Player {
         eventBus.on('player:bossEnd', () => {
             this.inBossFight = false
         })
+
+        eventBus.on('player:damage', () => {
+            this.damage()
+        })
     }
 
     // Создает спрайт игрока
@@ -320,7 +324,7 @@ export class Player {
             //SHOT
             case 'KeyF':
                 if (this.isMeleeActive) {
-                    this.eventBus.emit('melee:handleMeleeKill', {skip: false, noDamage: false})
+                    this.eventBus.emit('melee:handleMeleeKill', {skip: false, noDamage: false, pos: this.sprite})
 
                     // Анимация ближнего боя
                     if (this.gun.melee) {
@@ -382,15 +386,13 @@ export class Player {
             //THROW GRENADE
             case 'KeyE':
                 if (this.skillCD || this.storage.activeItems.grenades === 0) return;
-                storage.activeItems.grenades -= 1
+                this.storage.activeItems.grenades -= 1
                 this.skillCD = true
 
                 this.eventBus.emit('hud:setSkillsAlpha', 0.3)
                 this.eventBus.emit('hud:updateSkills', this.storage)
 
-                if (grenadeManager) {
-                    grenadeManager.grenadeBounce()
-                }
+                this.eventBus.emit('grenade:throw', {x: this.sprite.x, y: this.sprite.y})
                 this.timer.sleep(6000, 'player:skillCD').then(() => {
                     this.eventBus.emit('hud:setSkillsAlpha', 1)
                     this.skillCD = false
@@ -398,8 +400,8 @@ export class Player {
                 break
             //USE STIMPACK
             case 'KeyW':
-                if (this.skillCD || storage.activeItems.stimpack === 0) return;
-                storage.activeItems.stimpack -= 1
+                if (this.skillCD || this.storage.activeItems.stimpack === 0) return;
+                this.storage.activeItems.stimpack -= 1
                 this.skillCD = true
 
                 this.eventBus.emit('hud:setSkillsAlpha', 0.3)
@@ -622,8 +624,8 @@ export class Player {
         return this.state === 'roll' || this.state === 'rollEnd'
     }
 
-    isCoverPeek() {
-        return this.inCover && this.state === 'shot'
+    isShotState() {
+        return this.state === 'shot' || this.state === 'shotEnd'
     }
 
     updateDefaultSpeedByScore(score) {

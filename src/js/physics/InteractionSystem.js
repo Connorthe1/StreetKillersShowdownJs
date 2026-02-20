@@ -1,5 +1,5 @@
 export class InteractionSystem {
-    update({ player, spawn, bullets, explosion }) {
+    update({ player, spawn, bullets, explosion, melee }) {
         this.check(player, spawn.wallManager.walls, 'player:wall');
         this.check(player, spawn.trapManager.traps, 'player:trap');
         this.check(player, spawn.puddleManager.puddles, 'player:puddle');
@@ -8,9 +8,11 @@ export class InteractionSystem {
         this.check(spawn.trapManager.traps, spawn.enemyManager.enemies, 'trap:enemy');
         this.check(player, spawn.enemyManager.enemies, 'player:enemy');
         this.check(bullets.playerBullets, spawn.enemyManager.enemies, 'bullet:enemy');
-        if (spawn.bossManager.sprite) this.check(bullets.playerBullets, spawn.bossManager, 'bullet:boss');
+        if (spawn.bossManager.isAlive && spawn.bossManager.sprite) this.check(bullets.playerBullets, spawn.bossManager, 'bullet:boss');
         this.check(bullets.enemyBullets, player, 'bullet:player');
         this.check(bullets.playerBullets, spawn.trapManager.traps, 'bullet:trap');
+        if (spawn.dogEnemyManager.sprite && spawn.dogEnemyManager.isAlive) this.check(bullets.playerBullets, spawn.dogEnemyManager, 'bullet:dog');
+        if (spawn.dogEnemyManager.sprite && spawn.dogEnemyManager.isAlive) this.check(player, spawn.dogEnemyManager, 'player:dog');
 
         // Коллизии взрывов (квадратная зона) со всеми целями
         if (explosion.activeExplosion) {
@@ -18,6 +20,12 @@ export class InteractionSystem {
             this.check(explosion.activeExplosion, spawn.enemyManager.enemies, 'explosion:enemy');
             if (spawn.bossManager.sprite) this.check(explosion.activeExplosion, spawn.bossManager, 'explosion:boss');
             this.check(explosion.activeExplosion, spawn.trapManager.traps, 'explosion:trap');
+            explosion.destroy()
+        }
+        if (melee.activeMelee) {
+            this.check(melee.activeMelee, spawn.enemyManager.enemies, 'melee:enemy');
+            if (spawn.bossManager.sprite) this.check(melee.activeMelee, spawn.bossManager, 'melee:boss');
+            melee.destroy()
         }
     }
 
@@ -46,6 +54,7 @@ export class InteractionSystem {
             case 'player:can':
             case 'player:powerUp':
             case 'player:trap':
+            case 'player:dog':
                 return this.collideXFromStart
             case 'trap:enemy':
             case 'player:enemy':
@@ -54,11 +63,14 @@ export class InteractionSystem {
             case 'bullet:player':
             case 'bullet:boss':
             case 'bullet:trap':
+            case 'bullet:dog':
                 return this.collideBullets
             case 'explosion:player':
             case 'explosion:enemy':
             case 'explosion:boss':
             case 'explosion:trap':
+            case 'melee:boss':
+            case 'melee:enemy':
                 return this.collideExplosionArea
         }
     }
@@ -68,12 +80,10 @@ export class InteractionSystem {
 
         if (targetBounds.left < explosion.right &&
             targetBounds.right > explosion.left &&
-            targetBounds.bottom < explosion.top &&
-            targetBounds.top > explosion.bottom) {
+            targetBounds.bottom > explosion.top &&
+            targetBounds.top < explosion.bottom) {
             return true
         }
-
-        return true
     }
 
     collideBullets(bullet, target) {
@@ -170,7 +180,7 @@ export class InteractionSystem {
                 break;
             case 'bullet:player':
                 if (a.skip) return
-                if (b.isRollState() || !b.isCoverPeek() || b.invincible) return a.setSkip()
+                if (b.isRollState() || (b.inCover && !b.isShotState()) || b.invincible) return a.setSkip()
                 a.destroy()
                 b.damage()
                 break;
@@ -180,18 +190,32 @@ export class InteractionSystem {
                     b.activate(a)
                 }
                 break;
+            case 'bullet:dog':
+                if (b.isAlive) {
+                    a.destroy()
+                    b.damage()
+                }
+                break;
+            case 'player:dog':
+                if (b.isAlive && !b.skip) {
+                    a.damage()
+                    b.setSkip()
+                }
+                break;
             case 'explosion:player':
                 if (b.isRollState() || b.invincible) return
                 b.damage(a)
                 break;
             case 'explosion:enemy':
-                if (b.isAlive) b.damage(a)
+            case 'melee:enemy':
+                if (b.isAlive) b.damage({damage: 5})
                 break;
             case 'explosion:boss':
-                if (b.isAlive) b.damage(a)
+            case 'melee:boss':
+                if (b.isAlive) b.damage({damage: 5})
                 break;
             case 'explosion:trap':
-                if (b.damage) b.damage(a); else b.destroy?.()
+                if (b.isAlive) b.activate()
                 break;
         }
     }

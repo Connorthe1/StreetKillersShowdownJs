@@ -19,12 +19,9 @@ export class MeleeKillManager {
         
         // Состояние селектора
         this.selectorSide = true // true = вправо, false = влево
-        this.selectorSpeed = 0.5 // скорость движения селектора (из Player.js)
+        this.selectorSpeed = 6 // скорость движения селектора (из Player.js)
         this.streak = 0 // стрик ближнего боя
-
-        eventBus.on('melee:isActive', () => {
-            return this.hasMeleeKill();
-        });
+        this.activeMelee = null
 
         eventBus.on('melee:activate', enemy => {
             if (this.meleeKill) return
@@ -32,7 +29,7 @@ export class MeleeKillManager {
         })
 
         eventBus.on('melee:handleMeleeKill', data => {
-            this.result(data.skip, data.noDamage)
+            this.result(data.skip, data.noDamage, data.pos)
         })
     }
 
@@ -142,7 +139,7 @@ export class MeleeKillManager {
      * @param {boolean} skip - пропустить проверку (автоматический провал)
      * @param {boolean} noDamage - не наносить урон игроку
      */
-    result(skip = false, noDamage = false) {
+    result(skip = false, noDamage = false, pos) {
         if (!skip) {
             const greenBarPosition = this.meleeKill.getChildAt(1).getBounds()
             const selectorPosition = this.meleeKill.getChildAt(2).getBounds()
@@ -152,20 +149,34 @@ export class MeleeKillManager {
                 selectorPosition.x + selectorPosition.width / 2 < greenBarPosition.x + greenBarPosition.width) {
                 
                 // Успешный удар
+
+                const size = 30
+                const bounds = pos.getBounds()
+
+                this.activeMelee = {
+                    x: pos.x,
+                    y: pos.y,
+                    width: size,
+                    height: size,
+                    right: bounds.right - (bounds.width / 2) + (size / 2),
+                    left: bounds.left - (bounds.width / 2) - (size / 2),
+                    top: bounds.top - (bounds.height / 2) - (size / 2),
+                    bottom: bounds.bottom - (bounds.height / 2) + (size / 2)
+                }
                 
                 // Очки и стрик
                 this.eventBus.emit('game:addPoints', 50 + this.streak * 10)
                 this.eventBus.emit('game:addScore', 3 + this.streak)
 
-                this.streak += 1.5
+                this.streak += 2
 
             } else {
                 // Провал - урон игроку
-                // damagePlayer()
+                this.eventBus.emit('player:damage')
             }
         } else {
             // Автоматический провал
-            // if (!noDamage) damagePlayer()
+            if (!noDamage) this.eventBus.emit('player:damage')
         }
         
         // Восстановление скорости игры
@@ -186,8 +197,8 @@ export class MeleeKillManager {
         })
     }
 
-    hasMeleeKill() {
-        return this.meleeKill !== null
+    destroy() {
+        this.activeMelee = null
     }
 
     clear() {

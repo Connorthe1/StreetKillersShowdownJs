@@ -153,10 +153,12 @@ export class Enemy {
         })
     }
 
-    damage(bullet) {
+    damage(source) {
         if (!this.isAlive) return
 
-        const damage = this.sprite.x - bullet.owner.sprite.x < getPercent(this.worldCoords.worldWidth, 30) ? bullet.damage * 2 : bullet.damage
+        const isBullet = !!source.owner
+        const inCritZone = isBullet && this.sprite.x - source.owner.sprite.x < getPercent(this.worldCoords.worldWidth, 30)
+        const damage = inCritZone ? source.damage * 2 : source.damage
 
         this.params.health -= damage
 
@@ -179,7 +181,8 @@ export class Enemy {
 
         // Смерть
         if (this.params.health <= 0) {
-            this.death(damage > bullet.owner.gun.damage)
+            const isCrit = isBullet ? damage > source.owner.gun.damage : damage > 2
+            this.death(isCrit)
             return
         }
 
