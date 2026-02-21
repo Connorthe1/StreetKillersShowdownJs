@@ -1,102 +1,108 @@
+/**
+ * Grenade.js
+ *
+ * Класс-инстанс одной гранаты (по аналогии с Bullet).
+ * Хранит sprite, body Matter.js, lifeTime, обновляет позицию из физики и таймер.
+ */
+
 import * as PIXI from 'pixi.js'
 import * as Matter from 'matter-js'
 
-/**
- * Менеджер гранат
- */
-export class GrenadeManager {
-    constructor(world, physicsManager, worldCoords, resources, timer, eventBus) {
+const DEFAULT_LIFE_TIME = 90
+
+export class Grenade {
+    constructor(world, resources, physicsManager, eventBus, timer) {
         this.world = world
-        this.physicsManager = physicsManager
-        this.worldCoords = worldCoords
         this.resources = resources
-        this.timer = timer
+        this.physicsManager = physicsManager
         this.eventBus = eventBus
-        
-        // Активная граната (для игрока)
-        this.activeGrenade = null
+        this.timer = timer
 
-        this.eventBus.on('grenade:throw', data => {
-            this.throw(data)
-        })
-    }
-    
-    /**
-     * Бросает гранату игроком (отскок)
-     */
-    throw(pos) {
-        const grenade = new PIXI.Sprite(this.resources.activeItems.textures.handGrenade)
-        grenade.scale.set(1.2)
-        grenade.anchor.set(0.5)
-        grenade.position.set(pos.x + 10, pos.y - 20)
-        
-        // Создание физического тела
-        grenade.body = Matter.Bodies.rectangle(
-            grenade.x,
-            grenade.y,
-            2,
-            10,
-            {
-                isStatic: false,
-                restitution: 0.5
-            }
-        )
-        
-        grenade.rotation = Math.floor(Math.random() * (6 + 1))
+        this.sprite = null
+        this.body = null
+        this.lifeTime = DEFAULT_LIFE_TIME
+        this.toDestroy = false
+        this.isAlive = true
 
-        this.world.addChild(grenade)
-        this.physicsManager.addBody(grenade.body)
-        
-        // Применение силы
-        Matter.Body.applyForce(
-            grenade.body,
-            grenade.body.position,
-            { x: 0.0005, y: -0.0003 }
-        )
-        
-        this.activeGrenade = grenade
-        
-        // Взрыв
-        this.timer.sleep(800).then(() => {
-            this.activate()
-        })
+        this.collisionOffset = {left: 30, right: 10}
     }
-    
+
     /**
-     * Обновляет активную гранату игрока
+     * Создаёт спрайт гранаты, физическое тело и добавляет в мир.
+     * @param {number} x
+     * @param {number} y
+     * @returns {this}
      */
+    create(x, y) {
+        const grenade = new PIXI.Sprite(this.resources.bounceParticlesTexture.textures.grenade)
+        grenade.scale.set(-1.5)
+        grenade.position.set(x, y)
+        grenade.type = 'grenade'
+
+        this.body = Matter.Bodies.rectangle(x, y, 12, 4, {
+            isStatic: false,
+            restitution: 0.5
+        })
+
+        const randomMassX = Math.random() * (0.2 - 0.1) + 0.1
+        this.physicsManager.applyForce(this.body, this.body.position, {
+            x: -randomMassX / 100,
+            y: -0.0005
+        })
+
+        this.sprite = grenade
+        this.lifeTime = DEFAULT_LIFE_TIME
+
+        this.addToWorld()
+
+        return this
+    }
+
     update() {
-        if (!this.activeGrenade) return
-        
-        this.activeGrenade.position = this.activeGrenade.body.position
-        if (this.activeGrenade.body.speed > 0.2) {
-            this.activeGrenade.rotation += 0.1
-        } else {
-            this.activeGrenade.rotation = this.activeGrenade.body.angle
+        if (!this.isAlive) return;
+
+        this.lifeTime--
+        if (this.lifeTime <= 0) {
+            this.activate(false)
+            return
         }
+
+        this.sprite.position.x = this.body.position.x
+        this.sprite.position.y = this.body.position.y
+        this.sprite.rotation = this.body.angle
     }
 
-    activate() {
-        if (!this.activeGrenade) return
+    async activate(now) {
+        this.isAlive = false
 
-        this.eventBus.emit('explode:create', {
-            target: this.activeGrenade,
-            offsetX: 0,
-            offsetY: 0,
-            isBig: false
-        })
-        
+        if (!now) {
+            const warning = new PIXI.Sprite(this.resources.particles.textures.detection)
+            warning.zIndex = 20
+            warning.anchor.set(0.5)
+            warning.tint = 16776960
+            warning.scale.x = 1.5
+            warning.scale.y = 2
+            warning.position.set(this.sprite.x, this.sprite.y - 40)
+            this.world.addChild(warning)
+            await this.timer.sleep(300)
+            warning.tint = 16711680
+            await this.timer.sleep(200)
+
+            this.world.removeChild(warning)
+        }
+
+        this.eventBus.emit('explode:create', {target: this.sprite, offsetX: 0, offsetY: 0, isBig: false})
         this.destroy()
     }
-    
-    /**
-     * Очищает все гранаты
-     */
+
+    addToWorld() {
+        this.world.addChild(this.sprite)
+        this.physicsManager.addBody(this.body)
+    }
+
     destroy() {
-        if (this.activeGrenade) {
-            this.physicsManager.removeBody(this.activeGrenade.body)
-            this.world.removeChild(this.activeGrenade)
-            this.activeGrenade = null
-        }
+        this.world.removeChild(this.sprite)
+        this.physicsManager.removeBody(this.body)
+        this.toDestroy = true
     }
 }

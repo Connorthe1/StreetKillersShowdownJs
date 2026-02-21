@@ -11,6 +11,8 @@ export class InteractionSystem {
         if (spawn.bossManager.isAlive && spawn.bossManager.sprite) this.check(bullets.playerBullets, spawn.bossManager, 'bullet:boss');
         this.check(bullets.enemyBullets, player, 'bullet:player');
         this.check(bullets.playerBullets, spawn.trapManager.traps, 'bullet:trap');
+        this.check(bullets.grenadesArr, player, 'grenade:player');
+
         if (spawn.dogEnemyManager.sprite && spawn.dogEnemyManager.isAlive) this.check(bullets.playerBullets, spawn.dogEnemyManager, 'bullet:dog');
         if (spawn.dogEnemyManager.sprite && spawn.dogEnemyManager.isAlive) this.check(player, spawn.dogEnemyManager, 'player:dog');
 
@@ -19,12 +21,14 @@ export class InteractionSystem {
             this.check(explosion.activeExplosion, player, 'explosion:player');
             this.check(explosion.activeExplosion, spawn.enemyManager.enemies, 'explosion:enemy');
             if (spawn.bossManager.sprite) this.check(explosion.activeExplosion, spawn.bossManager, 'explosion:boss');
+            if (spawn.dogEnemyManager.sprite) this.check(explosion.activeExplosion, spawn.dogEnemyManager, 'explosion:dog');
             this.check(explosion.activeExplosion, spawn.trapManager.traps, 'explosion:trap');
             explosion.destroy()
         }
         if (melee.activeMelee) {
             this.check(melee.activeMelee, spawn.enemyManager.enemies, 'melee:enemy');
             if (spawn.bossManager.sprite) this.check(melee.activeMelee, spawn.bossManager, 'melee:boss');
+            if (spawn.dogEnemyManager.sprite) this.check(melee.activeMelee, spawn.dogEnemyManager, 'melee:dog');
             melee.destroy()
         }
     }
@@ -64,13 +68,16 @@ export class InteractionSystem {
             case 'bullet:boss':
             case 'bullet:trap':
             case 'bullet:dog':
+            case 'grenade:player':
                 return this.collideBullets
             case 'explosion:player':
             case 'explosion:enemy':
             case 'explosion:boss':
             case 'explosion:trap':
+            case 'explosion:dog':
             case 'melee:boss':
             case 'melee:enemy':
+            case 'melee:dog':
                 return this.collideExplosionArea
         }
     }
@@ -167,12 +174,8 @@ export class InteractionSystem {
                 }
                 break;
             case 'bullet:enemy':
-                if (b.isAlive) {
-                    a.destroy()
-                    b.damage(a)
-                }
-                break;
             case 'bullet:boss':
+            case 'bullet:dog':
                 if (b.isAlive) {
                     a.destroy()
                     b.damage(a)
@@ -190,12 +193,6 @@ export class InteractionSystem {
                     b.activate(a)
                 }
                 break;
-            case 'bullet:dog':
-                if (b.isAlive) {
-                    a.destroy()
-                    b.damage()
-                }
-                break;
             case 'player:dog':
                 if (b.isAlive && !b.skip) {
                     a.damage()
@@ -203,19 +200,22 @@ export class InteractionSystem {
                 }
                 break;
             case 'explosion:player':
-                if (b.isRollState() || b.invincible) return
+                if (b.isRollState() || b.invincible || (b.inCover && !b.isShotState())) return
                 b.damage(a)
                 break;
             case 'explosion:enemy':
-            case 'melee:enemy':
-                if (b.isAlive) b.damage({damage: 5})
-                break;
             case 'explosion:boss':
+            case 'explosion:dog':
             case 'melee:boss':
+            case 'melee:dog':
+            case 'melee:enemy':
                 if (b.isAlive) b.damage({damage: 5})
                 break;
             case 'explosion:trap':
                 if (b.isAlive) b.activate()
+                break;
+            case 'grenade:player':
+                if (a.isAlive && b.isShotState() && a.body.speed > 2) a.activate(true)
                 break;
         }
     }

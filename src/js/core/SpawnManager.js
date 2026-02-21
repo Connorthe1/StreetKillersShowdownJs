@@ -52,9 +52,12 @@ export class SpawnManager {
      * Главная функция спавна сущностей
      */
     spawnEntity() {
-        // this.bossManager.create()
-        this.enemyManager.create()
-        this.dogEnemyManager.create()
+        this.bossManager.create()
+        // this.enemyManager.create({
+        //     buildings: this.buildingManager.getBuildings(),
+        //     boss: this.bossManager.getBoss()
+        // })
+        // this.dogEnemyManager.create()
         // this.trapManager.createBarrel()
 
         return
@@ -80,7 +83,10 @@ export class SpawnManager {
 
         // Спавн врага
         if (Math.random() < 0.5) {
-            this.enemyManager.create()
+            this.enemyManager.create({
+                buildings: this.buildingManager.getBuildings(),
+                boss: this.bossManager.getBoss()
+            })
         }
 
         // Спавн врага-собаки
@@ -139,38 +145,5 @@ export class SpawnManager {
         this.bossManager.update(gameSpeed)
         this.enemyManager.update()
         this.dogEnemyManager.update(gameSpeed)
-    }
-    
-    /**
-     * Проверяет, можно ли спавнить врага в указанной позиции
-     */
-    canSpawnEnemyAtPosition(pos, enemyWidth = 30) {
-        // Проверка на дубликаты
-        const findDuplicate = this.enemies.findIndex(
-            enemy => pos + enemyWidth > enemy.x && pos < enemy.x + enemy.width
-        )
-        if (findDuplicate >= 0) return false
-        
-        // Проверка на босса
-        if (this.currentBoss) {
-            if (pos + enemyWidth > this.currentBoss.x && pos < this.currentBoss.x + this.currentBoss.width) {
-                return false
-            }
-        }
-        
-        // Проверка на зоны спавна зданий
-        if (this.buildings.length > 0) {
-            for (const build of this.buildings) {
-                if (build.resetSpawnZones) {
-                    for (const zone of build.resetSpawnZones) {
-                        if (pos + enemyWidth > zone.x && pos < zone.w) {
-                            return false
-                        }
-                    }
-                }
-            }
-        }
-        
-        return true
     }
 }

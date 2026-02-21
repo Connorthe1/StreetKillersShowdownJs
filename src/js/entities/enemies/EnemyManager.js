@@ -1,8 +1,4 @@
-import * as PIXI from 'pixi.js'
 import { random } from '../../utils/GameUtils.js'
-import { getPercent } from '../../utils/GameUtils.js'
-import {default as enemyParams} from '../../enemyParams.js'
-import {BarrelTrap} from "../../environment/traps/types/BarrelTrap";
 import {Enemy} from "./Enemy";
 
 /**
@@ -28,15 +24,24 @@ export class EnemyManager {
         })
     }
 
-    create(pos = null, canCover = false, enemyType = null) {
-        let randomPos = pos || Math.floor(this.worldCoords.zeroLeft + this.worldCoords.worldWidth + Math.floor(Math.random() * (250 - 50 + 1) + 50))
+    create(params) {
+        let randomPos = params?.pos || Math.floor(this.worldCoords.zeroLeft + this.worldCoords.worldWidth + Math.floor(Math.random() * (250 - 50 + 1) + 50))
         let isSecondFloor = false
 
-        const buildings = this.eventBus.emit('buildings:get', null, true) || []
+        // Проверка на дубликаты
+        const findDuplicate = this.enemies.some(enemy => randomPos + 30 > enemy.sprite.x && randomPos < enemy.sprite.x + enemy.sprite.width)
+        if (findDuplicate) return
+
+        // Проверка на босса
+        if (params?.boss) {
+            if (randomPos + 30 > params.boss.x && randomPos < params.boss.x + params.boss.width) {
+                return null
+            }
+        }
         
         // Проверка зон спавна зданий
-        if (buildings.length > 0) {
-            buildings.forEach(build => {
+        if (params?.buildings?.length > 0) {
+            params.buildings.forEach(build => {
                 if (build.resetSpawnZones) {
                     build.resetSpawnZones.forEach(zone => {
                         if (randomPos + 30 > zone.x && randomPos < zone.w) {
@@ -51,28 +56,18 @@ export class EnemyManager {
             })
         }
         
-        // Проверка на дубликаты
-        const findDuplicate = this.enemies.some(enemy => randomPos + 30 > enemy.sprite.x && randomPos < enemy.sprite.x + enemy.sprite.width)
-        if (findDuplicate) return
-        
-        // Проверка на босса
-        // if (this.currentBoss) {
-        //     if (randomPos + 30 > this.currentBoss.x && randomPos < this.currentBoss.x + this.currentBoss.width) {
-        //         return null
-        //     }
-        // }
-        
         // Определение этажа
-        if (buildings.length > 0) {
-            const activeBuilding = buildings[0]
-            const lastBuilding = buildings[buildings.length - 1].getLocalBounds()
+        if (params?.buildings?.length > 0) {
+            const activeBuilding = params.buildings[0]
+            const lastBuilding = params.buildings[params.buildings.length - 1].getLocalBounds()
             if ((lastBuilding.x + lastBuilding.width > randomPos && 
                  activeBuilding.getLocalBounds().x < randomPos) && 
                 activeBuilding.secondFloor) {
                 isSecondFloor = true
             }
         }
-        
+
+        let enemyType = params?.enemyType
         // Определение типа врага
         if (!enemyType) {
             const rand = random(1, 100)
@@ -91,7 +86,7 @@ export class EnemyManager {
             }
         }
 
-        const enemy = new Enemy(this.world, this.resources, this.worldCoords, this.timer, this.gameState, this.eventBus).create({x: randomPos, y: isSecondFloor ? this.worldCoords.secondFloor : this.worldCoords.firstFloor}, canCover, enemyType)
+        const enemy = new Enemy(this.world, this.resources, this.worldCoords, this.timer, this.gameState, this.eventBus).create({x: randomPos, y: isSecondFloor ? this.worldCoords.secondFloor : this.worldCoords.firstFloor}, params?.canCover, enemyType)
         this.enemies.push(enemy)
     }
 
@@ -101,128 +96,6 @@ export class EnemyManager {
             if (!enemy.toDestroy) acc.push(enemy)
             return acc
         }, [])
-    }
-    
-    /**
-     * Наносит урон врагу
-     * @param {PIXI.AnimatedSprite} enemy - враг
-     * @param {number} damage - урон
-     * @param {boolean} isBoss - является ли боссом
-     */
-    damageEnemy(enemy, damage, isBoss = false) {
-        if (!enemy || !enemy.params) return
-        
-        enemy.params.health -= damage
-        
-        if (this.addPointsCallback) {
-            this.addPointsCallback(5)
-        }
-        this.gameState.increaseStreak(0.5)
-        
-        // Звуки
-        if (this.soundPlayer) {
-            if (isBoss || (enemy.params.shield && !enemy.params.knocked)) {
-                this.soundPlayer.damageMetal()
-            } else {
-                this.soundPlayer.damageFlesh()
-            }
-        }
-        
-        // Частицы
-        if (this.createParticlesCallback) {
-            const particleType = isBoss || (enemy.params.shield && !enemy.params.knocked) ? 'spark' : 'blood'
-            for (let i = 0; i < random(8, 20); i++) {
-                this.createParticlesCallback(enemy, particleType, enemy.secondFloor)
-            }
-        }
-        
-        // Смерть
-        if (enemy.params.health <= 0) {
-            this.handleEnemyDeath(enemy, damage, isBoss)
-            return
-        }
-        
-        // Обработка щита
-        if (enemy.params.shield && !enemy.params.knocked && enemy.params.health <= 2) {
-            enemy.params.knocked = true
-            enemy.textures = enemy.params.animset.knock
-            enemy.play()
-            enemy.params.animset.idle = enemy.params.animset.idleAlt
-            enemy.params.animset.shot = enemy.params.animset.shotAlt
-            
-            if (this.sleepCallback) {
-                this.sleepCallback(150).then(() => {
-                    if (enemy.params.health <= 0) return
-                    enemy.textures = enemy.params.animset.idle
-                    enemy.play()
-                })
-            }
-        }
-    }
-    
-    /**
-     * Обрабатывает смерть врага
-     */
-    handleEnemyDeath(enemy, damage, isBoss) {
-        // Удаление предупреждений
-        if (enemy.params.detect) {
-            if (enemy.params.warning && this.world) {
-                this.world.removeChild(enemy.params.warning)
-            }
-            if (enemy.params.longDetector && this.world) {
-                this.world.removeChild(enemy.params.longDetector)
-            }
-        }
-        
-        // Взрывы при смерти
-        if (enemy.params.deathType && this.createExplodeCallback) {
-            switch (enemy.params.deathType) {
-                case 'smallExplode':
-                    this.createExplodeCallback(enemy, 0, 0, false)
-                    break
-                case 'bigExplode':
-                    this.createExplodeCallback(enemy, -28, -24, true)
-                    break
-            }
-        }
-        
-        // Тряска камеры
-        if (this.cameraShakeCallback) {
-            this.cameraShakeCallback(1, 400)
-        }
-        
-        enemy.params.dead = true
-        this.gameState.increaseStreak(enemy.params.points / 10)
-        
-        if (this.addPointsCallback) {
-            this.addPointsCallback(enemy.params.points)
-        }
-        
-        enemy.loop = false
-        
-        // Критический урон
-        if (damage > (this.gun ? this.gun.damage : 10) || isBoss) {
-            if (this.addPointsCallback) {
-                this.addPointsCallback(10)
-            }
-            enemy.textures = enemy.params.animset.deathCrit || enemy.params.animset.death
-            if (this.createParticlesCallback) {
-                for (let i = 0; i < random(8, 20); i++) {
-                    this.createParticlesCallback(enemy, 'blood', enemy.secondFloor)
-                }
-            }
-        } else {
-            enemy.textures = enemy.params.animset.death
-        }
-        
-        // Выпадение денег
-        if (enemy.params.moneyDrop && this.spawnDropMoneyCallback) {
-            for (let i = 0; i <= random(0, enemy.params.moneyDrop); i++) {
-                this.spawnDropMoneyCallback(enemy)
-            }
-        }
-        
-        enemy.play()
     }
 
     bossClear(pos) {
@@ -235,9 +108,7 @@ export class EnemyManager {
 
     clear() {
         this.enemies.forEach(enemy => {
-            if (this.world) {
-                this.world.removeChild(enemy)
-            }
+            this.world.removeChild(enemy)
         })
         this.enemies = []
     }

@@ -25,6 +25,10 @@ export class WallManager {
             this.createWall(data.pos, data.forBoss, data.afterBuilding)
         })
 
+        eventBus.on('wall:createInBuild', data => {
+            this.createCoverInBuild(data.pos, data.isSecondFloor, data.isRoof)
+        })
+
         eventBus.on('wall:createInClub', data => {
             this.createCoverInClub(data.pos, data.type, data.forBoss)
         })
@@ -92,15 +96,7 @@ export class WallManager {
         this.walls.push(wall)
         return wall
     }
-    
-    /**
-     * Создает укрытие в здании
-     * @deprecated Используйте BuildingManager.createCoverInBuild() вместо этого
-     * Метод оставлен для обратной совместимости, но будет удален в будущем
-     * @param {number} pos - позиция X
-     * @param {boolean} isSecondFloor - на втором этаже
-     * @param {boolean} isRoof - на крыше
-     */
+
     createCoverInBuild(pos, isSecondFloor, isRoof) {
         let wall
         const groundY = this.ground.getLocalBounds ? this.ground.getLocalBounds().y : 0

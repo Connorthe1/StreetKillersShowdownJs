@@ -7,16 +7,18 @@
 
 import * as PIXI from 'pixi.js'
 import { Bullet } from './Bullet.js'
+import { Grenade } from './Grenade.js'
 import { BULLET_SPEED } from '../core/GameConfig.js'
 import { soundPlayer } from '../playSound.js'
 
 export class BulletManager {
-    constructor(world, gameState, resources, timer, eventBus) {
+    constructor(world, gameState, resources, timer, eventBus, physicsManager) {
         this.world = world
         this.gameState = gameState
         this.resources = resources
         this.timer = timer
         this.eventBus = eventBus
+        this.physicsManager = physicsManager
 
         this.playerBullets = []
         this.enemyBullets = []
@@ -31,6 +33,10 @@ export class BulletManager {
 
         eventBus.on('bullet:shotRapid', ({ character, offsetX, offsetY, friendly, times, cd }) => {
             this.shotRapid(character, offsetX, offsetY, friendly, times, cd)
+        })
+
+        eventBus.on('bullet:shotGrenade', ({ character, offsetX, offsetY }) => {
+            this.spawnGrenade(character, offsetX, offsetY)
         })
     }
 
@@ -51,8 +57,12 @@ export class BulletManager {
         } else {
             this.enemyBullets.push(bullet)
         }
+    }
 
-        return bullet
+    spawnGrenade(character, offsetX, offsetY) {
+        const grenade = new Grenade(this.world, this.resources, this.physicsManager, this.eventBus, this.timer).create(character.x + offsetX, character.y + offsetY)
+
+        this.grenadesArr.push(grenade)
     }
 
     async shotRapid(character, offsetX, offsetY, friendly = false, times, cd = 200) {
@@ -121,39 +131,19 @@ export class BulletManager {
         })
     }
 
-    shotGrenade(character, offsetX, offsetY) {
-        const grenade = new PIXI.Sprite(this.resources.bounceParticlesTexture.textures.grenade)
-        grenade.scale.set(-1.5)
-        grenade.position.set(character.sprite.x + offsetX, character.sprite.y - offsetY)
-        grenade.lifeTime = 100
-        grenade.type = 'grenade'
-
-        grenade.body = Matter.Bodies.rectangle(grenade.x, grenade.y, 12, 4, {
-            isStatic: false,
-            restitution: 0.5
-        })
-        this.world.addChild(grenade)
-
-        Matter.World.add(this.engine.world, grenade.body)
-        const randomMassX = Math.random() * (0.2 - 0.1) + 0.1
-        Matter.Body.applyForce(grenade.body, grenade.body.position, {
-            x: -randomMassX / 100,
-            y: -0.0005
-        })
-
-        this.grenadesArr.push(grenade)
-    }
-
-    updateBullets(worldCoords, gameSpeed) {
+    update(worldCoords, gameSpeed) {
         this.enemyBullets.forEach(b => b.update(worldCoords, gameSpeed))
         this.enemyBullets = this.enemyBullets.filter(b => !b.toDestroy)
 
         this.playerBullets.forEach(b => b.update(worldCoords, gameSpeed))
         this.playerBullets = this.playerBullets.filter(b => !b.toDestroy)
 
-        if (this.shotsArr.length > 0) {
-            this.shotsArr.forEach(() => {})
-        }
+        this.grenadesArr.forEach(g => g.update())
+        this.grenadesArr = this.grenadesArr.filter(g => !g.toDestroy)
+
+        // if (this.shotsArr.length > 0) {
+        //     this.shotsArr.forEach(() => {})
+        // }
     }
 
     clear() {
@@ -162,6 +152,9 @@ export class BulletManager {
 
         this.enemyBullets.forEach(bullet => bullet.destroy())
         this.enemyBullets = []
+
+        this.grenadesArr.forEach(g => g.destroy())
+        this.grenadesArr = []
 
         this.shotsArr.forEach(shot => {
             this.world.removeChild(shot)

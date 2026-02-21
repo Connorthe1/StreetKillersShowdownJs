@@ -58,7 +58,7 @@ export class BossManager {
         // Определение типа босса
         let type
         const randType = bossType || random(1, 4)
-        switch (3) {
+        switch (randType) {
             case 1:
                 type = 'bossGun'
                 break
@@ -295,10 +295,8 @@ export class BossManager {
         if (!this.sprite || !this.isAlive) return
 
         this.shotAnim(fireTimes)
-        
-        // if (this.shotGrenadeCallback) {
-        //     this.shotGrenadeCallback(this.sprite, 0, 0)
-        // }
+
+        this.eventBus.emit('bullet:shotGrenade', {character: this.sprite, offsetX:0, offsetY: 0})
         
         await this.timer.sleep(200)
     }
@@ -403,6 +401,10 @@ export class BossManager {
 
     hasActiveBoss() {
         return !!(this.sprite && this.isAlive)
+    }
+
+    getBoss() {
+        return this.sprite
     }
 
     destroy() {

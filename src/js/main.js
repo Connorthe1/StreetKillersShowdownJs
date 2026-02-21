@@ -15,7 +15,7 @@ import { ZipLineManager } from './environment/managers/ZipLineManager.js'
 import { SpawnManager } from './core/SpawnManager.js'
 import { HUDManager } from './ui/HUD.js'
 import { CameraManager } from './core/CameraManager.js'
-import { GrenadeManager } from './entities/Grenade.js'
+import { HandGrenade } from './entities/HandGrenade.js'
 import { MoneyManager } from './entities/Money.js'
 import { InputHandler } from './core/InputHandler.js'
 import { ExplosionManager } from './entities/ExplosionManager.js'
@@ -28,9 +28,6 @@ import {GameTimer} from "./core/GameTimer";
 
 // Экземпляр игрока
 let playerInstance = null
-
-window.Telegram.WebApp.ready()
-window.Telegram.WebApp.expand()
 
 const timeouts = []
 // Инициализация размеров экрана
@@ -104,7 +101,6 @@ let timer
 // Инициализация менеджера физики
 const physicsManager = new PhysicsManager()
 const eventBus = new EventBus()
-let engine // Для обратной совместимости
 let foregroundContainer
 let hudLayer
 
@@ -129,7 +125,7 @@ window.onload = async function () {
     app.stage = new Stage();
     document.body.appendChild(app.view)
     // Инициализация физического движка
-    engine = physicsManager.init(1);
+    physicsManager.init(1);
     app.stage.sortableChildren = true;
 
     hudLayer = new Group(99, true)
@@ -141,10 +137,6 @@ window.onload = async function () {
     
     // Загрузка загрузочного экрана
     await resourceLoader.loadLoaderScreen(app, gameWidth, gameHeight)
-
-    // Свайпы теперь обрабатываются через InputHandler в startGame()
-    //VK load
-    // await getData()
 
     // Загрузка всех ресурсов
     const resources = await resourceLoader.loadAllAssets()
@@ -180,7 +172,7 @@ window.onload = async function () {
         // Инициализация менеджера частиц
         particleManager = new ParticleManager(world, physicsManager, groundContainer, resources, gameState, eventBus)
 
-        bulletManager = new BulletManager(world, gameState, resources, timer, eventBus)
+        bulletManager = new BulletManager(world, gameState, resources, timer, eventBus, physicsManager)
 
         backgroundManager = new BackgroundManager(world, worldCoords, gameHeight, resources, gameState)
 
@@ -206,7 +198,7 @@ window.onload = async function () {
 
         explosionManager = new ExplosionManager(world, resources, eventBus)
 
-        grenadeManager = new GrenadeManager(world, physicsManager, worldCoords, resources, timer, eventBus)
+        grenadeManager = new HandGrenade(world, physicsManager, worldCoords, resources, timer, eventBus)
 
         moneyManager = new MoneyManager(world, physicsManager, worldCoords, resources, eventBus)
 
@@ -362,7 +354,7 @@ window.onload = async function () {
             groundManager.updateFloor(worldCoords.zeroLeft)
         }
         if (bulletManager) {
-            bulletManager.updateBullets(worldCoords, gameSpeed.current)
+            bulletManager.update(worldCoords, gameSpeed.current)
         }
         if (spawnManager) {
             spawnManager.update(gameSpeed.current)

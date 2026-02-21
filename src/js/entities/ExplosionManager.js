@@ -13,16 +13,16 @@ export class ExplosionManager {
 
         this.activeExplosion = null
 
-        eventBus.on('explode:create', data => {
-            this.createExplode(data.target, data.offsetX, data.offsetY, data.isBig, data.silence)
+        eventBus.on('explode:create', ({target, offsetX, offsetY, isBig, size, silence}) => {
+            this.createExplode(target, offsetX, offsetY, isBig, size, silence)
         })
     }
 
-    createExplode(target, offsetX = 0, offsetY = 0, isBig = false, silence = false) {
+    createExplode(target, offsetX = 0, offsetY = 0, isBig = false, size = null, silence = false) {
         this.eventBus.emit('camera:shake', {intensity: 2, duration: 500})
         
         // Звук взрыва
-        if (!silence && soundPlayer) {
+        if (!silence) {
             soundPlayer.explosion()
         }
         // Определение анимации взрыва
@@ -53,7 +53,7 @@ export class ExplosionManager {
         explode.position.set(x, y)
         
         // Зона урона — квадрат с настраиваемым размером (половина стороны)
-        const size = isBig ? 60 : 30
+        const finalSize = size ?? isBig ? 60 : 30
 
         this.world.addChild(explode)
 
@@ -62,12 +62,12 @@ export class ExplosionManager {
         this.activeExplosion = {
             x: bounds.x,
             y: bounds.y,
-            width: size,
-            height: size,
-            right: bounds.right - (bounds.width / 2) + (size / 2),
-            left: bounds.left - (bounds.width / 2) - (size / 2),
-            top: bounds.top - (bounds.height / 2) - (size / 2),
-            bottom: bounds.bottom - (bounds.height / 2) + (size / 2)
+            width: finalSize,
+            height: finalSize,
+            right: bounds.right - (bounds.width / 2) + (finalSize / 2),
+            left: bounds.left - (bounds.width / 2) - (finalSize / 2),
+            top: bounds.top - (bounds.height / 2) - (finalSize / 2),
+            bottom: bounds.bottom - (bounds.height / 2) + (finalSize / 2)
         }
         
         // Добавление в мир
