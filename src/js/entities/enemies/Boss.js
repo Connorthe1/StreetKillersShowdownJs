@@ -12,9 +12,9 @@
  */
 
 import * as PIXI from 'pixi.js'
-import {getPercent, random} from '../utils/GameUtils.js'
-import enemyParams from "../enemyParams";
-import {soundPlayer} from "../playSound";
+import {getPercent, random} from '../../utils/GameUtils.js'
+import enemyParams from "../../enemyParams";
+import {soundPlayer} from "../../playSound";
 
 /**
  * Менеджер боссов
@@ -39,9 +39,13 @@ export class BossManager {
         eventBus.on('boss:activate', () => {
            this.activate()
         })
+
+        eventBus.on('boss:create', ({pos, type}) => {
+            this.create(pos, type)
+        })
     }
 
-    create(bossType = null, pos = null) {
+    create(pos = null, bossType = null) {
         if (this.sprite) return
 
         let randomPos = pos || Math.floor(this.worldCoords.zeroRight + random(300, 750))
@@ -77,7 +81,7 @@ export class BossManager {
         
         // Создание укрытия/стены для босса
         if (bossType === 4) {
-            this.eventBus.emit('wall:create', {pos: randomPos - (this.worldCoords.worldWidth / 1.8), type: 0, forBoss: this})
+            this.eventBus.emit('wall:createInClub', {pos: randomPos - (this.worldCoords.worldWidth / 1.8), type: 0, forBoss: this})
         } else {
             this.eventBus.emit('wall:create', {pos: randomPos - (this.worldCoords.worldWidth / 1.8), forBoss: this})
         }
@@ -296,6 +300,8 @@ export class BossManager {
 
         this.shotAnim(fireTimes)
 
+        soundPlayer.gunShot('grenade')
+
         this.eventBus.emit('bullet:shotGrenade', {character: this.sprite, offsetX:0, offsetY: 0})
         
         await this.timer.sleep(200)
@@ -309,9 +315,13 @@ export class BossManager {
         this.gameState.increaseStreak(0.5)
         this.gameState.addPoints(5)
 
-        soundPlayer.damageMetal()
+        if (this.params.id === 'bossSmg') {
+            soundPlayer.damageFlesh()
+        } else {
+            soundPlayer.damageMetal()
+        }
 
-        const particleType = 'spark' || 'blood'
+        const particleType = this.params.id === 'bossSmg' ? 'blood' : 'spark'
 
         for (let i = 0; i < random(8, 20); i++) {
             this.eventBus.emit('particle:default', {coords: this.sprite, type: particleType, floor: this.sprite.y === this.worldCoords.secondFloor})

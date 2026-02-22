@@ -29,7 +29,7 @@ export class EnemyManager {
         let isSecondFloor = false
 
         // Проверка на дубликаты
-        const findDuplicate = this.enemies.some(enemy => randomPos + 30 > enemy.sprite.x && randomPos < enemy.sprite.x + enemy.sprite.width)
+        const findDuplicate = this.enemies.some(enemy => randomPos > enemy.sprite.x - 50 && randomPos < enemy.sprite.x + enemy.sprite.width + 50)
         if (findDuplicate) return
 
         // Проверка на босса
@@ -45,13 +45,27 @@ export class EnemyManager {
                 if (build.resetSpawnZones) {
                     build.resetSpawnZones.forEach(zone => {
                         if (randomPos + 30 > zone.x && randomPos < zone.w) {
-                            if (zone.w - randomPos < randomPos - zone.x) {
-                                randomPos = zone.w + 50
-                            } else {
-                                randomPos = zone.x - 50
-                            }
+                            randomPos = zone.w + 50
+                            // if (zone.w - randomPos < randomPos - zone.x) {
+                            //     randomPos = zone.w + 50
+                            // } else {
+                            //     randomPos = zone.x - 50
+                            // }
                         }
                     })
+                }
+            })
+        }
+
+        if (params?.traps?.length > 0) {
+            params.traps.forEach(trap => {
+                const trapB = trap.sprite.getLocalBounds()
+                if (randomPos > trapB.x - 50 && randomPos < trapB.x + trapB.width + 50) {
+                    if (trapB.x + trapB.width / 2 > randomPos) {
+                        randomPos = trapB.x - 50
+                    } else {
+                        randomPos = trapB.x + trapB.width + 50
+                    }
                 }
             })
         }

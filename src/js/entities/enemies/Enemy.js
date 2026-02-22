@@ -157,10 +157,12 @@ export class Enemy {
         if (!this.isAlive) return
 
         const isBullet = !!source.owner
-        const inCritZone = isBullet && this.sprite.x - source.owner.sprite.x < getPercent(this.worldCoords.worldWidth, 30)
+        const inCritZone = isBullet && this.sprite.x - source.owner.sprite.x < getPercent(this.worldCoords.worldWidth, 50)
         const damage = inCritZone ? source.damage * 2 : source.damage
 
         this.params.health -= damage
+
+        console.log('damage:', damage, 'hp:', this.params.health)
 
         this.gameState.increaseStreak(0.5)
         this.gameState.addPoints(5)
@@ -237,12 +239,11 @@ export class Enemy {
             this.sprite.textures = this.animset.death
         }
 
-        // Выпадение денег
-        // if (enemy.params.moneyDrop && this.spawnDropMoneyCallback) {
-        //     for (let i = 0; i <= random(0, enemy.params.moneyDrop); i++) {
-        //         this.spawnDropMoneyCallback(enemy)
-        //     }
-        // }
+        if (this.params.moneyDrop) {
+            for (let i = 0; i <= random(0, this.params.moneyDrop); i++) {
+                this.eventBus.emit('money:drop', this.sprite)
+            }
+        }
 
         this.sprite.play()
     }

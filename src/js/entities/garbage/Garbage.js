@@ -3,13 +3,15 @@ import { random } from '../../utils/GameUtils.js'
 import { soundPlayer } from "../../playSound";
 
 export class Garbage {
-    constructor(posX, posY, type, resources, eventBus) {
+    constructor(world, resources, eventBus) {
+        this.world = world;
         this.resources = resources
-        this.body = null
-        this.alive = true
         this.eventBus = eventBus
 
-        this.create(posX, posY, type)
+        this.sprite = null
+        this.isAlive = true
+
+        this.toDestroy = false
     }
 
     create(posX, posY, type = 0) {
@@ -19,20 +21,47 @@ export class Garbage {
         garbage.anchor.set(0, 1)
         garbage.position.set(posX, posY)
 
-        this.body = garbage
+        this.sprite = garbage
+
+        this.addToWorld()
+
+        return garbage
     }
 
-    breakBottle() {
-        // Звук разбития стекла
-        if (soundPlayer) {
-            soundPlayer.glassBreak()
+    update() {
+        if (this.toDestroy) return
+
+        if (this.isOutOfBounds()) {
+            this.destroy()
         }
+    }
+
+    activate() {
+        if (!this.isAlive) return
+        this.isAlive = false
+        // Звук разбития стекла
+        soundPlayer.glassBreak()
         
         // Создание частиц
         for (let i = 0; i <= 8; i++) {
-            this.eventBus.emit('particle:default', {coords: this.body, type: 'bottle'})
+            this.eventBus.emit('particle:default', {coords: this.sprite, type: 'bottle'})
         }
 
-        this.alive = false
+        this.destroy()
+    }
+
+    isOutOfBounds() {
+        const garbage = this.sprite.getBounds()
+
+        return garbage.x + garbage.width < 0
+    }
+
+    addToWorld() {
+        this.world.addChild(this.sprite)
+    }
+
+    destroy() {
+        this.world.removeChild(this.sprite)
+        this.toDestroy = true
     }
 }

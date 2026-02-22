@@ -4,10 +4,17 @@ import * as PIXI from 'pixi.js'
 export class DoorTrap extends Trap {
     constructor(world, resources, eventBus) {
         super(world, resources, eventBus)
+
+        this.collisionOffset = {left: 10, right: 20}
     }
 
     activate() {
+        if (!this.isAlive) return
+
+        this.isAlive = false
+
         super.activate()
+        this.sprite.play()
     }
 
     /**

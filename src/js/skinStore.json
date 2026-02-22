@@ -38,7 +38,7 @@
     "gunAmmo": 8,
     "speedAmp": 0.5,
     "noStop": true,
-    "offsetY": 8,
+    "offsetY": 12,
     "offsetX": 32,
     "reloadTime": 1400,
     "reloadAnim": 0.2

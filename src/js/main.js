@@ -8,15 +8,15 @@ import { StorageManager } from './storage/StorageManager.js'
 import { ResourceLoader } from './resources/ResourceLoader.js'
 import { PhysicsManager } from './physics/PhysicsManager.js'
 import { ParticleManager } from './entities/Particle.js'
-import { BulletManager } from './entities/BulletManager.js'
+import { BulletManager } from './entities/projectiles/BulletManager.js'
 import { BackgroundManager } from './environment/Background.js'
 import { GroundManager } from './environment/managers/GroundManager.js'
-import { ZipLineManager } from './environment/managers/ZipLineManager.js'
+import { ZipLineManager } from './environment/zipLines/ZipLineManager.js'
 import { SpawnManager } from './core/SpawnManager.js'
 import { HUDManager } from './ui/HUD.js'
 import { CameraManager } from './core/CameraManager.js'
 import { HandGrenade } from './entities/HandGrenade.js'
-import { MoneyManager } from './entities/Money.js'
+import { MoneyManager } from './entities/money/MoneyManager.js'
 import { InputHandler } from './core/InputHandler.js'
 import { ExplosionManager } from './entities/ExplosionManager.js'
 import { MeleeKillManager } from './ui/MeleeKill.js'
@@ -180,11 +180,12 @@ window.onload = async function () {
 
         worldCoords.firstFloor = groundContainer.getLocalBounds().y + 70
         worldCoords.secondFloor = groundContainer.getLocalBounds().y - 120
+        worldCoords.ground = groundContainer.getLocalBounds().y
 
         // Initialize player instance
         playerInstance = new Player(world, gameState, resources, storage, worldCoords, timer, eventBus)
           // Инициализация менеджера спавна
-        spawnManager = new SpawnManager(gameState, physicsManager, groundContainer, foregroundContainer, world, worldCoords, resources, timer, storage, eventBus)
+        spawnManager = new SpawnManager(gameState, physicsManager, foregroundContainer, world, worldCoords, resources, timer, storage, eventBus)
         
         zipLineManager = new ZipLineManager(world, worldCoords, resources, eventBus)
         
@@ -237,11 +238,11 @@ window.onload = async function () {
 
     function startGame() {
         playerInstance.createPlayer(-100, worldCoords.firstFloor, foregroundContainer)
-        playerInstance.updateGunFromSkin()
+        playerInstance.setGunParams()
 
         if (hudManager) {
             hudManager.createBulletsDisplay(playerInstance.gun)
-            hudManager.createMainHUD(playerInstance.playerState)
+            hudManager.createMainHUD(playerInstance)
             hudManager.createPauseMenu({
                 storage: storage,
                 hasMeleeKill: () => meleeKillManager.meleeKill,
@@ -273,7 +274,7 @@ window.onload = async function () {
         music = soundPlayer.startMusic()
         
         // Инициализация обработчика ввода (для свайпов)
-        const inputHandler = new InputHandler(app.renderer.view, gameState, playerInstance.playerState, storage, eventBus)
+        const inputHandler = new InputHandler(app.renderer.view, gameState, storage, eventBus)
 
         // Старый обработчик оставлен для обратной совместимости
         app.ticker.maxFPS = 60
@@ -365,6 +366,9 @@ window.onload = async function () {
         if (grenadeManager) {
             grenadeManager.update()
         }
+        if (moneyManager) {
+            moneyManager.update()
+        }
 
         particleManager.updateAllParticles(worldCoords.zeroLeft, playerInstance)
 
@@ -373,7 +377,9 @@ window.onload = async function () {
             spawn: spawnManager,
             bullets: bulletManager,
             explosion: explosionManager,
-            melee: meleeKillManager
+            melee: meleeKillManager,
+            zipLine: zipLineManager,
+            money: moneyManager,
         })
     }
 }

@@ -1,13 +1,13 @@
 import { random } from '../utils/GameUtils.js'
 import {BuildingManager} from "../environment/managers/Building";
 import {PuddleManager} from "../environment/puddles/PuddleManager";
-import {WallManager} from "../environment/managers/Wall";
+import { WallsManager } from '../environment/walls/WallsManager.js'
 import {TrapManager} from "../environment/traps/TrapsManager";
 import {CanManager} from "../environment/Can";
 import {PowerUpManager} from "../entities/PowerUp";
 import {EnemyManager} from "../entities/enemies/EnemyManager";
-import {DogEnemyManager} from "../entities/DogEnemy";
-import {BossManager} from "../entities/Boss";
+import {DogEnemyManager} from "../entities/enemies/DogEnemy";
+import {BossManager} from "../entities/enemies/Boss";
 import {CarBG} from "../environment/classes/CarBG";
 import {GarbageManager} from "../entities/garbage/GarbageManager";
 import {WoodBG} from "../environment/classes/WoodBG";
@@ -16,7 +16,7 @@ import {WoodBG} from "../environment/classes/WoodBG";
  * Менеджер спавна сущностей
  */
 export class SpawnManager {
-    constructor(gameState, physicsManager, ground, fg, world, worldCoords, resources, timer, storage, eventBus) {
+    constructor(gameState, physicsManager, fg, world, worldCoords, resources, timer, storage, eventBus) {
         this.gameState = gameState
         this.world = world
         this.worldCoords = worldCoords
@@ -24,14 +24,13 @@ export class SpawnManager {
         this.eventBus = eventBus
         this.timer = timer
         this.physicsManager = physicsManager
-        this.ground = ground
         this.fg = fg
         this.storage = storage
 
-        this.buildingManager = new BuildingManager(world, physicsManager, ground, worldCoords, fg, resources, eventBus)
+        this.buildingManager = new BuildingManager(world, physicsManager, worldCoords, fg, resources, eventBus)
         this.puddleManager = new PuddleManager(world, worldCoords, resources, eventBus, timer)
-        this.wallManager = new WallManager(world, ground, worldCoords, resources, eventBus)
-        this.trapManager = new TrapManager(world, worldCoords, ground, fg, resources, timer, eventBus)
+        this.wallManager = new WallsManager(world, worldCoords, resources, eventBus)
+        this.trapManager = new TrapManager(world, worldCoords, fg, resources, timer, eventBus)
         this.canManager = new CanManager(world, physicsManager, fg, worldCoords, resources, storage, eventBus)
         this.carManager = new CarBG(world, resources, worldCoords)
         this.woodBGManager = new WoodBG(world, resources, worldCoords)
@@ -52,15 +51,10 @@ export class SpawnManager {
      * Главная функция спавна сущностей
      */
     spawnEntity() {
-        this.bossManager.create()
-        // this.enemyManager.create({
-        //     buildings: this.buildingManager.getBuildings(),
-        //     boss: this.bossManager.getBoss()
-        // })
-        // this.dogEnemyManager.create()
-        // this.trapManager.createBarrel()
+        this.canManager.create()
 
-        return
+        return;
+
         // Спавн лужи
         if (Math.random() < 0.2) {
             this.puddleManager.create(this.buildingManager.getBuildings())
@@ -85,6 +79,7 @@ export class SpawnManager {
         if (Math.random() < 0.5) {
             this.enemyManager.create({
                 buildings: this.buildingManager.getBuildings(),
+                traps: this.trapManager.getTraps(),
                 boss: this.bossManager.getBoss()
             })
         }
@@ -108,13 +103,13 @@ export class SpawnManager {
         if (Math.random() > 0.75 && !this.buildingManager.getIsBuilding()) {
             const posX = random(10, 100)
             const posY = random(35, 45)
-            this.garbageManager.createGarbage(this.worldCoords.zeroRight + posX, this.worldCoords.firstFloor + posY)
+            this.garbageManager.create(this.worldCoords.zeroRight + posX, this.worldCoords.firstFloor + posY)
         }
 
         if (Math.random() > 0.75 && !this.buildingManager.getIsBuilding()) {
             const posX = random(10, 100)
             const posY = random(5, 15)
-            this.garbageManager.createGarbage(this.worldCoords.zeroRight + posX, this.worldCoords.firstFloor + posY)
+            this.garbageManager.create(this.worldCoords.zeroRight + posX, this.worldCoords.firstFloor + posY)
         }
 
         // Спавн босса или бочки
@@ -124,12 +119,10 @@ export class SpawnManager {
                 return
             }
             if (Math.random() < 0.5) {
-                console.log('trap')
                 this.trapManager.createBarrel(this.buildingManager.getAfterBuilding())
                 return
             }
             if (Math.random() < 0.5) {
-                console.log('wall')
                 this.wallManager.createWall(null, false, this.buildingManager.getAfterBuilding())
                 return
             }
@@ -145,5 +138,6 @@ export class SpawnManager {
         this.bossManager.update(gameSpeed)
         this.enemyManager.update()
         this.dogEnemyManager.update(gameSpeed)
+        this.buildingManager.update()
     }
 }

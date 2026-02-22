@@ -12,9 +12,9 @@
  */
 
 import * as PIXI from 'pixi.js'
-import {random} from '../utils/GameUtils.js'
-import {soundPlayer} from "../playSound";
-import {default as enemyParams} from '../enemyParams.js'
+import {random} from '../../utils/GameUtils.js'
+import {soundPlayer} from "../../playSound";
+import {default as enemyParams} from '../../enemyParams.js'
 
 /**
  * Менеджер собаки-врага

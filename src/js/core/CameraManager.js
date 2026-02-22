@@ -28,7 +28,7 @@ export class CameraManager {
         this.shake = null
     }
 
-    update(dt) {
+     update(dt) {
         if (!this.shake) return
         if (this.gameState.isPause || this.gameState.gameEnd) return
 

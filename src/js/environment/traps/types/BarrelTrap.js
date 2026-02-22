@@ -10,8 +10,9 @@ export class BarrelTrap extends Trap {
         this.collisionOffset = {left: 20, right: 50}
     }
 
-    async activate() {
+    async activate(player) {
         if (!this.isAlive) return
+        if (player && player.isRollState()) return
 
         this.isAlive = false
 

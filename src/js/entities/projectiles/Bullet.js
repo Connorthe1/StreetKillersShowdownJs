@@ -6,8 +6,8 @@
  */
 
 import * as PIXI from 'pixi.js'
-import { getPercent } from '../utils/GameUtils.js'
-import {soundPlayer} from "../playSound";
+import { getPercent } from '../../utils/GameUtils.js'
+import {soundPlayer} from "../../playSound";
 
 export class Bullet {
     constructor(world, resources, eventBus, gameState, bulletSpeed) {

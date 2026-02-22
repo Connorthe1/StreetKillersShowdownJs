@@ -85,12 +85,12 @@ export class ResourceLoader {
         const bgCarTexture = await PIXI.Assets.load('./assets/textures/bgCar.json')
         
         // Загрузка персонажей
-        skinStore[0].param = await PIXI.Assets.load('./assets/character/character.json')
-        skinStore[1].param = await PIXI.Assets.load('./assets/character/characterPremium.json')
-        skinStore[2].param = await PIXI.Assets.load('./assets/character/characterPremiumNigga.json')
-        skinStore[3].param = await PIXI.Assets.load('./assets/character/characterLogo.json')
-        skinStore[4].param = await PIXI.Assets.load('./assets/character/characterCowboy.json')
-        skinStore[5].param = await PIXI.Assets.load('./assets/character/characterAnime.json')
+        skinStore[0].animset = await PIXI.Assets.load('./assets/character/character.json')
+        skinStore[1].animset = await PIXI.Assets.load('./assets/character/characterPremium.json')
+        skinStore[2].animset = await PIXI.Assets.load('./assets/character/characterPremiumNigga.json')
+        skinStore[3].animset = await PIXI.Assets.load('./assets/character/characterLogo.json')
+        skinStore[4].animset = await PIXI.Assets.load('./assets/character/characterCowboy.json')
+        skinStore[5].animset = await PIXI.Assets.load('./assets/character/characterAnime.json')
         
         // Загрузка врагов
         const enemiesTexture = await PIXI.Assets.load('./assets/enemies/enemies.json')

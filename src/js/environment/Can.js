@@ -21,9 +21,9 @@ export class CanManager {
         // Физическое тело
         this.body = null
 
-        this.health = this.storage.upgrades.can + 1
-        this.dealDamage = false
-        this.collisionOffset = {left: -40, right: 20}
+        this.health = 0
+        this.touched = false
+        this.collisionOffset = {left: 10, right: 10}
     }
     
     /**
@@ -40,6 +40,7 @@ export class CanManager {
         can.parentGroup = this.fg
         can.zOrder = 6
 
+        this.health = this.storage.upgrades.can + 1
         this.body = Matter.Bodies.rectangle(this.worldCoords.zeroRight, this.worldCoords.firstFloor + 20, 8, 16, {isStatic: false, restitution: 0.2, frictionAir: 0.01, chamfer: { radius: [5,5,0,0] }});
         this.sprite = can
 
@@ -55,102 +56,54 @@ export class CanManager {
         // Обновление позиции и поворота из физики
         this.sprite.position = this.body.position
         this.sprite.rotation = this.body.angle
+
+        if (this.body.speed < 0.1) this.touched = false
         
         // Удаление банки, если она вышла за границы или потеряла здоровье
-        if ((this.sprite.x > this.worldCoords.zeroRight + 300) ||
-            (this.sprite.y > this.worldCoords.worldHeight) ||
-            (this.sprite.x < this.worldCoords.zeroLeft) ||
-            (this.health <= 0)) {
+        if (this.isOutOfBounds() || this.health <= 0) {
             this.destroy()
         }
     }
 
-    handlePlayer(player) {
-        if (player.isRollState() && !this.sprite.touched) {
-            this.dealDamage = false
+    activate(player) {
+        if (player.isRollState() && !this.touched) {
+            this.touched = true
             soundPlayer.canDrop()
-            Matter.Body.applyForce(this.body, {x: this.body.position.x, y: this.body.position.y + 7.5}, {x: random(0.005, 0.01, true, true) , y: -random(0.002, 0.00, true, true)});
+            this.physicsManager.applyForce(this.body, {x: this.body.position.x, y: this.body.position.y + 7.5}, {x: random(0.005, 0.01, true, true) , y: -random(0.002, 0.00, true, true)});
         }
     }
     
     /**
-     * Обрабатывает попадание банки во врага
+     * Обрабатывает попадание банки
      */
-    handleCanHitEnemy(enemy, isBoss) {
-        this.currentCan.dealDamage = true
-        this.currentCan.health -= 1
-        
-        if (this.gameState) {
-            this.gameState.scoreStreak += 2.5
-        }
-        
-        if (this.addPointsCallback) {
-            this.addPointsCallback(50)
-        }
-        
-        if (this.damageEnemyCallback) {
-            const damage = Math.floor(this.currentCan.body.speed)
-            this.damageEnemyCallback(enemy, damage, isBoss)
-        }
+    hit() {
+        this.touched = false
+        this.health -= 1
+
+        this.eventBus.emit('game:addScore', 2.5)
+        this.eventBus.emit('game:addPoints', 50)
         
         // Замедление банки после удара
-        this.currentCan.body.speed = 0.5
+        this.body.speed = 0.5
         
         // Отскок банки
-        Matter.Body.applyForce(
-            this.currentCan.body,
-            { x: this.currentCan.body.position.x, y: this.currentCan.body.position.y + 7.5 },
+        this.physicsManager.applyForce(
+            this.body,
+            { x: this.body.position.x, y: this.body.position.y + 7.5 },
             { x: -random(0.005, 0.01, true, true), y: -random(0.002, 0.006, true, true) }
         )
-    }
-    
-    /**
-     * Обрабатывает попадание банки в ловушку
-     */
-    handleCanHitTrap(trap) {
-        this.currentCan.dealDamage = true
-        this.currentCan.health -= 1
-        
-        if (this.gameState) {
-            this.gameState.scoreStreak += 2.5
-        }
-        
-        if (this.addPointsCallback) {
-            this.addPointsCallback(50)
-        }
-        
-        // Замедление банки после удара
-        this.currentCan.body.speed = 0.5
-        
-        // Отскок банки
-        Matter.Body.applyForce(
-            this.currentCan.body,
-            { x: this.currentCan.body.position.x, y: this.currentCan.body.position.y + 7.5 },
-            { x: -random(0.005, 0.01, true, true), y: -random(0.002, 0.006, true, true) }
-        )
-        
-        // Обработка ловушки
-        if (trap.type) {
-            if (trap.type === 'window' && this.soundPlayer) {
-                this.soundPlayer.glassBreak()
-            }
-            if (trap.play) {
-                trap.play()
-            }
-            trap.dead = true
-        } else {
-            if (this.barrelDeadCallback) {
-                this.barrelDeadCallback(trap)
-            }
-        }
     }
 
 
     addToWorld() {
         this.world.addChild(this.sprite)
+        this.physicsManager.addBody(this.body)
+    }
 
-        const engine = this.physicsManager.getEngine()
-        Matter.World.add(engine.world, this.body);
+    isOutOfBounds() {
+        const can = this.sprite.getBounds()
+
+        return (can.x + can.width < 0) || (can.x > this.worldCoords.worldWidth + 300)
     }
     
     /**
@@ -161,7 +114,9 @@ export class CanManager {
 
         this.world.removeChild(this.sprite)
         this.physicsManager.removeBody(this.body)
-        
+
+        this.health = 0
+        this.touched = false
         this.sprite = null
         this.body = null
     }

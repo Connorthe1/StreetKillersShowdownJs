@@ -8,8 +8,8 @@
 import * as PIXI from 'pixi.js'
 import { Bullet } from './Bullet.js'
 import { Grenade } from './Grenade.js'
-import { BULLET_SPEED } from '../core/GameConfig.js'
-import { soundPlayer } from '../playSound.js'
+import { BULLET_SPEED } from '../../core/GameConfig.js'
+import { soundPlayer } from '../../playSound.js'
 
 export class BulletManager {
     constructor(world, gameState, resources, timer, eventBus, physicsManager) {
@@ -86,9 +86,7 @@ export class BulletManager {
 
         const gunType = character.gun?.type || character.params.type
 
-        if (soundPlayer) {
-            soundPlayer.gunShot(gunType, gunType === 'smg' || gunType === 'rifle')
-        }
+        soundPlayer.gunShot(gunType, gunType === 'smg' || gunType === 'rifle')
 
         if (friendly) {
             if (character.activePowerUps?.some(item => item.type === 'boostGun')) {
@@ -97,6 +95,7 @@ export class BulletManager {
             shot.position.set(character.sprite.x + offsetX, character.sprite.y - offsetY)
 
             if (character.gun?.noStop) {
+                shot.owner = character
                 this.shotsArr.push(shot)
                 this.timer.sleep(150).then(() => {
                     this.shotsArr.splice(0, 1)
@@ -141,9 +140,9 @@ export class BulletManager {
         this.grenadesArr.forEach(g => g.update())
         this.grenadesArr = this.grenadesArr.filter(g => !g.toDestroy)
 
-        // if (this.shotsArr.length > 0) {
-        //     this.shotsArr.forEach(() => {})
-        // }
+        if (this.shotsArr.length > 0) {
+            this.shotsArr.forEach((shot) => shot.x += shot.owner.speed / 2)
+        }
     }
 
     clear() {

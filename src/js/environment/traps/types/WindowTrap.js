@@ -5,6 +5,8 @@ import {soundPlayer} from "../../../playSound";
 export class WindowTrap extends Trap {
     constructor(world, resources, eventBus) {
         super(world, resources, eventBus)
+
+        this.collisionOffset = {left: 10, right: 20}
     }
 
     /**
@@ -26,7 +28,12 @@ export class WindowTrap extends Trap {
     }
 
     activate() {
+        if (!this.isAlive) return
+
+        this.isAlive = false
+
         super.activate()
         soundPlayer.glassBreak()
+        this.sprite.play()
     }
 }

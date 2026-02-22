@@ -27,6 +27,10 @@ export class GameState {
         eventBus.on('game:addScore', (data) => {
             this.increaseStreak(data)
         })
+
+        eventBus.on('game:addMoney', data => {
+            this.collectedMoney += data
+        })
     }
 
     reset() {

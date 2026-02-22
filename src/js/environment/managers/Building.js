@@ -21,10 +21,9 @@ import {BUILDING_CHANCE} from "../../core/GameConfig";
  * Менеджер зданий
  */
 export class BuildingManager {
-    constructor(world, physicsManager, ground, worldCoords, fg, resources, eventBus) {
+    constructor(world, physicsManager, worldCoords, fg, resources, eventBus) {
         this.world = world
         this.physicsManager = physicsManager
-        this.ground = ground
 
         this.worldCoords = worldCoords
         this.fg = fg
@@ -39,9 +38,6 @@ export class BuildingManager {
         this.isBuilding = false
         this.isClub = false
 
-        eventBus.on('buildings:get', () => {
-            return this.getBuildings()
-        })
         eventBus.on('building:getIsBuilding', () => this.isBuilding)
     }
 
@@ -79,7 +75,7 @@ export class BuildingManager {
     }
 
     spawnBuilding(type, lastBuilding) {
-        const randBuild = this.buildingType > 0 ? this.buildingType : random(1, 1)
+        const randBuild = this.buildingType > 0 ? this.buildingType : random(1, 2)
         switch (randBuild) {
             case 1:
                 this.buildingType = 1
@@ -96,7 +92,6 @@ export class BuildingManager {
     }
 
     createBuildingZipline(type, lastBuilding) {
-        console.log('createBuildingZipline', type)
         const buildContainer = new PIXI.Container()
         buildContainer.secondFloor = true
         let buildBack
@@ -108,23 +103,23 @@ export class BuildingManager {
             const LBbounds = lastBuilding.getLocalBounds()
             position = LBbounds.x + LBbounds.width
         }
-        
-        this.deleteWallsAroundBuilding(position)
+
+        this.eventBus.emit('wall:clear', position)
         
         if (type === 'start') {
             buildBack = new PIXI.Sprite(this.resources.build2.textures.Build2FOne)
             buildFront = new PIXI.Sprite(this.resources.build2.textures.Build2FOneClose)
             buildBack.anchor.set(0.5)
-            buildBack.position.set(position + buildBack.width / 2, this.ground.getLocalBounds().y - 118)
+            buildBack.position.set(position + buildBack.width / 2, this.worldCoords.ground - 118)
 
             this.eventBus.emit('zipline:create', {pos: {x: position, y: buildBack.y - buildBack.height / 2}, type: 1})
 
-            this.createWindow(position + 11)
+            this.eventBus.emit('trap:window', position + 11)
             if (Math.random() < 0.5) {
-                this.createDoor(position + buildBack.width - 72, true)
+                this.eventBus.emit('trap:door', {pos: position + buildBack.width - 72, isSecondFloor: true})
             }
             if (Math.random() < 0.5) {
-                this.createCoverInBuild(position + buildBack.width - 180, true)
+                this.eventBus.emit('wall:createInBuild', {pos: position + buildBack.width - 180, isSecondFloor: true})
             }
         } else {
             const rand = Math.random()
@@ -134,27 +129,27 @@ export class BuildingManager {
                     buildBack = new PIXI.Sprite(this.resources.build2.textures.Build2FTwo)
                     buildFront = new PIXI.Sprite(this.resources.build2.textures.Build2FTwoClose)
                     buildBack.anchor.set(0.5)
-                    buildBack.position.set(position + buildBack.width / 2, this.ground.getLocalBounds().y - 118)
+                    buildBack.position.set(position + buildBack.width / 2, this.worldCoords.ground - 118)
                     if (Math.random() < 0.5) {
-                        this.createCoverInBuild(buildBack.x - 50, true)
+                        this.eventBus.emit('wall:createInBuild', {pos: buildBack.x - 50, isSecondFloor: true})
                     }
                     if (type === 'end') {
-                        this.createWindow(position + buildBack.width - 93)
+                        this.eventBus.emit('trap:window', position + buildBack.width - 93)
                     } else {
                         if (Math.random() < 0.5) {
-                            this.createDoor(position + buildBack.width - 72)
+                            this.eventBus.emit('trap:door', {pos: position + buildBack.width - 72})
                         }
                     }
                 } else {
                     buildBack = new PIXI.Sprite(this.resources.build2.textures.Build2Outroof)
                     buildContainer.outroof = true
                     buildBack.anchor.set(0.5)
-                    buildBack.position.set(position + buildBack.width / 2, this.ground.getLocalBounds().y - 2)
+                    buildBack.position.set(position + buildBack.width / 2, this.worldCoords.ground - 2)
                     if (Math.random() < 0.5) {
-                        this.createCoverInBuild(position + buildBack.width - 250, true, true)
+                        this.eventBus.emit('wall:createInBuild', {pos: position + buildBack.width - 250, isSecondFloor: true, isRoof: true})
                     }
                     if (Math.random() < 0.5) {
-                        this.createCoverInBuild(position + 150, true, true)
+                        this.eventBus.emit('wall:createInBuild', {pos: position + 150, isSecondFloor: true, isRoof: true})
                     }
                 }
             } else {
@@ -162,32 +157,33 @@ export class BuildingManager {
                     buildBack = new PIXI.Sprite(this.resources.build2.textures.Build2FThree)
                     buildFront = new PIXI.Sprite(this.resources.build2.textures.Build2FThreeClose)
                     buildBack.anchor.set(0.5)
-                    buildBack.position.set(position + buildBack.width / 2 - 104, this.ground.getLocalBounds().y - 118)
+                    buildBack.position.set(position + buildBack.width / 2 - 104, this.worldCoords.ground - 118)
                     if (Math.random() < 0.5) {
-                        this.createCoverInBuild(position + buildBack.width - 360, true)
+                        this.eventBus.emit('wall:createInBuild', {pos: position + buildBack.width - 360, isSecondFloor: true})
                     }
                     if (Math.random() < 0.5) {
-                        this.createCoverInBuild(position + 210, true)
+                        this.eventBus.emit('wall:createInBuild', {pos: position + 210, isSecondFloor: true})
                     }
                     if (Math.random() < 0.5) {
-                        this.createWindow(position - 108)
+                        console.log('WINDOW', position - 108)
+                        this.eventBus.emit('trap:window', position - 108)
                     } else {
-                        this.createDoor(position - 88, true)
+                        this.eventBus.emit('trap:door', {pos: position - 88, isSecondFloor: true})
                     }
                     if (type === 'end') {
-                        this.createWindow(position + buildBack.width - 212)
+                        this.eventBus.emit('trap:window', position + buildBack.width - 212)
                     }
                 } else {
                     buildBack = new PIXI.Sprite(this.resources.build2.textures.Build2Outroof)
                     buildConnect = new PIXI.Sprite(this.resources.build2.textures.Build2fOneConnect)
                     buildContainer.outroof = true
                     buildBack.anchor.set(0.5)
-                    buildBack.position.set(position + buildBack.width / 2, this.ground.getLocalBounds().y - 2)
+                    buildBack.position.set(position + buildBack.width / 2, this.worldCoords.ground - 2)
                     if (Math.random() < 0.5) {
-                        this.createCoverInBuild(position + buildBack.width - 250, true, true)
+                        this.eventBus.emit('wall:createInBuild', {pos: position + buildBack.width - 250, isSecondFloor: true, isRoof: true})
                     }
                     if (Math.random() < 0.5) {
-                        this.createCoverInBuild(position + 150, true, true)
+                        this.eventBus.emit('wall:createInBuild', {pos: position + 150, isSecondFloor: true, isRoof: true})
                     }
                 }
             }
@@ -253,42 +249,43 @@ export class BuildingManager {
             const LBbounds = lastBuilding.getLocalBounds()
             position = LBbounds.x + LBbounds.width
         }
-        
-        this.deleteWallsAroundBuilding(position)
+
+        this.eventBus.emit('wall:clear', position)
 
         if (type === 'start') {
             buildBack = new PIXI.Sprite(this.resources.build1.textures.Build1FOne)
             buildFront = new PIXI.Sprite(this.resources.build1.textures.Build1FOneClose)
-            // if (trapManager) trapManager.createDoor(position + 32)
-            // if (Math.random() < 0.5) {
-            //     if (trapManager) trapManager.createDoor(position + buildBack.width - 72)
-            // }
-            // if (Math.random() < 0.5) {
-            //     createCoverInBuild(position + buildBack.width / 2)
-            // }
+            this.eventBus.emit('trap:door', {pos: position + 32})
+
+            if (Math.random() < 0.5) {
+                this.eventBus.emit('trap:door', {pos: position + buildBack.width - 72})
+            }
+            if (Math.random() < 0.5) {
+                this.eventBus.emit('wall:createInBuild', {pos: position + buildBack.width / 2})
+            }
         } else {
             const rand = Math.random()
             if (rand < 0.5) {
                 buildBack = new PIXI.Sprite(this.resources.build1.textures.Build1FTwo)
                 buildFront = new PIXI.Sprite(this.resources.build1.textures.Build1FTwoClose)
-                // if (Math.random() < 0.5) {
-                //     createCoverInBuild(position + buildBack.width - 150)
-                // }
-                // if (Math.random() < 0.5) {
-                //     if (trapManager) trapManager.createDoor(position + buildBack.width - 72)
-                // }
+                if (Math.random() < 0.5) {
+                    this.eventBus.emit('wall:createInBuild', {pos: position + buildBack.width - 150})
+                }
+                if (Math.random() < 0.5) {
+                    this.eventBus.emit('trap:door', {pos: position + buildBack.width - 72})
+                }
             } else {
                 buildBack = new PIXI.Sprite(this.resources.build1.textures.Build1FThree)
                 buildFront = new PIXI.Sprite(this.resources.build1.textures.Build1FThreeClose)
-                // if (Math.random() < 0.5) {
-                //     createCoverInBuild(position + buildBack.width - 150)
-                // }
-                // if (Math.random() < 0.5) {
-                //     createCoverInBuild(position + buildBack.width - 340)
-                // }
-                // if (Math.random() < 0.5) {
-                //     if (trapManager) trapManager.createDoor(position + buildBack.width - 72)
-                // }
+                if (Math.random() < 0.5) {
+                    this.eventBus.emit('wall:createInBuild', {pos: position + buildBack.width - 150})
+                }
+                if (Math.random() < 0.5) {
+                    this.eventBus.emit('wall:createInBuild', {pos: position + buildBack.width - 340})
+                }
+                if (Math.random() < 0.5) {
+                    this.eventBus.emit('trap:door', {pos: position + buildBack.width - 72})
+                }
             }
             if (type !== 'end') {
                 if (rand < 0.5) {
@@ -303,7 +300,7 @@ export class BuildingManager {
         buildFront.anchor.set(0.5)
         buildFront.parentGroup = this.fg
         buildFront.zOrder = 10
-        buildBack.position.set(position + buildBack.width / 2, this.ground.getLocalBounds().y - 97)
+        buildBack.position.set(position + buildBack.width / 2, this.worldCoords.ground - 97)
         buildFront.position.set(position + buildFront.width / 2, buildBack.y)
         
         if (buildConnect) {
@@ -344,13 +341,13 @@ export class BuildingManager {
         const clubContainer = new PIXI.Container()
         const clubBack = new PIXI.Sprite(this.resources.club.textures.clubBack)
         const clubFront = new PIXI.Sprite(this.resources.club.textures.clubFront)
-        
-        this.deleteWallsAroundBuilding(position + clubBack.width / 2)
+
+        this.eventBus.emit('wall:clear', position + clubBack.width / 2)
         
         for (let i = 1; i <= 17; i++) {
             const rand = Math.floor(Math.random() * (9 - 1 + 1) + 1)
             const laserBeam = new PIXI.AnimatedSprite(this.resources.laserBeamTexture.animations[`render${rand}`])
-            laserBeam.position.set(position + 526 + (i * 44), this.worldCoords.worldHeight - 434)
+            laserBeam.position.set(position + 526 + (i * 44), this.worldCoords.firstFloor - 234)
             laserBeam.tint = randomRGB()
             laserBeam.scale.y = `1.0${rand}`
             laserBeam.parentGroup = this.fg
@@ -369,36 +366,34 @@ export class BuildingManager {
         clubFront.anchor.set(0.5)
         clubFront.parentGroup = this.fg
         clubFront.zOrder = 10
-        clubBack.position.set(position + clubBack.width / 2, this.ground.getLocalBounds().y - 97)
+        clubBack.position.set(position + clubBack.width / 2, this.worldCoords.ground - 97)
         clubFront.position.set(position + clubFront.width / 2, clubBack.y)
         clubContainer.club = true
         
         if (Math.random() < 0.5) {
-            this.createCoverInClub(position + 190, 0)
+            this.eventBus.emit('wall:createInClub', {pos: position + 190, type: 0})
         }
         if (Math.random() < 0.5) {
-            this.createCoverInClub(position + 410, 1)
+            this.eventBus.emit('wall:createInClub', {pos: position + 410, type: 1})
         }
         if (Math.random() < 0.5) {
-            this.createCoverInClub(position + 540, 1)
+            this.eventBus.emit('wall:createInClub', {pos: position + 540, type: 1})
         }
         if (Math.random() < 0.1) {
-            if (this.createBossCallback) {
-                this.createBossCallback(4, clubBack.x + 130)
-            }
+            this.eventBus.emit('boss:create', {pos: clubBack.x + 130, type: 4})
         } else {
             if (Math.random() < 0.5) {
-                this.createCoverInClub(position + 840, 0)
+                this.eventBus.emit('wall:createInClub', {pos: position + 840, type: 0})
             }
             if (Math.random() < 0.5) {
-                this.createCoverInClub(position + 1300, 0)
+                this.eventBus.emit('wall:createInClub', {pos: position + 1300, type: 0})
             }
         }
         if (Math.random() < 0.5) {
-            this.createCoverInClub(position + 1600, 2)
+            this.eventBus.emit('wall:createInClub', {pos: position + 1600, type: 2})
         }
         if (Math.random() < 0.5) {
-            this.createCoverInClub(position + 1900, 2)
+            this.eventBus.emit('wall:createInClub', {pos: position + 1900, type: 2})
         }
         
         clubContainer.addChild(clubBack)
@@ -419,32 +414,27 @@ export class BuildingManager {
             }
         ]
         clubContainer.body = Matter.Bodies.rectangle(clubBack.x, this.worldCoords.secondFloor + 50, clubBack.width + 20, 40, { isStatic: true })
-        if (this.physicsManager) {
-            this.physicsManager.addBody(clubContainer.body)
-        }
-        if (this.world) {
-            this.world.addChild(clubContainer)
-        }
+
+        this.physicsManager.addBody(clubContainer.body)
+        this.world.addChild(clubContainer)
+
         return clubContainer
     }
-    
-    /**
-     * Удаляет стены вокруг здания
-     * @param {number} position - позиция здания
-     */
-    deleteWallsAroundBuilding(position) {
-        if (!this.walls) return
-        
-        this.walls.forEach((wall, idx) => {
-            const wallX = wall.position ? wall.position.x : (wall.x || 0)
-            if (wallX + 100 > position) {
-                if (this.world) {
-                    this.world.removeChild(wall)
+
+    update() {
+        this.buildings.forEach((build, idx) => {
+            const b = build.getBounds()
+            if (b.x + b.width < 0) {
+                if (build.club) {
+                    this.isClub = false
+                    this.isBuilding = false
                 }
-                this.walls.splice(idx, 1)
+                this.clear(this.buildings[idx])
+                this.buildings.splice(idx, 1)
             }
         })
     }
+
 
     getBuildings() {
         return this.buildings
@@ -460,5 +450,6 @@ export class BuildingManager {
     
     clear(build) {
         this.physicsManager.removeBody(build.body)
+        this.world.removeChild(build)
     }
 }

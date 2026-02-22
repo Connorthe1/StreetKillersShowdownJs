@@ -29,7 +29,8 @@ export class Player {
 
         // Спрайт игрока
         this.sprite = null
-        this.currentSkin = resources.skinStore[Number(storage.selectedSkin)].param
+        this.animset = resources.skinStore[Number(storage.selectedSkin)].animset
+        this.isZipLineRotate = true
         
         // Состояние игрока
         this.state = ''
@@ -106,7 +107,7 @@ export class Player {
 
     // Создает спрайт игрока
     createPlayer(x = 0, y = 0, fg) {
-        const player = new PIXI.AnimatedSprite(this.currentSkin.animations.run)
+        const player = new PIXI.AnimatedSprite(this.animset.animations.run)
         player.color = player.tint
         player.shadow = 11776947
         player.anchor.set(0.5)
@@ -312,7 +313,7 @@ export class Player {
                             if (this.inCover || this.inZipLine) {
                                 this.gameState.increaseStreak(1)
                             } else {
-                                if (this.isMeleeActive) return
+                                if (this.isMeleeActive || this.state !== 'rollEnd') return
                                 this.setPlayerSpeed(this.defaultSpeed)
                                 this.playAnim()
                             }
@@ -433,7 +434,7 @@ export class Player {
      * @param {string} anim - название анимации
      */
     playAnim(anim) {
-        if (!this.sprite || !this.currentSkin || !this.currentSkin.animations) {
+        if (!this.sprite || !this.animset.animations) {
             return
         }
         
@@ -442,7 +443,7 @@ export class Player {
         
         if (this.gun.noStop && anim === 'shot' && !this.inCover) {
             if (this.state) {
-                this.updatePlayerState(anim, this.currentSkin.animations.run, this.sprite.color)
+                this.updatePlayerState(anim, 'run', this.sprite.color)
             } else {
                 this.state = anim
             }
@@ -450,7 +451,7 @@ export class Player {
         }
         
         if (!anim || (anim === 'shotEnd' && this.gun.noStop)) {
-            this.resetPlayerState()
+            this.updatePlayerState('', 'run', this.sprite.color)
         } else {
             const tint = (anim === 'roll' || anim === 'rollEnd' || (this.inCover && anim !== 'shot')) ?
                 this.sprite.shadow : this.sprite.color
@@ -460,10 +461,10 @@ export class Player {
                 if (anim === 'idle') {
                     this.sprite.anchor.y = 0.7
                 }
-                this.updatePlayerState('', this.currentSkin.animations[anim], tint)
+                this.updatePlayerState('', anim, this.sprite.shadow)
             } else {
-                if (this.currentSkin.animations[anim]) {
-                    this.updatePlayerState(anim, this.currentSkin.animations[anim], tint)
+                if (this.animset.animations[anim]) {
+                    this.updatePlayerState(anim, anim, tint)
                 } else {
                     console.warn(`Animation "${anim}" not found in skin animations`)
                 }
@@ -474,62 +475,27 @@ export class Player {
     /**
      * Обновляет состояние игрока
      */
-    updatePlayerState(state, textures, tint) {
-        if (!this.sprite || !textures) return
+    updatePlayerState(state, anim, tint) {
+        if (!this.sprite) return
         
         this.state = state
-        this.sprite.textures = textures
+        this.sprite.textures = this.animset.animations[anim]
         this.sprite.tint = tint
         this.sprite.play()
     }
     
     /**
-     * Сбрасывает состояние игрока
-     */
-    resetPlayerState() {
-        if (!this.sprite || !this.currentSkin) return
-        
-        this.state = ''
-        if (this.currentSkin.animations && this.currentSkin.animations.run) {
-            this.sprite.textures = this.currentSkin.animations.run
-        }
-        this.sprite.tint = this.sprite.color
-        this.sprite.play()
-    }
-
-    get playerState() {
-        return {
-            state: this.state,
-            health: this.health,
-            invincible: this.invincible,
-            inCover: this.inCover,
-            inZipLine: this.inZipLine,
-            activePowerUps: this.activePowerUps,
-            secondFloor: this.secondFloor,
-            currentSkin: this.currentSkin,
-            stimpack: this.stimpack,
-            skillCD: this.skillCD,
-            inBossFight: this.inBossFight,
-            leaveCover: this.leaveCover,
-            afterRoll: this.afterRoll
-        }
-    }
-    
-    /**
      * Обновляет параметры оружия из скина и апгрейдов
      */
-    updateGunFromSkin() {
-        const skinIndex = this.storage.selectedSkin
-
-        if (!this.storage) {
-            console.warn('updateGunFromSkin: storage not provided')
-            return
-        }
+    setGunParams() {
+        const skin = this.resources.skinStore[Number(this.storage.selectedSkin)]
         
         // Применение параметров скина
-        if (this.resources.skinStore && this.resources.skinStore[skinIndex]) {
-            const skin = this.resources.skinStore[skinIndex]
-            
+        if (skin) {
+            if (skin.noRotate) {
+                this.isZipLineRotate = false
+            }
+
             if (skin.gun) {
                 this.gun.type = skin.gun
             }
@@ -603,11 +569,12 @@ export class Player {
     }
 
     handleCover(wall) {
-        if ((!this.inCover && this.isRollState() && !this.leaveCover) || (wall.forBoss && wall.forBoss.isAlive && !this.inBossFight)) {
-            this.inBossFight = wall.forBoss?.isAlive ?? false
+        const w = wall.sprite ?? wall
+        if ((!this.inCover && this.isRollState() && !this.leaveCover) || (w.forBoss && w.forBoss.isAlive && !this.inBossFight)) {
+            this.inBossFight = w.forBoss?.isAlive ?? false
             this.inCover = true
             this.setPlayerSpeed(0)
-            this.sprite.x = wall.coverX
+            this.sprite.x = w.coverX
             this.playAnim('idle')
 
             if (this.inBossFight) {
@@ -618,6 +585,15 @@ export class Player {
 
     handlePuddle() {
         this.setPlayerSpeed(this.defaultSpeed * 1.5)
+    }
+
+    handleZipLine(zipline) {
+        if (this.inZipLine) return
+
+        this.inZipLine = zipline.isEnd ? 'bot' : 'top'
+        this.setPlayerSpeed(0)
+        this.playAnim('zipLine')
+        this.sprite.rotation = this.isZipLineRotate ? 4.8 : 0
     }
 
     isRollState() {
@@ -644,7 +620,7 @@ export class Player {
             findAlreadyActive.expired = Date.now() + ((5 + (5 * this.storage.upgrades[powerUp.options.type])) * 1000)
         } else {
             // Добавление нового пауэр-апа
-            this.playerState.activePowerUps.push({
+            this.activePowerUps.push({
                 type: powerUp.options.type,
                 expired: Date.now() + ((5 + (5 * this.storage.upgrades[powerUp.options.type])) * 1000)
             })

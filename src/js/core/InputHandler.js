@@ -14,10 +14,9 @@
  * Обработчик ввода
  */
 export class InputHandler {
-    constructor(canvas, gameState, playerState, storage, eventBus) {
+    constructor(canvas, gameState, storage, eventBus) {
         this.canvas = canvas
         this.gameState = gameState
-        this.playerState = playerState
         this.storage = storage
         this.eventBus = eventBus
         
