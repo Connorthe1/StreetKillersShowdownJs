@@ -23,7 +23,7 @@
     "desc": "has a shotgun \n only 2 shots \n fast speed and reload \n 4 bullets per shot",
     "gun": "shotgun",
     "gunAmmo": 2,
-    "gunAngle": 0.5,
+    "gunAngle": 0.4,
     "noRotate": true,
     "speedAmp": 0.8,
     "reloadTime": 600

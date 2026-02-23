@@ -64,7 +64,7 @@ export class Player {
             damage: 1,
             fireRate: 100,
             type: 'pistol',
-            angle: 0.4,
+            angle: 0.2,
             offsetX: 30,
             offsetY: 12,
             shotTrigger: 0,
@@ -282,12 +282,13 @@ export class Player {
                     }
                     this.sprite.onComplete = () => {
                         this.eventBus.emit('hud:createBulletsDisplay', this.gun)
-
                         this.gun.currentAmmo = this.gun.ammo
+
                         if (this.inCover) {
                             this.playAnim('idle')
                             return
                         }
+                        if (this.state !== 'reload') return;
                         this.setPlayerSpeed(this.defaultSpeed)
                         this.playAnim()
                     }
@@ -369,6 +370,7 @@ export class Player {
                                 this.playAnim('idle')
                                 return
                             }
+                            if (this.state !== 'shot') return;
                             this.setPlayerSpeed(this.defaultSpeed)
                             this.playAnim()
                         }

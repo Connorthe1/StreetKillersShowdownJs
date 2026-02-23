@@ -62,7 +62,7 @@ export class GameState {
     }
 
     updateScore(stimpackActive = false) {
-        let multiplier = 1
+        let multiplier
 
         if (this.scoreStreak < 10) {
             this.score = 'F'

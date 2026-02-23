@@ -51,9 +51,6 @@ export class SpawnManager {
      * Главная функция спавна сущностей
      */
     spawnEntity() {
-        this.canManager.create()
-
-        return;
 
         // Спавн лужи
         if (Math.random() < 0.2) {
