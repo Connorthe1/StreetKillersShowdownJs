@@ -9,7 +9,7 @@ export class Garbage {
         this.eventBus = eventBus
 
         this.sprite = null
-        this.isAlive = true
+        this.isAlive = false
 
         this.toDestroy = false
     }
@@ -21,11 +21,13 @@ export class Garbage {
         garbage.anchor.set(0, 1)
         garbage.position.set(posX, posY)
 
+        this.isAlive = rand === 4 || rand === 3
+
         this.sprite = garbage
 
         this.addToWorld()
 
-        return garbage
+        return this
     }
 
     update() {
@@ -38,6 +40,7 @@ export class Garbage {
 
     activate() {
         if (!this.isAlive) return
+
         this.isAlive = false
         // Звук разбития стекла
         soundPlayer.glassBreak()

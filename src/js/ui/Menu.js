@@ -19,23 +19,22 @@ import { StoreManager } from './Store.js'
  * Менеджер главного меню
  */
 export class MenuManager {
-    constructor(app, gameState, storage, gameWidth, gameHeight, textStyles, resources, storageManager, sleep, eventBus) {
+    constructor(app, gameState, gameWidth, gameHeight, textStyles, resources, storageManager, timer, eventBus) {
         this.app = app
         this.gameState = gameState
-        this.storage = storage
         this.gameWidth = gameWidth
         this.gameHeight = gameHeight
         this.textStyles = textStyles
         this.resources = resources
         this.storageManager = storageManager
-        this.sleep = sleep
+        this.timer = timer
         this.eventBus = eventBus
 
         this.menu = null
         this.storeManager = null
 
-        this.eventBus.on('menu:create', () => {
-            this.createMenu()
+        eventBus.on('menu:clear', () => {
+            this.clear()
         })
     }
 
@@ -106,7 +105,7 @@ export class MenuManager {
             main.visible = false
             this.storeManager = new StoreManager(
                 this.menu,
-                this.storage,
+                this.storageManager.storage,
                 this.gameWidth,
                 this.gameHeight,
                 this.textStyles,
@@ -124,17 +123,9 @@ export class MenuManager {
         bg.on('pointerdown', (event) => {
             if (!this.gameState.isMenu) return
             this.gameState.isMenu = false
-            
-            const menuLeft = setInterval(() => {
-                this.menu.x -= 20
-            }, 10)
 
-            this.sleep(300).then(() => {
-                clearInterval(menuLeft)
-                this.eventBus.emit('menu:startGame')
-                this.app.stage.removeChild(this.menu)
-                this.menu = null
-            })
+            //TODO
+            this.eventBus.emit('menu:startGame')
         })
         
         return this.menu
@@ -156,12 +147,12 @@ export class MenuManager {
         cup.position.set(16, 16)
         topMenu.addChild(cup)
         
-        const topDistance = new PIXI.Text(this.storage.record.toString(), this.textStyles.default30)
+        const topDistance = new PIXI.Text(this.storageManager.storage.record.toString(), this.textStyles.default30)
         topDistance.position.set(52, 20)
         topMenu.addChild(topDistance)
         
         // Деньги
-        const money = new PIXI.Text(this.storage.money, this.textStyles.default30)
+        const money = new PIXI.Text(this.storageManager.storage.money, this.textStyles.default30)
         money.position.set(this.gameWidth - 16, 20)
         money.anchor.set(1, 0)
         topMenu.addChild(money)
@@ -173,7 +164,7 @@ export class MenuManager {
         topMenu.addChild(moneyIcon)
         
         // Золото
-        const gold = new PIXI.Text(this.storage.gold, this.textStyles.default30)
+        const gold = new PIXI.Text(this.storageManager.storage.gold, this.textStyles.default30)
         gold.position.set(moneyIcon.x - moneyIcon.width - 20, 20)
         gold.anchor.set(1, 0)
         topMenu.addChild(gold)
@@ -185,13 +176,6 @@ export class MenuManager {
         topMenu.addChild(goldIcon)
         
         return topMenu
-    }
-    
-    /**
-     * Получает меню
-     */
-    getMenu() {
-        return this.menu
     }
     
     /**

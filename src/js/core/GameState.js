@@ -15,10 +15,8 @@ export class GameState {
         this.gameStart = false
         this.gameEnd = false
 
-        // Таймер для уменьшения streak
-        this.scoreTimerInterval = null;
-
         this.eventBus = eventBus
+        this.scoreTimer = 0
 
         eventBus.on('game:addPoints', (data) => {
             this.addPoints(data)
@@ -30,6 +28,10 @@ export class GameState {
 
         eventBus.on('game:addMoney', data => {
             this.collectedMoney += data
+        })
+
+        eventBus.on('game:addKills', data => {
+            this.kills += data
         })
     }
 
@@ -44,9 +46,7 @@ export class GameState {
         this.isPause = false
         this.gameStart = false
         this.gameEnd = false
-
-        // Сброс таймера при сбросе состояния
-        this.stopScoreTimer();
+        this.scoreTimer = 0
     }
 
     updatePoints() {
@@ -104,17 +104,12 @@ export class GameState {
         this.multiplier = multiplier;
     }
 
-    startScoreTimer() {
-        if (this.scoreTimerInterval) {
-            this.stopScoreTimer();
-        }
+    updateScoreTimer(dt) {
+        if (this.isPause || this.isMenu) return;
+        this.scoreTimer += dt
 
-        this.scoreTimerInterval = setInterval(() => {
-            if (this.isPause) return;
-            if (this.gameEnd || this.isMenu) {
-                this.stopScoreTimer();
-                return;
-            }
+        if (this.scoreTimer >= 500) {
+            this.scoreTimer = 0
 
             if (this.scoreStreak <= 0) return;
 
@@ -122,41 +117,12 @@ export class GameState {
 
             // Обновление скорости игрока на основе очков
             this.eventBus.emit('player:speed', this.points / 10000)
-        }, 500);
-    }
-
-    stopScoreTimer() {
-        if (this.scoreTimerInterval) {
-            clearInterval(this.scoreTimerInterval);
-            this.scoreTimerInterval = null;
         }
     }
 
-    updatePointsDisplay() {
-        if (this.hudManager) {
-            this.hudManager.updatePoints();
-        }
-    }
-
-    updateMultiplierDisplay() {
-        if (this.hudManager) {
-            this.hudManager.updateMultiplier();
-        }
-    }
-
-    updateScoreDisplay(stimpackActive = false) {
-        if (this.hudManager) {
-            this.hudManager.updateScore(stimpackActive);
-        }
-
-        return this.updateScore(stimpackActive);
-    }
-
-    update(stimpackActive = false) {
-        this.updatePointsDisplay();
-        this.updateMultiplierDisplay();
-        this.updateScoreDisplay(this.score);
+    update(dt, stimpackActive = false) {
         this.updateScore(stimpackActive)
+        this.updateScoreTimer(dt)
     }
 
     addPoints(points) {
@@ -172,9 +138,5 @@ export class GameState {
         if (this.scoreStreak < 0) {
             this.scoreStreak = 0;
         }
-    }
-
-    clear() {
-        this.stopScoreTimer();
     }
 }

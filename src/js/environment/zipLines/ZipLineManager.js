@@ -47,7 +47,7 @@ export class ZipLineManager {
     /**
      * Очищает все зиплайны
      */
-    destroy() {
+    clear() {
         this.zipLines.forEach(zipLine => {
             zipLine.destroy()
         })

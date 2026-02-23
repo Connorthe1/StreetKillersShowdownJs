@@ -12,7 +12,19 @@
  */
 
 import * as PIXI from 'pixi.js'
-import {random} from "../utils/GameUtils";
+
+const SCORE_COLORS = {
+    'F': ["#ffffff", "#ff0000"],
+    'E': ["#ffffff", "#ff5858"],
+    'D': ["#ffffff", "#ffa4d5"],
+    'C': ["#ffffff", "#83b9ff"],
+    'B': ["#ffffff", "#b0ff89"],
+    'A': ["#ffffff", "#9eff11"],
+    'A+': ["#ffffff", "#ffec6e"],
+    'S': ["#ffffff", "#ffcd00"],
+    'S+': ["#ffffff", "#ffa33c"],
+    'S++': ["#ffffff", "#ff6200"]
+}
 
 /**
  * Менеджер HUD
@@ -66,6 +78,12 @@ export class HUDManager {
         eventBus.on('hud:bossReward', type => {
             this.createBossReward(type)
         })
+    }
+
+    init(player) {
+        this.createBulletsDisplay(player.gun)
+        this.createMainHUD(player)
+        this.createPauseMenu()
     }
     
     /**
@@ -331,28 +349,14 @@ export class HUDManager {
     /**
      * Обновляет отображение рейтинга
      */
-    updateScore(score) {
+    updateScore() {
         const scoreElement = this.hud.getChildByName('score')
         if (!scoreElement) return
         
-        scoreElement.text = score
+        scoreElement.text = this.gameState.score
         
-        // Обновление цвета в зависимости от рейтинга
-        const scoreColors = {
-            'F': ["#ffffff", "#ff0000"],
-            'E': ["#ffffff", "#ff5858"],
-            'D': ["#ffffff", "#ffa4d5"],
-            'C': ["#ffffff", "#83b9ff"],
-            'B': ["#ffffff", "#b0ff89"],
-            'A': ["#ffffff", "#9eff11"],
-            'A+': ["#ffffff", "#ffec6e"],
-            'S': ["#ffffff", "#ffcd00"],
-            'S+': ["#ffffff", "#ffa33c"],
-            'S++': ["#ffffff", "#ff6200"]
-        }
-        
-        if (scoreColors[score]) {
-            scoreElement.style._fill = scoreColors[score]
+        if (SCORE_COLORS[this.gameState.score]) {
+            scoreElement.style._fill = SCORE_COLORS[this.gameState.score]
         }
     }
     
@@ -373,6 +377,7 @@ export class HUDManager {
     update() {
         this.updateFPS()
         this.updatePoints()
+        this.updateScore()
         this.updateMultiplier()
 
         if (this.bossReward) {
@@ -458,7 +463,7 @@ export class HUDManager {
     /**
      * Создает меню паузы
      */
-    createPauseMenu(callbacks) {
+    createPauseMenu() {
         const hudPause = new PIXI.Container()
         this.hud.addChild(hudPause)
 
@@ -489,7 +494,7 @@ export class HUDManager {
         heading.position.set(this.gameWidth / 2, this.gameHeight / 4)
         pauseMenu.addChild(heading)
 
-        const distance = new PIXI.Text(`record: ${callbacks.storage?.record || 0}`, this.textStyles.default40)
+        const distance = new PIXI.Text(`record: ${this.storage?.record || 0}`, this.textStyles.default40)
         distance.anchor.set(0, 1)
         distance.position.set(20, this.gameHeight - 20)
         pauseMenu.addChild(distance)
@@ -549,13 +554,12 @@ export class HUDManager {
         timerMenu.addChild(timerText)
 
         pause.on('pointerdown', () => {
-            if (callbacks.hasMeleeKill && callbacks.hasMeleeKill()) return
-            if (callbacks.pauseGame) callbacks.pauseGame()
+            if (this.hud.getChildByName('meleeScreen')) return
+            this.eventBus.emit('game:pause')
             this.hud.getChildByName('magazine').visible = false
             pauseMenu.visible = true
             leave.visible = true
             pause.visible = false
-            if (callbacks.pauseTimeouts) callbacks.pauseTimeouts()
         })
 
         play.on('pointerdown', () => {
@@ -571,9 +575,8 @@ export class HUDManager {
                     clearInterval(delay)
                     this.hud.getChildByName('magazine').visible = true
                     timerMenu.visible = false
-                    if (callbacks.resumeGame) callbacks.resumeGame()
+                    this.eventBus.emit('game:resume')
                     pause.visible = true
-                    if (callbacks.resumeTimeouts) callbacks.resumeTimeouts()
                 }
             }, 1000)
         })
@@ -584,9 +587,7 @@ export class HUDManager {
         })
 
         cancelButton.on('pointerdown', () => {
-            if (callbacks.endGame) {
-                callbacks.endGame(true)
-            }
+            this.eventBus.emit('endScreen:create', true)
         })
 
         stayButton.on('pointerdown', () => {

@@ -14,6 +14,7 @@ export class InteractionSystem {
         this.check(bullets.grenadesArr, player, 'grenade:player');
         this.check(player, zipLine.zipLines, 'player:zipLine');
         this.check(player, money.moneyDrop, 'player:money');
+        this.check(bullets.playerBullets, spawn.garbageManager.garbages, 'bullet:garbage');
 
         if (spawn.dogEnemyManager.sprite && spawn.dogEnemyManager.isAlive) this.check(bullets.playerBullets, spawn.dogEnemyManager, 'bullet:dog');
         if (spawn.dogEnemyManager.sprite && spawn.dogEnemyManager.isAlive) this.check(player, spawn.dogEnemyManager, 'player:dog');
@@ -25,6 +26,7 @@ export class InteractionSystem {
             if (spawn.bossManager.sprite) this.check(explosion.activeExplosion, spawn.bossManager, 'explosion:boss');
             if (spawn.dogEnemyManager.sprite) this.check(explosion.activeExplosion, spawn.dogEnemyManager, 'explosion:dog');
             this.check(explosion.activeExplosion, spawn.trapManager.traps, 'explosion:trap');
+            this.check(explosion.activeExplosion, spawn.garbageManager.garbages, 'explosion:garbage');
             explosion.destroy()
         }
         if (melee.activeMelee) {
@@ -84,12 +86,14 @@ export class InteractionSystem {
             case 'bullet:trap':
             case 'bullet:dog':
             case 'grenade:player':
+            case 'bullet:garbage':
                 return this.collideBullets
             case 'explosion:player':
             case 'explosion:enemy':
             case 'explosion:boss':
             case 'explosion:trap':
             case 'explosion:dog':
+            case 'explosion:garbage':
             case 'melee:boss':
             case 'melee:enemy':
             case 'melee:dog':
@@ -261,6 +265,10 @@ export class InteractionSystem {
                     a.hit()
                     b.activate()
                 }
+                break
+            case 'bullet:garbage':
+            case 'explosion:garbage':
+                b.activate()
                 break
         }
     }

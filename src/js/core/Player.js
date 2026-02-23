@@ -122,9 +122,7 @@ export class Player {
         this.world.addChild(player)
         player.play()
 
-
         this.sprite = player
-        return player
     }
 
     update(gameSpeed, delta) {

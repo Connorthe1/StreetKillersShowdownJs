@@ -43,7 +43,7 @@ export class EndScreenManager {
         this.eventBus.emit('endScreen:stopMusic')
         this.eventBus.emit('endScreen:clearTimeouts')
         this.gameState.gameEnd = true
-        this.eventBus.emit('endScreen:removeHud')
+        this.app.stage.removeChild(this.app.stage.getChildByName('hud'))
 
         if (toRestart) {
             this.eventBus.emit('endScreen:restart')
@@ -236,13 +236,6 @@ export class EndScreenManager {
         exit.on('pointerdown', () => this.eventBus.emit('endScreen:restart'))
         
         return endScreen
-    }
-    
-    /**
-     * Получает экран окончания
-     */
-    getEndScreen() {
-        return this.endScreen
     }
     
     /**

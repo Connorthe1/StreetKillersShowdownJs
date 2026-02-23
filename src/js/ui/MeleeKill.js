@@ -122,6 +122,7 @@ export class MeleeKillManager {
         this.meleeKill.addChild(redBar)
         this.meleeKill.addChild(greenBar)
         this.meleeKill.addChild(selector)
+        this.meleeKill.name = 'meleeScreen'
         
         // Добавление в HUD
         this.hud.addChild(this.meleeKill)
@@ -203,9 +204,7 @@ export class MeleeKillManager {
 
     clear() {
         if (this.meleeKill) {
-            if (this.hud) {
-                this.hud.removeChild(this.meleeKill)
-            }
+            this.hud.removeChild(this.meleeKill)
             this.meleeKill = null
         }
         this.timer.cancel('melee:timer')

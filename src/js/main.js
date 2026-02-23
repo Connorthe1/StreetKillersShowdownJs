@@ -28,8 +28,6 @@ import {GameTimer} from "./core/GameTimer";
 
 // Экземпляр игрока
 let playerInstance = null
-
-const timeouts = []
 // Инициализация размеров экрана
 let gameWidth
 let gameHeight
@@ -58,17 +56,11 @@ const worldCoords = {
     worldHeight: WORLD_HEIGHT,
 }
 
-let distance = 0
 // Инициализация состояния игры
 let gameState
 let music = null
 
 let bulletManager // Инициализируется после создания world
-
-// Окружение теперь управляется через отдельные менеджеры
-let background
-let bgPosition = 0
-let bgSpeed = BG_SPEED
 
 let world
 let groundContainer
@@ -79,10 +71,8 @@ let backgroundManager // Инициализируется после созда�
 let groundManager // Инициализируется после создания world
 let zipLineManager // Инициализируется после создания world
 
-let enemies = []
 // Массивы частиц теперь управляются через ParticleManager
 // Массивы окружения теперь управляются через отдельные менеджеры
-let buildings = []
 let particleManager // Инициализируется после создания world
 let spawnManager // Инициализируется после создания world
 let hudManager // Инициализируется после создания hud
@@ -93,8 +83,6 @@ let explosionManager // Менеджер взрывов
 let meleeKillManager // Менеджер ближнего боя
 let menuManager // Менеджер меню
 let endScreenManager // Менеджер экрана окончания
-let currentBoss = null
-let activeGrenade = null
 let interactionSystem
 let timer
 
@@ -103,8 +91,6 @@ const physicsManager = new PhysicsManager()
 const eventBus = new EventBus()
 let foregroundContainer
 let hudLayer
-
-// Флаги состояния теперь в gameState (isPause, isMenu, gameStart, gameEnd)
 
 //STORAGE
 // Инициализация менеджера хранилища
@@ -169,18 +155,18 @@ window.onload = async function () {
         timer = new GameTimer();
 
         gameState = new GameState(eventBus)
-        // Инициализация менеджера частиц
-        particleManager = new ParticleManager(world, physicsManager, groundContainer, resources, gameState, eventBus)
-
-        bulletManager = new BulletManager(world, gameState, resources, timer, eventBus, physicsManager)
-
-        backgroundManager = new BackgroundManager(world, worldCoords, gameHeight, resources, gameState)
 
         groundManager = new GroundManager(world, groundContainer, physicsManager, resources, worldCoords, eventBus)
 
         worldCoords.firstFloor = groundContainer.getLocalBounds().y + 70
         worldCoords.secondFloor = groundContainer.getLocalBounds().y - 120
         worldCoords.ground = groundContainer.getLocalBounds().y
+
+        particleManager = new ParticleManager(world, physicsManager, groundContainer, resources, gameState, eventBus)
+
+        bulletManager = new BulletManager(world, gameState, resources, timer, eventBus, physicsManager)
+
+        backgroundManager = new BackgroundManager(world, worldCoords, gameHeight, resources, gameState)
 
         // Initialize player instance
         playerInstance = new Player(world, gameState, resources, storage, worldCoords, timer, eventBus)
@@ -205,18 +191,14 @@ window.onload = async function () {
 
         endScreenManager = new EndScreenManager(app, gameState, gameWidth, gameHeight, textStyles, resources, storageManager, eventBus)
 
-        eventBus.on('endScreen:clearTimeouts', () => {
-            timeouts.length = 0
-        })
         eventBus.on('endScreen:stopMusic', () => {
             music.stop()
-        })
-        eventBus.on('endScreen:removeHud', () => {
-            if (hudContainer && app.stage) app.stage.removeChild(hudContainer)
         })
         eventBus.on('endScreen:restart', () => {
             restartGame()
         })
+
+        //SLOW MODE
         eventBus.on('gameSpeed:default', () => {
             gameSpeed.current = gameSpeed.default
         })
@@ -224,14 +206,21 @@ window.onload = async function () {
             gameSpeed.current = gameSpeed.slow
         })
 
+        eventBus.on('game:pause', () => {
+            pauseGame()
+        })
+        eventBus.on('game:resume', () => {
+            resumeGame()
+        })
+
         // Инициализация менеджера меню
-        menuManager = new MenuManager(app, gameState, storage, gameWidth, gameHeight, textStyles, resources, storageManager, sleep, eventBus)
+        menuManager = new MenuManager(app, gameState, gameWidth, gameHeight, textStyles, resources, storageManager, timer, eventBus)
 
         eventBus.on('menu:startGame', () => {
             startGame()
         })
 
-        eventBus.emit('menu:create')
+        menuManager.createMenu()
 
         interactionSystem = new InteractionSystem()
     }
@@ -240,36 +229,7 @@ window.onload = async function () {
         playerInstance.createPlayer(-100, worldCoords.firstFloor, foregroundContainer)
         playerInstance.setGunParams()
 
-        if (hudManager) {
-            hudManager.createBulletsDisplay(playerInstance.gun)
-            hudManager.createMainHUD(playerInstance)
-            hudManager.createPauseMenu({
-                storage: storage,
-                hasMeleeKill: () => meleeKillManager.meleeKill,
-                pauseGame: () => {
-                    const allAnimated = world.children.filter(item => item.animationSpeed)
-                    allAnimated.forEach(item => item.stop())
-                    music.set('paused', true)
-                    gameState.isPause = true
-                },
-                pauseTimeouts: () => {
-                    timeouts.forEach(item => item.pause())
-                },
-                resumeGame: () => {
-                    const allAnimated = world.children.filter(item => item.animationSpeed)
-                    allAnimated.forEach(item => item.play())
-                    music.set('paused', false)
-                    gameState.isPause = false
-                },
-                resumeTimeouts: () => {
-                    timeouts.forEach(item => item.resume())
-                },
-                endGame: (skip) => {
-                    timeouts.length = 0
-                    eventBus.emit('endScreen:create', skip)
-                }
-            })
-        }
+        hudManager.init(playerInstance)
 
         music = soundPlayer.startMusic()
         
@@ -280,47 +240,33 @@ window.onload = async function () {
         app.ticker.maxFPS = 60
         app.ticker.minFPS = 60
         app.ticker.add(ticker)
-        // if (Math.floor(app.ticker.FPS) <= 35) {
-        //     defaultGameSpeed = 2
-        //     slowGameSpeed = 0.2
-        // }
+
         gameSpeed.current = gameSpeed.default
-        gameState.startScoreTimer()
     }
 
     function restartGame() {
         music.destroy()
         music = null
-        app.stage.removeChild(app.stage.getChildByName('endScreen'))
+        // app.stage.removeChild(app.stage.getChildByName('endScreen'))
+        app.stage.removeChild(world)
         app.stage.removeChild(world)
         app.ticker.remove(ticker)
-        worldCoords.zeroLeft = 0
-        worldCoords.zeroRight = WORLD_WIDTH
+
+        resetWorldCoords()
         gameSpeed.current = gameSpeed.default
 
         gameState.reset()
         bulletManager.clear()
-
-        distance = 0
-
-        background = null
-        bgPosition = 0
-        bgSpeed = BG_SPEED;
 
         world = null
         groundContainer = null
         hudContainer = null
 
         // Обновление ссылок на массивы для обратной совместимости
-        enemies.length = 0
-        if (particleManager) {
-            particleManager.clear()
-        }
-        buildings.length = 0
+
+        particleManager.clear()
         zipLineManager.clear()
-        // Обновление ссылок на массивы для обратной совместимости
-        activeGrenade = null
-        currentBoss = null
+
         init()
     }
 
@@ -328,8 +274,13 @@ window.onload = async function () {
         if (gameState.gameEnd || gameState.isPause) return
         timer.update(app.ticker.elapsedMS);
 
-        if (playerInstance.sprite && playerInstance.sprite.x > 10) {
+        if (!gameState.gameStart && menuManager.menu) {
+            menuManager.menu.x -= 20
+        }
+
+        if (!gameState.gameStart && playerInstance.sprite.x > 10) {
             gameState.gameStart = true
+            menuManager.clear()
         }
 
         if (hudManager) {
@@ -341,7 +292,7 @@ window.onload = async function () {
             meleeKillManager.update()
         }
         if (gameState) {
-            gameState.updateScore(playerInstance.stimpack)
+            gameState.update(app.ticker.elapsedMS, playerInstance.stimpack)
         }
         // Use the Player module's updatePlayer method
         if (playerInstance) {
@@ -382,51 +333,23 @@ window.onload = async function () {
             money: moneyManager,
         })
     }
+
+    function pauseGame() {
+        const allAnimated = world.children.filter(item => item.animationSpeed)
+        allAnimated.forEach(item => item.stop())
+        music.set('paused', true)
+        gameState.isPause = true
+    }
+
+    function resumeGame() {
+        const allAnimated = world.children.filter(item => item.animationSpeed)
+        allAnimated.forEach(item => item.play())
+        music.set('paused', false)
+        gameState.isPause = false
+    }
+
+    function resetWorldCoords() {
+        worldCoords.zeroLeft = 0
+        worldCoords.zeroRight = WORLD_WIDTH
+    }
 }
-
-async function sleep(time, isRoll) {
-    const idx = timeouts.length
-    return new Promise((resolve, reject) => {
-        const timer = new Timer(function(e) {
-            timeouts.splice(idx ,1)
-            resolve(true);
-        }, time);
-        if (isRoll) {
-            console.log('rollId Created')
-            playerInstance.rollId = timer
-        } else {
-            timeouts.push(timer)
-        }
-    });
-}
-
-const Timer = function(callback, delay) {
-    let timerId, start, remaining = delay;
-
-    this.pause = function() {
-        window.clearTimeout(timerId);
-        timerId = null;
-        remaining -= Date.now() - start;
-    };
-
-    this.resume = function(time = 0, maxTime) {
-        if (timerId) {
-            return;
-        }
-        const maxRemaining = maxTime ? Math.min(maxTime, remaining + time) : remaining + time
-        start = Date.now();
-        timerId = window.setTimeout(callback, maxRemaining);
-    };
-
-    this.stop = function() {
-        if (timerId) {
-            window.clearTimeout(timerId);
-            timerId = null;
-        }
-        return false
-    };
-
-    this.resume();
-};
-
-// random перенесена в utils/GameUtils.js
