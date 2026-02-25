@@ -25,6 +25,7 @@ export class DoorTrap extends Trap {
      * @returns {DoorTrap}
      */
     create(x, groundY, secondFloor) {
+        console.log(x, groundY, secondFloor)
         this.sprite = new PIXI.AnimatedSprite(this.resources.doorTexture.animations.door)
         this.sprite.loop = false
         this.sprite.animationSpeed = 0.6
@@ -32,6 +33,7 @@ export class DoorTrap extends Trap {
         const y = secondFloor ? groundY - 143 : groundY + 47
         this.sprite.position.set(x, y)
         this.sprite.zIndex = 1
+        this.sprite.name = 'doorTrap'
 
         super.addToWorld()
         return this

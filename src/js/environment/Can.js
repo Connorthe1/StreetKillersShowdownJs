@@ -61,7 +61,7 @@ export class CanManager {
         
         // Удаление банки, если она вышла за границы или потеряла здоровье
         if (this.isOutOfBounds() || this.health <= 0) {
-            this.destroy()
+            this.clear()
         }
     }
 
@@ -106,10 +106,7 @@ export class CanManager {
         return (can.x + can.width < 0) || (can.x > this.worldCoords.worldWidth + 300)
     }
     
-    /**
-     * Удаляет банку
-     */
-    destroy() {
+    clear() {
         if (!this.sprite) return
 
         this.world.removeChild(this.sprite)

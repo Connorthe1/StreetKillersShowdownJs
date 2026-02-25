@@ -12,6 +12,10 @@ export class EventBus {
             (this.listeners[event] || []).filter(cb => cb !== callback);
     }
 
+    removeAll() {
+        this.listeners = {};
+    }
+
     emit(event, payload, returnValue = false) {
         const listeners = this.listeners[event] || [];
         

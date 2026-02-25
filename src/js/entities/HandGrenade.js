@@ -87,13 +87,10 @@ export class HandGrenade {
             size: 50
         })
         
-        this.destroy()
+        this.clear()
     }
     
-    /**
-     * Очищает все гранаты
-     */
-    destroy() {
+    clear() {
         if (this.activeGrenade) {
             this.physicsManager.removeBody(this.activeGrenade.body)
             this.world.removeChild(this.activeGrenade)

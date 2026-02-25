@@ -25,7 +25,6 @@ export class WoodBG {
     }
 
     update() {
-        // Обновление деревянных элементов
         this.woodsArr.forEach((wood, idx) => {
             const w = wood.getBounds ? wood.getBounds() : wood
             const woodX = w.x || (wood.position ? wood.position.x : 0)
@@ -33,16 +32,13 @@ export class WoodBG {
 
             if (woodX + woodWidth < 0) {
                 this.world.removeChild(wood)
-                this.woodsBGarr.splice(idx, 1)
+                this.woodsArr.splice(idx, 1)
             }
         })
     }
 
     clear() {
-        // Очистка деревянных элементов
-        this.woodsBGarr.forEach(wood => {
-            this.world.removeChild(wood)
-        })
-        this.woodsBGarr = []
+        this.woodsArr.forEach(wood => this.world.removeChild(wood))
+        this.woodsArr = []
     }
 }

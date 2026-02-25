@@ -184,7 +184,7 @@ export class MeleeKillManager {
         this.eventBus.emit('gameSpeed:default')
 
         // Удаление UI
-        this.clear()
+        this.clearUI()
 
         // Возобновление анимации кувырка
         if (!skip) this.eventBus.emit('player:rollResume')
@@ -202,12 +202,19 @@ export class MeleeKillManager {
         this.activeMelee = null
     }
 
-    clear() {
+    clearUI() {
         if (this.meleeKill) {
             this.hud.removeChild(this.meleeKill)
             this.meleeKill = null
         }
         this.timer.cancel('melee:timer')
+    }
+
+    clear() {
+        this.activeMelee = null
+        this.enemy = null
+        this.streak = 0
+        this.clearUI()
     }
 }
 

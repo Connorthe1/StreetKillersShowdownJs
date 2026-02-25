@@ -27,7 +27,7 @@ export class InteractionSystem {
             if (spawn.dogEnemyManager.sprite) this.check(explosion.activeExplosion, spawn.dogEnemyManager, 'explosion:dog');
             this.check(explosion.activeExplosion, spawn.trapManager.traps, 'explosion:trap');
             this.check(explosion.activeExplosion, spawn.garbageManager.garbages, 'explosion:garbage');
-            explosion.destroy()
+            explosion.clear()
         }
         if (melee.activeMelee) {
             this.check(melee.activeMelee, spawn.enemyManager.enemies, 'melee:enemy');

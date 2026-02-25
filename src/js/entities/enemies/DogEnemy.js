@@ -127,7 +127,7 @@ export class DogEnemyManager {
         
         // Удаление за левой границей
         if (this.isOutOfBounds()) {
-            this.destroy()
+            this.clear()
         }
     }
 
@@ -145,7 +145,7 @@ export class DogEnemyManager {
         this.world.addChild(this.sprite)
     }
 
-    destroy() {
+    clear() {
         this.world.removeChild(this.sprite)
         this.sprite = null
         this.isAlive = true

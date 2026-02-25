@@ -59,7 +59,7 @@ export class PowerUpManager {
         
         // Удаление за левой границей
         if (this.sprite.x < this.worldCoords.zeroLeft) {
-            this.destroy()
+            this.clear()
             return;
         }
         
@@ -84,14 +84,14 @@ export class PowerUpManager {
     activate() {
         soundPlayer.powerUp()
         
-        this.destroy()
+        this.clear()
     }
 
     addToWorld() {
         this.world.addChild(this.sprite)
     }
 
-    destroy() {
+    clear() {
         if (!this.sprite) return
 
         this.world.removeChild(this.sprite)

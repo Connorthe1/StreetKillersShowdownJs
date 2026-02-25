@@ -129,7 +129,7 @@ export class BossManager {
         
         // Удаление босса за левой границей
         if (this.isOutOfBounds()) {
-            this.destroy()
+            this.clear()
             return;
         }
 
@@ -417,7 +417,7 @@ export class BossManager {
         return this.sprite
     }
 
-    destroy() {
+    clear() {
         this.world.removeChild(this.sprite)
         this.sprite = null
         this.isAlive = true

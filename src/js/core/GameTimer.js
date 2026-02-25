@@ -70,6 +70,14 @@ export class GameTimer {
         }
     }
 
+    clear() {
+        for (const task of this.tasks) {
+            task.resolve()
+        }
+        this.tasks.clear()
+        this.namedTasks.clear()
+    }
+
     update(dt) {
         for (const task of [...this.tasks]) {
             if (task.paused) continue;

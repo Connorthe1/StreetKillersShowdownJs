@@ -80,7 +80,7 @@ export class ExplosionManager {
         }
     }
 
-    destroy() {
+    clear() {
         this.activeExplosion = null
     }
 }

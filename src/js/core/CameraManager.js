@@ -28,7 +28,14 @@ export class CameraManager {
         this.shake = null
     }
 
-     update(dt) {
+    clear() {
+        if (this.shake) {
+            this.world.pivot.y = 0
+            this.shake = null
+        }
+    }
+
+    update(dt) {
         if (!this.shake) return
         if (this.gameState.isPause || this.gameState.gameEnd) return
 

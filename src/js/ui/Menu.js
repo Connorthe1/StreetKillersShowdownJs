@@ -188,6 +188,7 @@ export class MenuManager {
         }
         if (this.menu) {
             this.app.stage.removeChild(this.menu)
+            this.menu.destroy({ children: true })
             this.menu = null
         }
     }

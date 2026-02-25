@@ -460,6 +460,11 @@ export class HUDManager {
         return null
     }
     
+    clear() {
+        this.hud.removeChildren()
+        this.bossReward = null
+    }
+
     /**
      * Создает меню паузы
      */

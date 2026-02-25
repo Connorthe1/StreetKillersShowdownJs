@@ -165,7 +165,6 @@ export class BuildingManager {
                         this.eventBus.emit('wall:createInBuild', {pos: position + 210, isSecondFloor: true})
                     }
                     if (Math.random() < 0.5) {
-                        console.log('WINDOW', position - 108)
                         this.eventBus.emit('trap:window', position - 108)
                     } else {
                         this.eventBus.emit('trap:door', {pos: position - 88, isSecondFloor: true})
@@ -238,7 +237,6 @@ export class BuildingManager {
     }
 
     createBuilding(type, lastBuilding) {
-        console.log('createBuilding', type)
         const buildContainer = new PIXI.Container()
         let buildBack
         let buildFront
@@ -429,7 +427,7 @@ export class BuildingManager {
                     this.isClub = false
                     this.isBuilding = false
                 }
-                this.clear(this.buildings[idx])
+                this.removeBuilding(this.buildings[idx])
                 this.buildings.splice(idx, 1)
             }
         })
@@ -448,8 +446,18 @@ export class BuildingManager {
         return this.afterBuilding
     }
     
-    clear(build) {
+    removeBuilding(build) {
         this.physicsManager.removeBody(build.body)
         this.world.removeChild(build)
+    }
+
+    clear() {
+        this.buildings.forEach(build => this.removeBuilding(build))
+        this.buildings = []
+        this.buildingChance = BUILDING_CHANCE
+        this.buildingType = 0
+        this.afterBuilding = 0
+        this.isBuilding = false
+        this.isClub = false
     }
 }

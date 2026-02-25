@@ -78,10 +78,8 @@ export class TrapManager {
         return this.traps
     }
 
-    destroy() {
-        this.traps.forEach(trap => {
-            trap.destroy()
-        })
+    clear() {
+        this.traps.forEach(trap => trap.destroy())
         this.traps = []
     }
 }

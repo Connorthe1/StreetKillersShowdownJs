@@ -22,6 +22,7 @@ export class WindowTrap extends Trap {
         this.sprite.anchor.set(0.5)
         this.sprite.position.set(x, groundY - 137)
         this.sprite.zIndex = 1
+        this.sprite.name = 'windowTrap'
 
         super.addToWorld()
         return this

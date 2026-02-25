@@ -121,6 +121,7 @@ export class Player {
         player.position.set(x, y)
         this.world.addChild(player)
         player.play()
+        player.name = 'player'
 
         this.sprite = player
     }

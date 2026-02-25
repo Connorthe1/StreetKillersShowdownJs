@@ -51,6 +51,11 @@ export class SpawnManager {
      * Главная функция спавна сущностей
      */
     spawnEntity() {
+        if (!this.bossManager.hasActiveBoss()) {
+            this.buildingManager.createBuildingChance()
+        }
+
+        return;
 
         // Спавн лужи
         if (Math.random() < 0.2) {
@@ -136,5 +141,20 @@ export class SpawnManager {
         this.enemyManager.update()
         this.dogEnemyManager.update(gameSpeed)
         this.buildingManager.update()
+    }
+
+    clear() {
+        this.buildingManager.clear()
+        this.puddleManager.clear()
+        this.wallManager.clear()
+        this.trapManager.clear()
+        this.canManager.clear()
+        this.carManager.clear()
+        this.woodBGManager.clear()
+        this.garbageManager.clear()
+        this.powerUpManager.clear()
+        this.enemyManager.clear()
+        this.dogEnemyManager.clear()
+        this.bossManager.clear()
     }
 }

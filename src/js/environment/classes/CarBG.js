@@ -74,20 +74,22 @@ export class CarBG {
             this.currentCar.x += this.speed
         }
 
-        const carBounds = this.currentCar.getBounds
+        const carBounds = this.currentCar.getBounds()
 
         if (this.currentCar.side > 0) {
-            // Движение справа налево
             if (carBounds.x + carBounds.width < 0) {
-                this.world.removeChild(this.currentCar.body)
-                this.currentCar = null
+                this.clear()
             }
         } else {
-            // Движение слева направо
             if (carBounds.x > this.worldCoords.zeroRight) {
-                this.world.removeChild(this.currentCar.body)
-                this.currentCar = null
+                this.clear()
             }
         }
+    }
+
+    clear() {
+        if (!this.currentCar) return
+        this.world.removeChild(this.currentCar)
+        this.currentCar = null
     }
 }

@@ -462,6 +462,7 @@ export class StoreManager {
     clear() {
         if (this.store && this.menu) {
             this.menu.removeChild(this.store)
+            this.store.destroy({ children: true })
         }
         this.store = null
     }

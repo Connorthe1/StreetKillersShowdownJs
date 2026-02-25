@@ -25,7 +25,13 @@ export class InputHandler {
         this.touchPosition = null
         this.sensitivity = 20
         
-        // Инициализация свайпов
+        this.boundHandlers = {
+            touchStart: (e) => this.touchStartHandler(e),
+            touchMove: (e) => this.touchMoveHandler(e),
+            touchEnd: (e) => this.touchEndHandler(e),
+            keyUp: (e) => this.handleEvent(e.code),
+        }
+
         this.initSwipes()
     }
 
@@ -33,24 +39,27 @@ export class InputHandler {
         this.eventBus.emit('player:event', key)
     }
     
-    /**
-     * Инициализирует обработку свайпов
-     */
     initSwipes() {
         if (!this.canvas) {
             console.warn('Canvas not available for swipe initialization')
             return
         }
-        
-        // Обработчики событий касания
-        this.canvas.addEventListener("touchstart", (e) => this.touchStartHandler(e))
-        this.canvas.addEventListener("touchmove", (e) => this.touchMoveHandler(e))
-        this.canvas.addEventListener("touchend", (e) => this.touchEndHandler(e))
-        this.canvas.addEventListener("touchcancel", (e) => this.touchEndHandler(e))
 
-        document.addEventListener('keyup', (e) => {
-            this.handleEvent(e.code)
-        })
+        this.canvas.addEventListener('touchstart', this.boundHandlers.touchStart)
+        this.canvas.addEventListener('touchmove', this.boundHandlers.touchMove)
+        this.canvas.addEventListener('touchend', this.boundHandlers.touchEnd)
+        this.canvas.addEventListener('touchcancel', this.boundHandlers.touchEnd)
+        document.addEventListener('keyup', this.boundHandlers.keyUp)
+    }
+
+    destroy() {
+        if (this.canvas) {
+            this.canvas.removeEventListener('touchstart', this.boundHandlers.touchStart)
+            this.canvas.removeEventListener('touchmove', this.boundHandlers.touchMove)
+            this.canvas.removeEventListener('touchend', this.boundHandlers.touchEnd)
+            this.canvas.removeEventListener('touchcancel', this.boundHandlers.touchEnd)
+        }
+        document.removeEventListener('keyup', this.boundHandlers.keyUp)
     }
     
     /**

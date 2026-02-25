@@ -24,7 +24,7 @@ export const DEFAULT_GAME_SPEED = 1
 export const SLOW_GAME_SPEED = 0.1
 export const BULLET_SPEED = 30
 export const FENCE_CHANCE = 4
-export const BUILDING_CHANCE = 2
+export const BUILDING_CHANCE = 10
 export const GROUND_COLORS = ['#eaaaaa','#7f8bff','#a2e0ae']
 export const BG_SPEED = 0.2
 
