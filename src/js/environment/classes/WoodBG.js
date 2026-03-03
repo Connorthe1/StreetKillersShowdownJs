@@ -26,11 +26,9 @@ export class WoodBG {
 
     update() {
         this.woodsArr.forEach((wood, idx) => {
-            const w = wood.getBounds ? wood.getBounds() : wood
-            const woodX = w.x || (wood.position ? wood.position.x : 0)
-            const woodWidth = w.width || 0
+            const woodB = wood.getBounds()
 
-            if (woodX + woodWidth < 0) {
+            if (woodB.x + woodB.width < 0) {
                 this.world.removeChild(wood)
                 this.woodsArr.splice(idx, 1)
             }

@@ -134,6 +134,7 @@ export class BuildingManager {
                         this.eventBus.emit('wall:createInBuild', {pos: buildBack.x - 50, isSecondFloor: true})
                     }
                     if (type === 'end') {
+                        console.log('WINDOW1')
                         this.eventBus.emit('trap:window', position + buildBack.width - 93)
                     } else {
                         if (Math.random() < 0.5) {
@@ -165,11 +166,13 @@ export class BuildingManager {
                         this.eventBus.emit('wall:createInBuild', {pos: position + 210, isSecondFloor: true})
                     }
                     if (Math.random() < 0.5) {
+                        console.log('WINDOW2')
                         this.eventBus.emit('trap:window', position - 108)
                     } else {
                         this.eventBus.emit('trap:door', {pos: position - 88, isSecondFloor: true})
                     }
                     if (type === 'end') {
+                        console.log('WINDOW3')
                         this.eventBus.emit('trap:window', position + buildBack.width - 212)
                     }
                 } else {
@@ -222,8 +225,8 @@ export class BuildingManager {
                 w: bounds.x + 150
             },
             {
-                x: bounds.x + bounds.width - 50,
-                w: bounds.x + bounds.width + 150
+                x: bounds.x + bounds.width - 150,
+                w: bounds.x + bounds.width + (type === 'end' ? 150 : 50)
             }
         ]
         buildContainer.body = Matter.Bodies.rectangle(buildBack.x, this.worldCoords.secondFloor + 50, buildBack.width + 20, 40, { isStatic: true })
@@ -320,8 +323,8 @@ export class BuildingManager {
                 w: bounds.x + 150
             },
             {
-                x: bounds.x + bounds.width - 50,
-                w: bounds.x + bounds.width + 150
+                x: bounds.x + bounds.width - 150,
+                w: bounds.x + bounds.width + (type === 'end' ? 150 : 50)
             }
         ]
         buildContainer.body = Matter.Bodies.rectangle(buildBack.x, this.worldCoords.secondFloor + 50, buildBack.width + 20, 40, { isStatic: true })

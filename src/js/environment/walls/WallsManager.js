@@ -40,18 +40,11 @@ export class WallsManager {
         this.walls.push(wall)
     }
 
-    createWall(pos = null, forBoss = null, afterBuilding = 0) {
+    createWall(pos = null, forBoss = false, afterBuilding = 0) {
         const randomPos = pos ?? this.worldCoords.zeroRight + random(100, 250)
 
-        if (!pos && !forBoss) {
-            const rand = random(1, 10)
-            if (rand > 1) {
-                this.eventBus.emit('enemy:create', { pos: randomPos + 60, canCover: true })
-            }
-        }
-
         if (afterBuilding > randomPos - 100) {
-            return null
+            return
         }
 
         if (this.walls.length > 0) {
@@ -60,7 +53,14 @@ export class WallsManager {
             const wallX = bounds.x ?? bounds.position?.x ?? 0
             const wallWidth = bounds.width ?? 0
             if (randomPos > wallX - 100 && randomPos < wallX + wallWidth + 100) {
-                return null
+                return
+            }
+        }
+
+        if (!pos && !forBoss) {
+            const rand = random(1, 10)
+            if (rand > 1) {
+                this.eventBus.emit('enemy:create', { pos: randomPos + 50, canCover: true })
             }
         }
 

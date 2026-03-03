@@ -35,7 +35,7 @@ export class CanManager {
         const can = new PIXI.Sprite(this.resources.canTexture.textures.pixelCan)
         can.width = 8
         can.height = 16
-        can.position.set(this.worldCoords.zeroRight, this.worldCoords.firstFloor + 20)
+        can.position.set(this.worldCoords.zeroRight, this.worldCoords.secondFloor + 20)
         can.anchor.set(0, 0.5)
         can.parentGroup = this.fg
         can.zOrder = 6

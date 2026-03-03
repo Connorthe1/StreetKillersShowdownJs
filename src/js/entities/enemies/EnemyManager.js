@@ -1,6 +1,8 @@
 import { random } from '../../utils/GameUtils.js'
 import {Enemy} from "./Enemy";
 
+const PADDING = 40
+
 /**
  * Менеджер врагов
  */
@@ -15,8 +17,8 @@ export class EnemyManager {
 
         this.enemies = []
 
-        eventBus.on('enemy:create', data => {
-            this.create(data.pos, data.canCover, data.enemyType)
+        eventBus.on('enemy:create', ({pos, canCover, enemyType}) => {
+            this.create({pos, canCover, enemyType})
         })
 
         eventBus.on('enemy:bossClear', pos => {
@@ -24,53 +26,92 @@ export class EnemyManager {
         })
     }
 
-    create(params) {
-        let randomPos = params?.pos || Math.floor(this.worldCoords.zeroLeft + this.worldCoords.worldWidth + Math.floor(Math.random() * (250 - 50 + 1) + 50))
-        let isSecondFloor = false
+    /**
+     * Собирает все запрещённые зоны (враги, босс, здания, ловушки)
+     * в единый список {x, w} прямоугольников, в которых спавн запрещён.
+     */
+    collectExclusionZones(params) {
+        const zones = []
 
-        // Проверка на дубликаты
-        const findDuplicate = this.enemies.some(enemy => randomPos > enemy.sprite.x - 50 && randomPos < enemy.sprite.x + enemy.sprite.width + 50)
-        if (findDuplicate) return
-
-        // Проверка на босса
-        if (params?.boss) {
-            if (randomPos + 30 > params.boss.x && randomPos < params.boss.x + params.boss.width) {
-                return null
-            }
-        }
-        
-        // Проверка зон спавна зданий
-        if (params?.buildings?.length > 0) {
-            params.buildings.forEach(build => {
-                if (build.resetSpawnZones) {
-                    build.resetSpawnZones.forEach(zone => {
-                        if (randomPos + 30 > zone.x && randomPos < zone.w) {
-                            randomPos = zone.w + 50
-                            // if (zone.w - randomPos < randomPos - zone.x) {
-                            //     randomPos = zone.w + 50
-                            // } else {
-                            //     randomPos = zone.x - 50
-                            // }
-                        }
-                    })
-                }
+        for (const enemy of this.enemies) {
+            // Враги с canCover имеют приоритет — не сдвигать нового врага с canCover из-за них
+            if (params?.canCover && enemy.params?.canCover) continue
+            zones.push({
+                x: enemy.sprite.x - 50,
+                w: enemy.sprite.x + enemy.sprite.width + 50
             })
+        }
+
+        if (params?.boss) {
+            zones.push({
+                x: params.boss.x - 50,
+                w: params.boss.x + params.boss.width
+            })
+        }
+
+        if (params?.buildings?.length > 0) {
+            for (const build of params.buildings) {
+                if (build.resetSpawnZones) {
+                    // console.log(build.resetSpawnZones)
+                    for (const zone of build.resetSpawnZones) {
+                        zones.push({ x: zone.x, w: zone.w})
+                    }
+                }
+            }
         }
 
         if (params?.traps?.length > 0) {
-            params.traps.forEach(trap => {
-                const trapB = trap.sprite.getLocalBounds()
-                if (randomPos > trapB.x - 50 && randomPos < trapB.x + trapB.width + 50) {
-                    if (trapB.x + trapB.width / 2 > randomPos) {
-                        randomPos = trapB.x - 50
-                    } else {
-                        randomPos = trapB.x + trapB.width + 50
-                    }
-                }
-            })
+            for (const trap of params.traps) {
+                const b = trap.sprite.getLocalBounds()
+                zones.push({
+                    x: b.x + 30,
+                    w: b.x + b.width - 30
+                })
+            }
         }
-        
-        // Определение этажа
+
+        return zones
+    }
+
+    /**
+     * Проверяет, попадает ли позиция в одну из запрещённых зон.
+     * Если попадает — пытается вытолкнуть позицию к ближайшему краю зоны.
+     * Возвращает скорректированную позицию или null, если позиция невалидна.
+     */
+    resolvePosition(pos, zones, margin = 10, maxAttempts = 3) {
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            const conflicting = zones.find(z => pos > z.x && pos < z.w)
+            // console.log(pos, conflicting)
+            if (!conflicting) return pos
+
+            const distToLeft = pos - conflicting.x
+            const distToRight = conflicting.w - pos
+            pos = distToLeft <= distToRight
+                ? conflicting.x - margin
+                : conflicting.w + margin
+        }
+
+        const stillConflicting = zones.some(z => pos > z.x && pos < z.w)
+        return stillConflicting ? null : pos
+    }
+
+    create(params) {
+        let randomPos = params?.pos || Math.floor(this.worldCoords.zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50))
+
+        // console.log('spawnEnemy')
+        const zones = this.collectExclusionZones(params)
+        // Враги с canCover имеют приоритет — при коллизии не сдвигать, а просто выйти
+        if (params?.canCover) {
+            const conflicting = zones.some(z => randomPos > z.x && randomPos < z.w)
+            if (conflicting) return
+        }
+        const resolvedPos = this.resolvePosition(randomPos, zones)
+        if (resolvedPos === null || randomPos < this.worldCoords.zeroRight) return
+        randomPos = resolvedPos
+
+        // console.log('final:', randomPos)
+
+        let isSecondFloor = false
         if (params?.buildings?.length > 0) {
             const activeBuilding = params.buildings[0]
             const lastBuilding = params.buildings[params.buildings.length - 1].getLocalBounds()
@@ -82,7 +123,6 @@ export class EnemyManager {
         }
 
         let enemyType = params?.enemyType
-        // Определение типа врага
         if (!enemyType) {
             const rand = random(1, 100)
             if (rand > Math.max(200 - this.gameState.points / 100, 80)) {
@@ -118,6 +158,10 @@ export class EnemyManager {
                 enemy.destroy()
             }
         })
+    }
+
+    getEnemies() {
+        return this.enemies
     }
 
     clear() {

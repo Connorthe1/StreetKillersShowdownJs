@@ -31,7 +31,7 @@ export class GameState {
         })
 
         eventBus.on('game:addKills', data => {
-            this.kills += data
+            this.addKills(data)
         })
     }
 
@@ -131,6 +131,10 @@ export class GameState {
 
     increaseStreak(amount) {
         this.scoreStreak += amount;
+    }
+
+    addKills(kills = 1) {
+        this.kills += kills
     }
 
     decreaseStreak(amount) {

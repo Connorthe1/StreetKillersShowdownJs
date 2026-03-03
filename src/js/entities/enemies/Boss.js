@@ -357,6 +357,7 @@ export class BossManager {
 
         this.gameState.increaseStreak(this.params.points / 10)
         this.gameState.addPoints(this.params.points + 10)
+        this.gameState.addKills(1)
 
         this.sprite.loop = false
 

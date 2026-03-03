@@ -23,6 +23,8 @@ export class CarBG {
         this.worldCoords = worldCoords
 
         this.currentCar = null
+        this.side = 0
+        this.speed = 0
     }
     
     /**
@@ -76,7 +78,7 @@ export class CarBG {
 
         const carBounds = this.currentCar.getBounds()
 
-        if (this.currentCar.side > 0) {
+        if (this.side > 0) {
             if (carBounds.x + carBounds.width < 0) {
                 this.clear()
             }
@@ -91,5 +93,7 @@ export class CarBG {
         if (!this.currentCar) return
         this.world.removeChild(this.currentCar)
         this.currentCar = null
+        this.side = 0
+        this.speed = 0
     }
 }

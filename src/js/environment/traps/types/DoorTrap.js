@@ -25,7 +25,6 @@ export class DoorTrap extends Trap {
      * @returns {DoorTrap}
      */
     create(x, groundY, secondFloor) {
-        console.log(x, groundY, secondFloor)
         this.sprite = new PIXI.AnimatedSprite(this.resources.doorTexture.animations.door)
         this.sprite.loop = false
         this.sprite.animationSpeed = 0.6

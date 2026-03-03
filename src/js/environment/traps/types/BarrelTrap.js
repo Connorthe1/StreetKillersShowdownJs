@@ -7,7 +7,7 @@ export class BarrelTrap extends Trap {
         super(world, resources, eventBus)
         this.fg = fg
         this.timer = timer
-        this.collisionOffset = {left: 20, right: 50}
+        this.collisionOffset = {left: 20, right: -30}
     }
 
     async activate(player) {

@@ -44,7 +44,7 @@ export class DogEnemyManager {
 
         soundPlayer.dogBarking()
         
-        let randomPos = Math.floor(this.worldCoords.zeroRight + random(10, 10))
+        let randomPos = Math.floor(this.worldCoords.zeroRight + random(10, 100))
         let level = this.worldCoords.firstFloor
 
         const buildings = this.eventBus.emit('buildings:get', null, true) || []
@@ -109,6 +109,7 @@ export class DogEnemyManager {
 
         this.gameState.increaseStreak(this.params.points / 10)
         this.gameState.addPoints(this.params.points)
+        this.gameState.addKills(1)
 
         this.sprite.loop = false
         this.sprite.textures = this.animset.death

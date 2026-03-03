@@ -18,6 +18,7 @@ export class InteractionSystem {
 
         if (spawn.dogEnemyManager.sprite && spawn.dogEnemyManager.isAlive) this.check(bullets.playerBullets, spawn.dogEnemyManager, 'bullet:dog');
         if (spawn.dogEnemyManager.sprite && spawn.dogEnemyManager.isAlive) this.check(player, spawn.dogEnemyManager, 'player:dog');
+        if (spawn.dogEnemyManager.sprite && spawn.dogEnemyManager.isAlive) this.check(spawn.dogEnemyManager, spawn.trapManager.traps, 'dog:trap');
 
         // Коллизии взрывов (квадратная зона) со всеми целями
         if (explosion.activeExplosion) {
@@ -69,12 +70,13 @@ export class InteractionSystem {
             case 'can:boss':
             case 'can:dog':
             case 'can:enemy':
+            case 'dog:trap':
+            case 'player:trap':
                 return this.collideXWidth
             case 'player:money':
             case 'player:can':
             case 'player:powerUp':
                 return this.collideXFromPlayer
-            case 'player:trap':
             case 'player:dog':
                 return this.collideXFromStart
             case 'trap:enemy':
@@ -200,6 +202,11 @@ export class InteractionSystem {
                 }
                 break;
             case 'bullet:enemy':
+                if (b.isAlive && !b.params.inCover) {
+                    a.destroy()
+                    b.damage(a)
+                }
+                break;
             case 'bullet:boss':
             case 'bullet:dog':
                 if (b.isAlive) {
@@ -238,6 +245,7 @@ export class InteractionSystem {
                 if (b.isAlive) b.damage({damage: 5})
                 break;
             case 'explosion:trap':
+            case 'dog:trap':
                 if (b.isAlive) b.activate()
                 break;
             case 'grenade:player':

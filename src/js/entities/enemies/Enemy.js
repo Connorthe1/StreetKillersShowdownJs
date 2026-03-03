@@ -42,11 +42,14 @@ export class Enemy {
             this.animset.knock = this.resources.enemiesTexture.animations[`${enemyType}Knock`]
         }
 
+        this.params.color = enemy.tint
+        this.params.shadow = 11776947
+
         if (canCover) {
             this.params.canCover = true
             this.params.inCover = true
             enemy.anchor.y = 0.7
-            enemy.tint = 11776947
+            enemy.tint = this.params.shadow
         }
 
         enemy.scale.set(2)
@@ -93,9 +96,10 @@ export class Enemy {
             this.world.addChild(longDetector)
         }
         this.world.addChild(warning)
+
         if (this.params.canCover) {
             this.params.inCover = false
-            // this.sprite.tint = player.color
+            this.sprite.tint = this.params.color
             this.sprite.anchor.y = 0.5
         }
         //prepare
@@ -117,16 +121,16 @@ export class Enemy {
             const fireTimes = random(1, this.params.rapidFire)
             this.shotAnim(fireTimes)
             this.shotRapid(shotParams, fireTimes, 100)
-            // await this.timer.sleep(100 * fireTimes)
+            await this.timer.sleep(100 * fireTimes)
         } else {
             this.shotAnim(1)
             this.eventBus.emit('bullet:shot', shotParams)
-            // await this.timer.sleep(200)
+            await this.timer.sleep(200)
         }
         //reload
         if (this.params.canCover) {
             this.params.inCover = true
-            this.sprite.tint = 11776947
+            this.sprite.tint = this.params.shadow
             this.sprite.anchor.y = 0.7
         }
         await this.timer.sleep(Math.max(random(this.params.reloadMin, this.params.reloadMax, true, true) - (this.gameState.points / 100), 200))
@@ -223,6 +227,7 @@ export class Enemy {
 
         this.gameState.increaseStreak(this.params.points / 10)
         this.gameState.addPoints(this.params.points)
+        this.gameState.addKills(1)
 
         this.sprite.loop = false
 
