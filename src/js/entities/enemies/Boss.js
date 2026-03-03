@@ -45,69 +45,68 @@ export class BossManager {
         })
     }
 
-    create(pos = null, bossType = null) {
+    create(params) {
         if (this.sprite) return
 
-        let randomPos = pos || Math.floor(this.worldCoords.zeroRight + random(300, 750))
+        const {pos, type} = params
         
         // Очистка врагов в зоне босса
-        this.eventBus.emit('enemy:bossClear', randomPos)
+        this.eventBus.emit('enemy:bossClear', pos)
         
         // Очистка стен в зоне босса
-        this.eventBus.emit('wall:bossClear', randomPos)
+        this.eventBus.emit('wall:bossClear', pos)
         
         // Очистка ловушек в зоне босса
-        this.eventBus.emit('trap:bossClear', randomPos)
-        
+        this.eventBus.emit('trap:bossClear', pos)
+
         // Определение типа босса
-        let type
-        const randType = bossType || random(1, 4)
-        switch (randType) {
+        let randType
+        switch (type || random(1, 4)) {
             case 1:
-                type = 'bossGun'
+                randType = 'bossGun'
                 break
             case 2:
-                type = 'bossLauncher'
+                randType = 'bossLauncher'
                 break
             case 3:
-                type = 'bossVan'
+                randType = 'bossVan'
                 break
             case 4:
-                type = 'bossSmg'
+                randType = 'bossSmg'
                 break
             default:
-                type = 'bossGun'
+                randType = 'bossGun'
         }
         
         // Создание укрытия/стены для босса
-        if (bossType === 4) {
-            this.eventBus.emit('wall:createInClub', {pos: randomPos - (this.worldCoords.worldWidth / 1.8), type: 0, forBoss: this})
+        if (randType === 'bossSmg') {
+            this.eventBus.emit('wall:createInClub', {pos: pos - (this.worldCoords.worldWidth / 1.8), type: 0, forBoss: this})
         } else {
-            this.eventBus.emit('wall:create', {pos: randomPos - (this.worldCoords.worldWidth / 1.8), forBoss: this})
+            this.eventBus.emit('wall:create', {pos: pos - (this.worldCoords.worldWidth / 1.8), forBoss: this})
         }
 
         // Получение текстур босса
-        const bossTextureSet = this.resources[type]
+        const bossTextureSet = this.resources[randType]
         
         // Создание босса
         const boss = new PIXI.AnimatedSprite(bossTextureSet.animations.idle)
         boss.anchor.set(0.5)
         boss.animationSpeed = 0.15
         boss.position.set(
-            type === 'bossVan' ? randomPos + 25 : randomPos,
-            this.worldCoords.firstFloor - (type === 'bossVan' ? 36 : 10)
+            randType === 'bossVan' ? pos + 25 : pos,
+            this.worldCoords.firstFloor - (randType === 'bossVan' ? 36 : 10)
         )
         
         boss.zIndex = 10
         boss.play()
 
         this.animset = bossTextureSet.animations
-        this.params = { id: type }
+        this.params = { id: randType }
 
         // Копирование параметров
-        if (enemyParams[type]) {
-            Object.keys(enemyParams[type]).forEach(item => {
-                this.params[item] = enemyParams[type][item]
+        if (enemyParams[randType]) {
+            Object.keys(enemyParams[randType]).forEach(item => {
+                this.params[item] = enemyParams[randType][item]
             })
         }
 
@@ -161,15 +160,7 @@ export class BossManager {
         }
         
         // Подготовка
-        const warningTime = Math.max(
-            random(
-                this.params.warningMin,
-                this.params.warningMax,
-                true, 
-                true
-            ) - (this.gameState.points / 100), 
-            100
-        )
+        const warningTime = Math.max(random(this.params.warningMin, this.params.warningMax) - (this.gameState.points / 100 || 0), 100)
         await this.timer.sleep(warningTime)
         
         if (!this.sprite || !this.isAlive) return

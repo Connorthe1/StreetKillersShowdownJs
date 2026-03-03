@@ -70,4 +70,18 @@ export class FloorSegment {
     getBody() {
         return this.floor.body
     }
+
+    destroy() {
+        if (this.floor.body) {
+            this.physicsManager.removeBody(this.floor.body)
+            this.floor.body = null
+        }
+        if (this.part?.parent) {
+            this.part.parent.removeChild(this.part)
+        }
+        this.part?.destroy({ children: true })
+        this.part = null
+        this.floor = null
+        this.bgWall = null
+    }
 }

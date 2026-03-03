@@ -277,7 +277,6 @@ export class Enemy {
     }
 
     setBarrier(value) {
-        console.log(value)
         this.seesBarrier = value
     }
 

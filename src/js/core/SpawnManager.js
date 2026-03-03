@@ -12,6 +12,10 @@ import {CarBG} from "../environment/classes/CarBG";
 import {GarbageManager} from "../entities/garbage/GarbageManager";
 import {WoodBG} from "../environment/classes/WoodBG";
 
+const SPAWN_AHEAD = 50
+const MIN_GAP = 40
+const MAX_GAP = 190
+
 /**
  * Менеджер спавна сущностей
  */
@@ -27,6 +31,8 @@ export class SpawnManager {
         this.fg = fg
         this.storage = storage
 
+        this.nextSpawnX = worldCoords.zeroRight + SPAWN_AHEAD
+
         this.buildingManager = new BuildingManager(world, physicsManager, worldCoords, fg, resources, eventBus)
         this.puddleManager = new PuddleManager(world, worldCoords, resources, eventBus, timer)
         this.wallManager = new WallsManager(world, worldCoords, resources, eventBus)
@@ -41,91 +47,118 @@ export class SpawnManager {
         this.enemyManager = new EnemyManager(world, gameState, worldCoords, resources, timer, eventBus)
         this.dogEnemyManager = new DogEnemyManager(world, gameState, worldCoords, fg, resources, eventBus)
         this.bossManager = new BossManager(world, gameState, worldCoords, resources, timer, eventBus)
-
-        eventBus.on('spawn:entity', data => {
-            this.spawnEntity()
-        })
     }
     
-    /**
-     * Главная функция спавна сущностей
-     */
-    spawnEntity() {
-        // Спавн лужи
-        if (Math.random() < 0.2) {
-            this.puddleManager.create(this.buildingManager.getBuildings())
-        }
+    getSpawnWeights() {
+        return [
+            { type: 'enemy',    weight: 40 },
+            { type: 'wall',     weight: 15 },
+            { type: 'barrel',   weight: 30 },
+            { type: 'boss',     weight: 5 },
+            { type: 'none',     weight: 10 },
+        ]
+    }
 
-        // Спавн зданий
+    pickEntityType() {
+        const weights = this.getSpawnWeights()
+        const total = weights.reduce((sum, e) => sum + e.weight, 0)
+        if (total <= 0) return 'none'
+
+        let roll = random(1, total)
+        for (const entry of weights) {
+            roll -= entry.weight
+            if (roll <= 0) return entry.type
+        }
+        return 'none'
+    }
+
+    spawnEntity(posX) {
+        this.spawnIndependent()
+
+        const type = this.pickEntityType()
+
+        const isBuilding = this.buildingManager.getIsBuilding(type === 'boss' ? posX + this.worldCoords.worldWidth : posX)
+        const hasBoss = this.bossManager.hasActiveBoss()
+
+        console.log(type)
+
+        switch (type) {
+            case 'enemy':
+                this.enemyManager.create({
+                    pos: posX,
+                    buildings: this.buildingManager.getBuildings(),
+                    boss: this.bossManager.getBoss()
+                })
+                break
+            case 'wall':
+                if (!isBuilding && !hasBoss) {
+                    this.wallManager.createWall({
+                        pos: posX,
+                        afterBuilding: this.buildingManager.getAfterBuilding(),
+                        forBoss: false
+                    })
+                }
+                break
+            case 'barrel':
+                if (!isBuilding && !hasBoss) {
+                    this.trapManager.createBarrel({
+                        pos: posX,
+                        afterBuilding: this.buildingManager.getAfterBuilding()
+                    })
+                }
+                break
+            case 'boss':
+                if (!isBuilding && !hasBoss && this.gameState.points > 2000) {
+                    this.bossManager.create({pos: posX + this.worldCoords.worldWidth, type: random(1, 3)})
+                    this.advanceSpawnCursor(this.worldCoords.worldWidth * 1.5)
+                }
+                break
+            case 'none':
+                break
+        }
+    }
+
+    spawnIndependent() {
         if (!this.bossManager.hasActiveBoss()) {
             this.buildingManager.createBuildingChance()
         }
-
-        // Спавн банки
+        if (Math.random() < 0.2) {
+            this.puddleManager.create(this.buildingManager.getBuildings())
+        }
         if (Math.random() < 0.1) {
-            this.canManager.create({buildings: this.buildingManager.getBuildings()})
+            this.canManager.create({ buildings: this.buildingManager.getBuildings() })
         }
-
-        // Спавн пауэр-апа
         if (Math.random() < 0.05) {
-            this.powerUpManager.create({buildings: this.buildingManager.getBuildings()})
+            this.powerUpManager.create({ buildings: this.buildingManager.getBuildings() })
         }
-
-        // Спавн врага
-        if (Math.random() < 0.5) {
-            this.enemyManager.create({
-                buildings: this.buildingManager.getBuildings(),
-                traps: this.trapManager.getTraps(),
-                boss: this.bossManager.getBoss()
-            })
-        }
-
-        // Спавн врага-собаки
         if (Math.random() < 0.05 && this.gameState.points > 2000) {
-            this.dogEnemyManager.create({buildings: this.buildingManager.getBuildings(), afterBuilding: this.buildingManager.getAfterBuilding()})
+            this.dogEnemyManager.create({ buildings: this.buildingManager.getBuildings(), afterBuilding: this.buildingManager.getAfterBuilding() })
         }
 
-        // Спавн машины на фоне
         if (Math.random() > 0.5) {
             this.carManager.create()
         }
-
-        // Создание деревянных элементов на фоне
         if (Math.random() > 0.5) {
             this.woodBGManager.create(this.worldCoords.zeroRight, this.worldCoords.firstFloor)
         }
-
-        // Создание мусора рядом с полом (если в здании)
         if (Math.random() > 0.75 && !this.buildingManager.getIsBuilding()) {
-            const posX = random(10, 100)
-            const posY = random(35, 45)
-            this.garbageManager.create(this.worldCoords.zeroRight + posX, this.worldCoords.firstFloor + posY)
-        }
-
-        if (Math.random() > 0.75 && !this.buildingManager.getIsBuilding()) {
-            const posX = random(10, 100)
-            const posY = random(5, 15)
-            this.garbageManager.create(this.worldCoords.zeroRight + posX, this.worldCoords.firstFloor + posY)
-        }
-
-        // Спавн босса или бочки
-        if (!this.buildingManager.getIsBuilding() && !this.bossManager.hasActiveBoss() && (this.buildingManager.getAfterBuilding() < this.worldCoords.zeroRight - this.worldCoords.worldWidth / 2)) {
-            if (Math.random() < Math.min(this.gameState.points / 40000, 0.1) && this.gameState.points > 2000) {
-                this.bossManager.create(random(1, 3))
-                return
-            }
-            if (Math.random() < 0.5) {
-                this.trapManager.createBarrel({afterBuilding: this.buildingManager.getAfterBuilding(), enemies: this.enemyManager.getEnemies()})
-                return
-            }
-            if (Math.random() < 0.5) {
-                this.wallManager.createWall(null, false, this.buildingManager.getAfterBuilding())
-                return
-            }
+            this.garbageManager.create(
+                this.worldCoords.zeroRight + random(10, 100),
+                this.worldCoords.firstFloor + random(5, 45)
+            )
         }
     }
 
+    advanceSpawnCursor(entityWidth = 30) {
+        this.nextSpawnX += entityWidth + random(MIN_GAP, MAX_GAP)
+    }
+
     update(gameSpeed) {
+        while (this.nextSpawnX < this.worldCoords.zeroRight + SPAWN_AHEAD) {
+            this.spawnEntity(this.nextSpawnX)
+            this.advanceSpawnCursor()
+        }
+
         this.carManager.update()
         this.trapManager.update()
         this.puddleManager.update()

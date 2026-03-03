@@ -16,6 +16,7 @@ import * as PIXI from 'pixi.js'
 import * as Matter from 'matter-js'
 import {random, randomRGB} from '../../utils/GameUtils.js'
 import {BUILDING_CHANCE} from "../../core/GameConfig";
+import {isPositionInsideBuildings} from "../../utils/GeometryUtils";
 
 /**
  * Менеджер зданий
@@ -167,9 +168,9 @@ export class BuildingManager {
                     }
                     if (Math.random() < 0.5) {
                         console.log('WINDOW2')
-                        this.eventBus.emit('trap:window', position - 108)
+                        this.eventBus.emit('trap:window', position - 88)
                     } else {
-                        this.eventBus.emit('trap:door', {pos: position - 88, isSecondFloor: true})
+                        this.eventBus.emit('trap:door', {pos: position - 68, isSecondFloor: true})
                     }
                     if (type === 'end') {
                         console.log('WINDOW3')
@@ -441,8 +442,8 @@ export class BuildingManager {
         return this.buildings
     }
 
-    getIsBuilding() {
-        return this.isBuilding
+    getIsBuilding(x) {
+        return isPositionInsideBuildings(this.buildings, x)
     }
 
     getAfterBuilding() {

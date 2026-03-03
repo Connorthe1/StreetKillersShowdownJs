@@ -263,7 +263,7 @@ export class InteractionSystem {
             case 'can:boss':
             case 'can:dog':
             case 'can:enemy':
-                if (a.touched) {
+                if (a.touched && b.isAlive) {
                     b.damage({damage: Math.floor(a.body.speed)})
                     a.hit()
                 }

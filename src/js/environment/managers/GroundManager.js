@@ -3,18 +3,17 @@ import { random } from '../../utils/GameUtils.js';
 import { GROUND_COLORS, FENCE_CHANCE } from '../../core/GameConfig.js';
 
 /**
- * Менеджер земли/пола (новая версия)
+ * Менеджер земли/пола
  */
 export class GroundManager {
-    constructor(world, ground, physicsManager, resources, worldCoords, eventBus) {
+    constructor(world, ground, physicsManager, resources, worldCoords) {
         this.world = world
         this.ground = ground
         this.physicsManager = physicsManager
         this.resources = resources
         this.worldCoords = worldCoords
-        this.eventBus = eventBus
 
-        // Состояние пола
+        this.segments = []
         this.floorPosition = 0
         this.selectGroundColor = 0
         this.isFence = false
@@ -29,7 +28,7 @@ export class GroundManager {
     createFloor(idx) {
         const changeWall = random(1, 10) < FENCE_CHANCE
 
-        const floorSegment = new FloorSegment(
+        const segment = new FloorSegment(
             { ...this.resources, WORLD_HEIGHT: this.worldCoords.worldHeight },
             this.physicsManager,
             this.floorPosition,
@@ -41,40 +40,25 @@ export class GroundManager {
 
         this.isFence = changeWall
 
-        this.ground.addChild(floorSegment.getPart())
-        this.physicsManager.addBody(floorSegment.getBody())
+        this.ground.addChild(segment.getPart())
+        this.physicsManager.addBody(segment.getBody())
+        this.segments.push(segment)
     }
-    
-    /**
-     * Обновляет пол
-     */
+
     updateFloor(zeroLeft) {
         if (!this.ground) return
 
         const groundBounds = this.ground.getLocalBounds()
         const groundX = groundBounds.x || 0
 
-        // Создание нового сегмента пола при необходимости
         if (zeroLeft - groundX > 192) {
             this.floorPosition++
 
-            // Удаление старого сегмента
-            if (this.ground.children.length > 0) {
-                const oldPart = this.ground.children[0]
-                if (oldPart.children && oldPart.children.length > 0) {
-                    const oldFloor = oldPart.children[0]
-                    if (oldFloor.body && this.physicsManager) {
-                        this.physicsManager.removeBody(oldFloor.body)
-                    }
-                }
-                this.ground.removeChildAt(0)
+            if (this.segments.length > 0) {
+                this.segments.shift().destroy()
             }
 
-            // Создание нового сегмента
             this.createFloor(3)
-            
-            // Спавн сущностей
-            this.eventBus.emit('spawn:entity')
         }
     }
 
@@ -83,19 +67,8 @@ export class GroundManager {
     }
 
     clear() {
-        // Очистка сегментов пола
-        if (this.ground) {
-            this.ground.children.forEach(part => {
-                if (part.children && part.children.length > 0) {
-                    const floor = part.children[0]
-                    if (floor.body && this.physicsManager) {
-                        this.physicsManager.removeBody(floor.body)
-                    }
-                }
-            })
-            this.ground.removeChildren()
-        }
-        
+        this.segments.forEach(segment => segment.destroy())
+        this.segments = []
         this.floorPosition = 0
         this.isFence = false
     }

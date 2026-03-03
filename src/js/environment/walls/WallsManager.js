@@ -20,7 +20,7 @@ export class WallsManager {
         })
 
         eventBus.on('wall:create', data => {
-            this.createWall(data.pos, data.forBoss, data.afterBuilding)
+            this.createWall(data)
         })
 
         eventBus.on('wall:createInBuild', ({pos, isSecondFloor, isRoof}) => {
@@ -40,10 +40,10 @@ export class WallsManager {
         this.walls.push(wall)
     }
 
-    createWall(pos = null, forBoss = false, afterBuilding = 0) {
-        const randomPos = pos ?? this.worldCoords.zeroRight + random(50, 200)
+    createWall(params) {
+        const {pos, forBoss, afterBuilding} = params
 
-        if (afterBuilding > randomPos - 100) {
+        if (afterBuilding > pos - 100) {
             return
         }
 
@@ -52,7 +52,7 @@ export class WallsManager {
             const bounds = lastWall.sprite?.getLocalBounds?.() ?? lastWall.sprite ?? lastWall
             const wallX = bounds.x ?? bounds.position?.x ?? 0
             const wallWidth = bounds.width ?? 0
-            if (randomPos > wallX - 100 && randomPos < wallX + wallWidth + 100) {
+            if (pos > wallX - 100 && pos < wallX + wallWidth + 100) {
                 return
             }
         }
@@ -60,7 +60,7 @@ export class WallsManager {
         if (!pos && !forBoss) {
             const rand = random(1, 10)
             if (rand > 1) {
-                this.eventBus.emit('enemy:create', { pos: randomPos + 50, canCover: true })
+                this.eventBus.emit('enemy:create', { pos: pos + 50, canCover: true })
             }
         }
 
@@ -69,7 +69,7 @@ export class WallsManager {
             this.worldCoords,
             this.resources,
             this.eventBus
-        ).create(randomPos, forBoss)
+        ).create(pos, forBoss)
 
         this.registerWall(wall)
     }

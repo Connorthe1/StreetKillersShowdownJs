@@ -52,21 +52,10 @@ export class EnemyManager {
         if (params?.buildings?.length > 0) {
             for (const build of params.buildings) {
                 if (build.resetSpawnZones) {
-                    // console.log(build.resetSpawnZones)
                     for (const zone of build.resetSpawnZones) {
                         zones.push({ x: zone.x, w: zone.w})
                     }
                 }
-            }
-        }
-
-        if (params?.traps?.length > 0) {
-            for (const trap of params.traps) {
-                const b = trap.sprite.getLocalBounds()
-                zones.push({
-                    x: b.x + 30,
-                    w: b.x + b.width - 30
-                })
             }
         }
 
@@ -96,27 +85,20 @@ export class EnemyManager {
     }
 
     create(params) {
-        let randomPos = params?.pos || Math.floor(this.worldCoords.zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50))
+        const { pos } = params
 
-        // console.log('spawnEnemy')
         const zones = this.collectExclusionZones(params)
-        // Враги с canCover имеют приоритет — при коллизии не сдвигать, а просто выйти
-        if (params?.canCover) {
-            const conflicting = zones.some(z => randomPos > z.x && randomPos < z.w)
-            if (conflicting) return
-        }
-        const resolvedPos = this.resolvePosition(randomPos, zones)
-        if (resolvedPos === null || randomPos < this.worldCoords.zeroRight) return
-        randomPos = resolvedPos
 
-        // console.log('final:', randomPos)
+        const resolvedPos = this.resolvePosition(pos, zones)
+        if (resolvedPos === null || pos < this.worldCoords.zeroRight) return
 
         let isSecondFloor = false
+
         if (params?.buildings?.length > 0) {
             const activeBuilding = params.buildings[0]
             const lastBuilding = params.buildings[params.buildings.length - 1].getLocalBounds()
-            if ((lastBuilding.x + lastBuilding.width > randomPos && 
-                 activeBuilding.getLocalBounds().x < randomPos) && 
+            if ((lastBuilding.x + lastBuilding.width > resolvedPos &&
+                 activeBuilding.getLocalBounds().x < resolvedPos) &&
                 activeBuilding.secondFloor) {
                 isSecondFloor = true
             }
@@ -140,7 +122,7 @@ export class EnemyManager {
             }
         }
 
-        const enemy = new Enemy(this.world, this.resources, this.worldCoords, this.timer, this.gameState, this.eventBus).create({x: randomPos, y: isSecondFloor ? this.worldCoords.secondFloor : this.worldCoords.firstFloor}, params?.canCover, enemyType)
+        const enemy = new Enemy(this.world, this.resources, this.worldCoords, this.timer, this.gameState, this.eventBus).create({x: resolvedPos, y: isSecondFloor ? this.worldCoords.secondFloor : this.worldCoords.firstFloor}, params?.canCover, enemyType)
         this.enemies.push(enemy)
     }
 

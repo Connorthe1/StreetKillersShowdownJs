@@ -36,32 +36,11 @@ export class TrapManager {
     }
 
     createBarrel(params) {
-        const {afterBuilding, enemies} = params
+        const {afterBuilding, pos} = params
 
-        let randomPos = Math.floor(this.worldCoords.zeroRight + random(50, 200))
+        if (afterBuilding + 150 > pos) return
 
-        if (afterBuilding > randomPos - 100) return
-
-        const hasOverlap = this.traps.some(trap => {
-            console.log(randomPos, trap.sprite.getBounds(), trap.sprite.getLocalBounds())
-            const trapB = trap.sprite.getBounds()
-            return randomPos > trapB.x - 100 && randomPos < trapB.x + trapB.width + 100
-        })
-        if (hasOverlap) return
-
-        enemies.forEach(enemy => {
-            const enemyB = enemy.sprite
-            if (randomPos > enemyB.x - 30 && randomPos < enemyB.x + enemyB.width + 30) {
-                const centerX = enemyB.x + enemyB.width / 2
-                if (randomPos < centerX) {
-                    randomPos -= 50
-                } else {
-                    randomPos += 50
-                }
-            }
-        })
-
-        const barrel = new BarrelTrap(this.world, this.resources, this.eventBus, this.fg, this.timer).create(randomPos, this.worldCoords.ground)
+        const barrel = new BarrelTrap(this.world, this.resources, this.eventBus, this.fg, this.timer).create(pos, this.worldCoords.ground)
         this.registerTrap(barrel)
     }
 

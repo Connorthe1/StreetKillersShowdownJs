@@ -121,7 +121,7 @@ export class Game {
 
         m.ground = new GroundManager(
             this.world, this.groundContainer, this.physics,
-            this.resources, this.worldCoords, this.eventBus
+            this.resources, this.worldCoords
         )
 
         const bounds = this.groundContainer.getLocalBounds()
