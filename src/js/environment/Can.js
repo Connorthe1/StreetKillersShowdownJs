@@ -1,7 +1,8 @@
 import * as PIXI from 'pixi.js'
 import * as Matter from 'matter-js'
 import { random } from '../utils/GameUtils.js'
-import {soundPlayer} from "../playSound";
+import { isPositionInsideBuildings } from '../utils/GeometryUtils.js'
+import { soundPlayer } from "../playSound";
 
 /**
  * Менеджер банок
@@ -29,19 +30,25 @@ export class CanManager {
     /**
      * Создает банку
      */
-    create() {
+    create(params) {
         if (this.sprite) return
+
+        const { buildings } = params
+
+        const canX = this.worldCoords.zeroRight + 20
+
+        const y = isPositionInsideBuildings(buildings, canX) && buildings[0].secondFloor ? this.worldCoords.secondFloor - 20: this.worldCoords.firstFloor - 20
 
         const can = new PIXI.Sprite(this.resources.canTexture.textures.pixelCan)
         can.width = 8
         can.height = 16
-        can.position.set(this.worldCoords.zeroRight, this.worldCoords.secondFloor + 20)
+        can.position.set(canX, y)
         can.anchor.set(0, 0.5)
         can.parentGroup = this.fg
         can.zOrder = 6
 
         this.health = this.storage.upgrades.can + 1
-        this.body = Matter.Bodies.rectangle(this.worldCoords.zeroRight, this.worldCoords.firstFloor + 20, 8, 16, {isStatic: false, restitution: 0.2, frictionAir: 0.01, chamfer: { radius: [5,5,0,0] }});
+        this.body = Matter.Bodies.rectangle(canX, y, 8, 16, {isStatic: false, restitution: 0.2, frictionAir: 0.01, chamfer: { radius: [5,5,0,0] }});
         this.sprite = can
 
         this.addToWorld()

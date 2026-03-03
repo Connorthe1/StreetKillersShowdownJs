@@ -168,6 +168,7 @@ export class Player {
                     this.setPlayerSpeed(this.defaultSpeed)
                     this.sprite.y = this.worldCoords.secondFloor
                     this.secondFloor = true
+                    this.worldCoords.isSecondFloor = true
                     this.event('Space')
                 }
             } else {
@@ -178,6 +179,7 @@ export class Player {
                     this.setPlayerSpeed(this.defaultSpeed)
                     this.sprite.y = this.worldCoords.firstFloor
                     this.secondFloor = false
+                    this.worldCoords.isSecondFloor = false
                     this.playAnim('')
                 }
             }
@@ -239,7 +241,7 @@ export class Player {
 
             // Задержка перед окончанием игры
             this.timer.sleep(1000).then(() => {
-                this.endGame()
+                this.eventBus.emit('endScreen:create')
             });
         } else {
             // Восстановление после урона

@@ -41,7 +41,7 @@ export class WallsManager {
     }
 
     createWall(pos = null, forBoss = false, afterBuilding = 0) {
-        const randomPos = pos ?? this.worldCoords.zeroRight + random(100, 250)
+        const randomPos = pos ?? this.worldCoords.zeroRight + random(50, 200)
 
         if (afterBuilding > randomPos - 100) {
             return

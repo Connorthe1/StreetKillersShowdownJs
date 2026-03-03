@@ -1,6 +1,7 @@
 import { BarrelTrap } from "./types/BarrelTrap";
 import { DoorTrap } from "./types/DoorTrap";
 import { WindowTrap } from "./types/WindowTrap";
+import {random} from "../../utils/GameUtils";
 
 /**
  * Менеджер ловушек
@@ -37,11 +38,12 @@ export class TrapManager {
     createBarrel(params) {
         const {afterBuilding, enemies} = params
 
-        let randomPos = Math.floor(this.worldCoords.zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50))
+        let randomPos = Math.floor(this.worldCoords.zeroRight + random(50, 200))
 
         if (afterBuilding > randomPos - 100) return
 
         const hasOverlap = this.traps.some(trap => {
+            console.log(randomPos, trap.sprite.getBounds(), trap.sprite.getLocalBounds())
             const trapB = trap.sprite.getBounds()
             return randomPos > trapB.x - 100 && randomPos < trapB.x + trapB.width + 100
         })
@@ -53,9 +55,7 @@ export class TrapManager {
                 const centerX = enemyB.x + enemyB.width / 2
                 if (randomPos < centerX) {
                     randomPos -= 50
-                    console.log('toLeft')
                 } else {
-                    console.log('toRight')
                     randomPos += 50
                 }
             }

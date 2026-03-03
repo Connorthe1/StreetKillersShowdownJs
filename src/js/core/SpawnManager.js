@@ -63,12 +63,12 @@ export class SpawnManager {
 
         // Спавн банки
         if (Math.random() < 0.1) {
-            this.canManager.create()
+            this.canManager.create({buildings: this.buildingManager.getBuildings()})
         }
 
         // Спавн пауэр-апа
         if (Math.random() < 0.05) {
-            this.powerUpManager.create()
+            this.powerUpManager.create({buildings: this.buildingManager.getBuildings()})
         }
 
         // Спавн врага
@@ -82,7 +82,7 @@ export class SpawnManager {
 
         // Спавн врага-собаки
         if (Math.random() < 0.05 && this.gameState.points > 2000) {
-            this.dogEnemyManager.create()
+            this.dogEnemyManager.create({buildings: this.buildingManager.getBuildings(), afterBuilding: this.buildingManager.getAfterBuilding()})
         }
 
         // Спавн машины на фоне
@@ -137,6 +137,7 @@ export class SpawnManager {
         this.buildingManager.update()
         this.woodBGManager.update()
         this.wallManager.update()
+        this.garbageManager.update()
     }
 
     clear() {

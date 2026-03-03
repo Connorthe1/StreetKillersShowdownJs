@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js'
 import { random } from '../utils/GameUtils.js'
 import {soundPlayer} from "../playSound";
+import {isPositionInsideBuildings} from "../utils/GeometryUtils";
 
 const POWER_UPS = ['boostAmmo', 'boostGun', 'boostShield']
 
@@ -23,11 +24,15 @@ export class PowerUpManager {
     /**
      * Создает пауэр-ап
      */
-    create() {
+    create(params) {
         if (this.sprite) return
+
+        const { buildings } = params
         
         // Случайная позиция
         const randomPos = Math.floor(this.worldCoords.zeroRight + Math.floor(Math.random() * (250 - 50 + 1) + 50))
+
+        const y = isPositionInsideBuildings(buildings, randomPos) && buildings[0].secondFloor ? this.worldCoords.secondFloor - 10: this.worldCoords.firstFloor - 10
         
         // Случайный тип пауэр-апа
         const rand = random(0, 2)
@@ -38,7 +43,7 @@ export class PowerUpManager {
         powerUp.anchor.set(0.5)
         powerUp.parentGroup = this.fg
         powerUp.zOrder = 6
-        powerUp.position.set(randomPos, this.worldCoords.firstFloor - 10)
+        powerUp.position.set(randomPos, y)
 
         this.options = {
             type: powerUpType,

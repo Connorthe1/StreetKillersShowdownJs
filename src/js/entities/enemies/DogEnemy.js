@@ -12,9 +12,10 @@
  */
 
 import * as PIXI from 'pixi.js'
-import {random} from '../../utils/GameUtils.js'
-import {soundPlayer} from "../../playSound";
-import {default as enemyParams} from '../../enemyParams.js'
+import { random } from '../../utils/GameUtils.js'
+import { isPositionInsideBuildings } from '../../utils/GeometryUtils.js'
+import { soundPlayer } from "../../playSound";
+import { default as enemyParams } from '../../enemyParams.js'
 
 /**
  * Менеджер собаки-врага
@@ -39,35 +40,27 @@ export class DogEnemyManager {
     /**
      * Создает собаку-врага
      */
-    create() {
+    create(params) {
         if (this.sprite) return
 
-        soundPlayer.dogBarking()
-        
-        let randomPos = Math.floor(this.worldCoords.zeroRight + random(10, 100))
-        let level = this.worldCoords.firstFloor
+        const { buildings, afterBuilding } = params
 
-        const buildings = this.eventBus.emit('buildings:get', null, true) || []
-        
-        // Проверка на здания (может быть на втором этаже)
-        if (buildings.length > 0) {
-            const activeBuilding = buildings[0]
-            const lastBuilding = buildings[buildings.length - 1]
-            const lastBuildingBounds = lastBuilding.getLocalBounds ? lastBuilding.getLocalBounds() : lastBuilding
-            const activeBuildingBounds = activeBuilding.getLocalBounds ? activeBuilding.getLocalBounds() : activeBuilding
-            
-            if ((lastBuildingBounds.x + lastBuildingBounds.width > randomPos && 
-                 activeBuildingBounds.x < randomPos) && 
-                activeBuilding.secondFloor) {
-                level = this.worldCoords.secondFloor
-            }
-        }
-        
+        const spawnX = this.worldCoords.zeroRight + random(10, 100)
+        const insideBuilding = isPositionInsideBuildings(buildings, spawnX)
+        const hasSecondFloor = buildings?.[0]?.secondFloor
+        const isSecondFloor = insideBuilding && hasSecondFloor
+
+        if (hasSecondFloor && !insideBuilding && afterBuilding != null && spawnX < afterBuilding) return
+
+        soundPlayer.dogBarking()
+
+        const level = isSecondFloor ? this.worldCoords.secondFloor : this.worldCoords.firstFloor
+
         const dog = new PIXI.AnimatedSprite(this.resources.dogEnemy.animations.idle)
         dog.anchor.set(0.5)
         dog.scale.set(2)
         dog.animationSpeed = 0.2
-        dog.position.set(this.worldCoords.zeroRight + 100, level)
+        dog.position.set(spawnX, level)
         dog.parentGroup = this.fg
         dog.zOrder = 6
         
