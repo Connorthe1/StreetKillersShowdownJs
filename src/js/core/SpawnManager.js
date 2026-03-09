@@ -13,8 +13,8 @@ import {GarbageManager} from "../entities/garbage/GarbageManager";
 import {WoodBG} from "../environment/classes/WoodBG";
 
 const SPAWN_AHEAD = 50
-const MIN_GAP = 40
-const MAX_GAP = 190
+const MIN_GAP = 50
+const MAX_GAP = 200
 
 /**
  * Менеджер спавна сущностей
@@ -149,7 +149,7 @@ export class SpawnManager {
         }
     }
 
-    advanceSpawnCursor(entityWidth = 30) {
+    advanceSpawnCursor(entityWidth = Math.max(20, 60 - this.gameState.points / 200)) {
         this.nextSpawnX += entityWidth + random(MIN_GAP, MAX_GAP)
     }
 

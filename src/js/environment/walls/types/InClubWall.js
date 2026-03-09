@@ -43,7 +43,7 @@ export class InClubWall extends Wall {
         }
 
         if (forBoss) {
-            this.sprite.forBoss = true
+            this.sprite.forBoss = forBoss
         }
 
         this.sprite.anchor.set(0.5)

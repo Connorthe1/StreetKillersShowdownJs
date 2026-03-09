@@ -20,10 +20,6 @@ export class EnemyManager {
         eventBus.on('enemy:create', ({pos, canCover, enemyType}) => {
             this.create({pos, canCover, enemyType})
         })
-
-        eventBus.on('enemy:bossClear', pos => {
-            this.bossClear(pos)
-        })
     }
 
     /**
@@ -132,18 +128,6 @@ export class EnemyManager {
             if (!enemy.toDestroy) acc.push(enemy)
             return acc
         }, [])
-    }
-
-    bossClear(pos) {
-        this.enemies.forEach((enemy) => {
-            if (enemy.x > pos - 400 && enemy.x < pos + 50) {
-                enemy.destroy()
-            }
-        })
-    }
-
-    getEnemies() {
-        return this.enemies
     }
 
     clear() {

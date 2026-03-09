@@ -40,10 +40,10 @@ export class BackgroundManager {
      * @returns {PIXI.TilingSprite} созданный фон
      */
     createBg() {
-        const tiling = new PIXI.TilingSprite(this.resources.bg, this.worldCoords.worldWidth + 100, this.gameHeight + 100)
+        const tiling = new PIXI.TilingSprite(this.resources.bg, this.worldCoords.worldWidth + 100, this.gameHeight)
         tiling.anchor.set(0.5, 1)
         tiling.zIndex = -10
-        tiling.tilePosition.y = this.gameHeight
+        tiling.tilePosition.y = this.gameHeight - 200
         tiling.position.set(this.worldCoords.worldWidth / 2, this.worldCoords.worldHeight)
         
         if (this.world) {

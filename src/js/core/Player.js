@@ -39,12 +39,10 @@ export class Player {
         this.inCover = false
         this.inZipLine = false
         this.activePowerUps = []
-        this.secondFloor = false
         this.stimpack = false
         this.skillCD = false
         this.inBossFight = false
         this.leaveCover = false
-        this.afterRoll = true
         this.triggerDelay = false
         this.isMeleeActive = false
 
@@ -167,7 +165,6 @@ export class Player {
                     this.sprite.rotation = 0
                     this.setPlayerSpeed(this.defaultSpeed)
                     this.sprite.y = this.worldCoords.secondFloor
-                    this.secondFloor = true
                     this.worldCoords.isSecondFloor = true
                     this.event('Space')
                 }
@@ -178,7 +175,6 @@ export class Player {
                     this.sprite.rotation = 0
                     this.setPlayerSpeed(this.defaultSpeed)
                     this.sprite.y = this.worldCoords.firstFloor
-                    this.secondFloor = false
                     this.worldCoords.isSecondFloor = false
                     this.playAnim('')
                 }
@@ -573,6 +569,7 @@ export class Player {
 
     handleCover(wall) {
         const w = wall.sprite ?? wall
+        console.log(w.forBoss)
         if ((!this.inCover && this.isRollState() && !this.leaveCover) || (w.forBoss && w.forBoss.isAlive && !this.inBossFight)) {
             this.inBossFight = w.forBoss?.isAlive ?? false
             this.inCover = true

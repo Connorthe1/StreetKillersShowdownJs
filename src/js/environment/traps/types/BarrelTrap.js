@@ -32,13 +32,13 @@ export class BarrelTrap extends Trap {
 
         this.eventBus.emit('explode:create', {
             target: this.sprite.children[0],
-            offsetX: -20,
+            offsetX: -10,
             offsetY: 10,
             isBig: false
         })
         this.eventBus.emit('explode:create', {
             target: this.sprite.children[1],
-            offsetX: 20,
+            offsetX: 10,
             offsetY: 30,
             isBig: false,
             silence: true

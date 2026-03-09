@@ -50,14 +50,8 @@ export class BossManager {
 
         const {pos, type} = params
         
-        // Очистка врагов в зоне босса
-        this.eventBus.emit('enemy:bossClear', pos)
-        
         // Очистка стен в зоне босса
         this.eventBus.emit('wall:bossClear', pos)
-        
-        // Очистка ловушек в зоне босса
-        this.eventBus.emit('trap:bossClear', pos)
 
         // Определение типа босса
         let randType
@@ -80,7 +74,7 @@ export class BossManager {
         
         // Создание укрытия/стены для босса
         if (randType === 'bossSmg') {
-            this.eventBus.emit('wall:createInClub', {pos: pos - (this.worldCoords.worldWidth / 1.8), type: 0, forBoss: this})
+            this.eventBus.emit('wall:createInClub', {pos: pos - (this.worldCoords.worldWidth / 2), type: 0, forBoss: this})
         } else {
             this.eventBus.emit('wall:create', {pos: pos - (this.worldCoords.worldWidth / 1.8), forBoss: this})
         }

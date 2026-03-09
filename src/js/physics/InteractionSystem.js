@@ -1,3 +1,11 @@
+function getBounds(obj) {
+    return obj.sprite ? obj.sprite.getBounds() : obj.getBounds();
+}
+
+function getOffset(obj, side) {
+    return obj.collisionOffset?.[side] ?? 0;
+}
+
 export class InteractionSystem {
     update({ player, spawn, bullets, explosion, melee, zipLine, money }) {
         this.check(player, spawn.wallManager.walls, 'player:wall');
@@ -16,11 +24,12 @@ export class InteractionSystem {
         this.check(player, money.moneyDrop, 'player:money');
         this.check(bullets.playerBullets, spawn.garbageManager.garbages, 'bullet:garbage');
 
-        if (spawn.dogEnemyManager.sprite && spawn.dogEnemyManager.isAlive) this.check(bullets.playerBullets, spawn.dogEnemyManager, 'bullet:dog');
-        if (spawn.dogEnemyManager.sprite && spawn.dogEnemyManager.isAlive) this.check(player, spawn.dogEnemyManager, 'player:dog');
-        if (spawn.dogEnemyManager.sprite && spawn.dogEnemyManager.isAlive) this.check(spawn.dogEnemyManager, spawn.trapManager.traps, 'dog:trap');
+        if (spawn.dogEnemyManager.sprite && spawn.dogEnemyManager.isAlive) {
+            this.check(bullets.playerBullets, spawn.dogEnemyManager, 'bullet:dog');
+            this.check(player, spawn.dogEnemyManager, 'player:dog');
+            this.check(spawn.dogEnemyManager, spawn.trapManager.traps, 'dog:trap');
+        }
 
-        // Коллизии взрывов (квадратная зона) со всеми целями
         if (explosion.activeExplosion) {
             this.check(explosion.activeExplosion, player, 'explosion:player');
             this.check(explosion.activeExplosion, spawn.enemyManager.enemies, 'explosion:enemy');
@@ -104,75 +113,71 @@ export class InteractionSystem {
     }
 
     collideExplosionArea(explosion, target) {
-        const targetBounds = target.sprite ? target.sprite.getBounds() : target.getBounds()
+        const targetBounds = getBounds(target)
 
-        if (targetBounds.left < explosion.right &&
+        return targetBounds.left < explosion.right &&
             targetBounds.right > explosion.left &&
             targetBounds.bottom > explosion.top &&
-            targetBounds.top < explosion.bottom) {
-            return true
-        }
+            targetBounds.top < explosion.bottom
     }
 
     collideBullets(bullet, target) {
-        const bulletBounds = bullet.sprite ? bullet.sprite.getBounds() : bullet.getBounds()
-        const targetBounds = target.sprite ? target.sprite.getBounds() : target.getBounds()
+        const bulletBounds = getBounds(bullet)
+        const targetBounds = getBounds(target)
 
-        if ((bulletBounds.x > targetBounds.left + 20 || bulletBounds.x + bulletBounds.width > targetBounds.left + 20) &&
+        return bulletBounds.x + bulletBounds.width > targetBounds.left + 20 &&
             bulletBounds.x < targetBounds.right &&
             bulletBounds.y + 10 > targetBounds.top &&
-            bulletBounds.y - 10 < targetBounds.bottom) {
-            return true
-        }
+            bulletBounds.y - 10 < targetBounds.bottom
     }
 
     collideXFromPlayer(a, b) {
-        const aBounds = a.sprite ? a.sprite.getBounds() : a.getBounds()
-        const bBounds = b.sprite ? b.sprite.getBounds() : b.getBounds()
+        const aBounds = getBounds(a)
+        const bBounds = getBounds(b)
 
-        if (aBounds.x + aBounds.width > bBounds.x + (b.collisionOffset ? b.collisionOffset.left : 0) && aBounds.x < bBounds.x + (b.collisionOffset ? b.collisionOffset.right : 0)) {
-            return true
-        }
+        return aBounds.x + aBounds.width > bBounds.x + getOffset(b, 'left') &&
+            aBounds.x < bBounds.x + getOffset(b, 'right')
     }
 
     collideXFromStart(a, b) {
-        const aBounds = a.sprite ? a.sprite.getBounds() : a.getBounds()
-        const bBounds = b.sprite ? b.sprite.getBounds() : b.getBounds()
+        const aBounds = getBounds(a)
+        const bBounds = getBounds(b)
 
-        if (aBounds.x > bBounds.x + (b.collisionOffset ? b.collisionOffset.left : 0) && aBounds.x < bBounds.x + (b.collisionOffset ? b.collisionOffset.right : 0)) {
-            return true
-        }
+        return aBounds.x > bBounds.x + getOffset(b, 'left') &&
+            aBounds.x < bBounds.x + getOffset(b, 'right')
     }
 
     collideXWidth(a, b) {
-        const aBounds = a.sprite ? a.sprite.getBounds() : a.getBounds()
-        const bBounds = b.sprite ? b.sprite.getBounds() : b.getBounds()
+        const aBounds = getBounds(a)
+        const bBounds = getBounds(b)
 
-        if (aBounds.x > bBounds.x + (b.collisionOffset ? b.collisionOffset.left : 0) && aBounds.x < bBounds.x + bBounds.width + (b.collisionOffset ? b.collisionOffset.right : 0)) {
-            return true
-        }
+        return aBounds.x > bBounds.x + getOffset(b, 'left') &&
+            aBounds.x < bBounds.x + bBounds.width + getOffset(b, 'right')
     }
 
     collideWall(player, wall) {
         const playerBounds = player.sprite.getBounds()
         const wallBounds = wall.sprite.getBounds()
+        const wallLeft = wallBounds.x - wallBounds.width / 2
 
-        if (playerBounds.x > (wallBounds.x - wallBounds.width / 2) + wall.bound && playerBounds.x < (wallBounds.x - wallBounds.width / 2) + 40 + wall.bound) {
-            return true
-        }
+        return playerBounds.x > wallLeft + wall.bound &&
+            playerBounds.x < wallLeft + 40 + wall.bound
     }
 
     collideWatch(a, b) {
-        const aBounds = a.sprite ? a.sprite.getBounds() : a.getBounds()
-        const bBounds = b.sprite ? b.sprite.getBounds() : b.getBounds()
+        const aBounds = getBounds(a)
+        const bBounds = getBounds(b)
 
+        let result
         const distance = bBounds.x - aBounds.x
-        const result = (distance >= 0 && distance < b.getDetectRange()) && aBounds.y === bBounds.y
-
-        return {
-            distance,
-            result
+        const inRange = distance >= 0 && distance < b.getDetectRange()
+        if (a.health) {
+            result = inRange && aBounds.y === bBounds.y
+        } else {
+            result = inRange
         }
+
+        return { distance, result }
     }
 
     handle(type, a, b, collideResult = null) {
@@ -193,7 +198,7 @@ export class InteractionSystem {
                 b.activate()
                 break
             case 'trap:enemy':
-                b.setBarrier(collideResult.result)
+                b.setBarrier(collideResult.result && a.isAlive)
                 break;
             case 'player:enemy':
                 if (collideResult.result) {

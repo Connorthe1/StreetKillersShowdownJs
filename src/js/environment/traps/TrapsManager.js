@@ -18,10 +18,6 @@ export class TrapManager {
         // Массив ловушек
         this.traps = []
 
-        eventBus.on('trap:bossClear', pos => {
-            this.bossClear(pos)
-        })
-
         eventBus.on('trap:window', pos => {
             this.createWindow(pos)
         })
@@ -31,14 +27,15 @@ export class TrapManager {
         })
     }
 
-    registerTrap(displayObject) {
-        this.traps.push(displayObject)
+    registerTrap(trap) {
+        this.traps.push(trap)
     }
 
     createBarrel(params) {
         const {afterBuilding, pos} = params
 
-        if (afterBuilding + 150 > pos) return
+        if (afterBuilding) console.log(afterBuilding + 250, pos)
+        if (afterBuilding + 250 > pos) return
 
         const barrel = new BarrelTrap(this.world, this.resources, this.eventBus, this.fg, this.timer).create(pos, this.worldCoords.ground)
         this.registerTrap(barrel)
@@ -58,19 +55,6 @@ export class TrapManager {
         this.traps.forEach(trap => trap.update())
 
         this.traps = this.traps.filter(trap => trap.toDestroy === false)
-    }
-    
-    bossClear(pos) {
-        this.traps.forEach((trap) => {
-            const t = trap.sprite.getLocalBounds ? trap.sprite.getLocalBounds() : trap
-            if (t.x > pos - 400 && t.x < pos + 200) {
-                trap.destroy()
-            }
-        })
-    }
-
-    getTraps() {
-        return this.traps
     }
 
     clear() {

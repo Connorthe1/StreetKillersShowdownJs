@@ -346,7 +346,7 @@ export class StoreManager {
         const ownedSkin = this.storage.ownedSkins.some(ownedIdx => ownedIdx === idx)
         
         const skin = new PIXI.Container()
-        const skinSprite = new PIXI.Sprite(item.param.textures[item.icon])
+        const skinSprite = new PIXI.Sprite(item.animset.textures[item.icon])
         let skinBuyButton
         
         if (Number(this.storage.selectedSkin) === idx) {
