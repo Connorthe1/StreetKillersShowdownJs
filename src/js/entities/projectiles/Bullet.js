@@ -89,7 +89,7 @@ export class Bullet {
     isOutOfBounds(worldCoords) {
         const { x, width } = this.sprite
         if (this.isFriendly) {
-            return x < worldCoords.zeroLeft || x - width * 2 > worldCoords.zeroLeft + getPercent(worldCoords.worldWidth, 70)
+            return x < worldCoords.zeroLeft || x - width * 2 > worldCoords.zeroLeft + getPercent(worldCoords.worldWidth, 90)
         }
         return x < worldCoords.zeroLeft + 50 || x > worldCoords.zeroRight + 100
     }

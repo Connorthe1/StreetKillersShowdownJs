@@ -1,7 +1,6 @@
 import { BarrelTrap } from "./types/BarrelTrap";
 import { DoorTrap } from "./types/DoorTrap";
 import { WindowTrap } from "./types/WindowTrap";
-import {random} from "../../utils/GameUtils";
 
 /**
  * Менеджер ловушек
