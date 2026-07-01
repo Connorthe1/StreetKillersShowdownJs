@@ -25,9 +25,33 @@ export const BASE_STORAGE = {
 export class StorageManager {
     constructor() {
         this.storage = { ...BASE_STORAGE }
+        this.apiBaseUrl = import.meta.env.VITE_API_URL || ''
+        this.userId = null
+    }
+
+    getUserId() {
+        if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+            return String(window.Telegram.WebApp.initDataUnsafe.user.id)
+        }
+        return null
     }
 
     async load() {
+        this.userId = this.getUserId()
+
+        if (this.userId && this.apiBaseUrl) {
+            try {
+                const response = await fetch(`${this.apiBaseUrl}/api/stats/${this.userId}`)
+                if (response.ok) {
+                    const data = await response.json()
+                    this.storage = { ...BASE_STORAGE, ...data }
+                    return
+                }
+            } catch (e) {
+                console.error('Error loading from API:', e)
+            }
+        }
+
         this.loadFromLocalStorage()
     }
 
@@ -47,6 +71,18 @@ export class StorageManager {
 
     async save() {
         this.saveToLocalStorage()
+
+        if (this.userId && this.apiBaseUrl) {
+            try {
+                await fetch(`${this.apiBaseUrl}/api/stats/${this.userId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.storage),
+                })
+            } catch (e) {
+                console.error('Error saving to API:', e)
+            }
+        }
     }
 
     saveToLocalStorage() {
