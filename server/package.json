@@ -1,0 +1,15 @@
+{
+  "name": "sks-stats-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal API for saving/loading player stats for Street Killers Showdown",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}

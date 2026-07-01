@@ -31,12 +31,15 @@ window.onload = async function () {
     const resources = await resourceLoader.loadAllAssets()
     resourceLoader.removeLoaderScreen(app)
 
+    const storageManager = new StorageManager()
+    await storageManager.load()
+
     const game = new Game(app, {
         resources,
         gameConfig,
         gameWidth,
         gameHeight,
-        storageManager: new StorageManager(),
+        storageManager,
         eventBus: new EventBus(),
     })
     game.init()
