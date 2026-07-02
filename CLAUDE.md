@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Always communicate with the user in Russian (Общайся с пользователем на русском языке), regardless of the language used in code, comments, or file contents.
 
+## Git workflow
+
+The user has authorized committing and pushing directly to `main` in this repository — no need to open a branch/PR and wait for a manual merge before shipping changes here.
+
 ## Project overview
 
 "Street Killers Showdown" (`sks`) — a 2D side-scrolling shooter built on **PixiJS 7** (rendering) + **Matter.js** (physics), packaged for web/Telegram WebApp/VK and mobile via **Capacitor** (Android/iOS). No framework, no bundler-managed component tree — a hand-rolled manager/entity architecture updated from a single game loop.
