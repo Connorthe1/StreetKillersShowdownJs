@@ -31,6 +31,15 @@ app.get('/api/stats/:userId', (req, res) => {
     res.json(JSON.parse(row.data))
 })
 
+app.get('/api/admin/stats', (req, res) => {
+    const rows = db.prepare('SELECT user_id, data, updated_at FROM player_stats ORDER BY updated_at DESC').all()
+    res.json(rows.map(row => ({
+        userId: row.user_id,
+        updatedAt: new Date(row.updated_at).toISOString(),
+        ...JSON.parse(row.data),
+    })))
+})
+
 app.post('/api/stats/:userId', (req, res) => {
     const data = JSON.stringify(req.body)
     db.prepare(`
