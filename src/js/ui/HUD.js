@@ -259,10 +259,10 @@ export class HUDManager {
         powerUps.position.set(90, 120)
         
         // FPS
-        const fps = new PIXI.Text(this.app.ticker.FPS, this.textStyles.default40)
-        fps.name = 'fps'
-        fps.position.set(5, 100)
-        
+        // const fps = new PIXI.Text(this.app.ticker.FPS, this.textStyles.default40)
+        // fps.name = 'fps'
+        // fps.position.set(5, 100)
+
         // Добавление всех элементов
         this.hud.addChild(powerUps)
         this.hud.addChild(skills)
@@ -270,7 +270,7 @@ export class HUDManager {
         this.hud.addChild(score)
         this.hud.addChild(scale)
         this.hud.addChild(points)
-        this.hud.addChild(fps)
+        // this.hud.addChild(fps)
     }
     
     /**
@@ -364,11 +364,11 @@ export class HUDManager {
      * Обновляет отображение FPS
      */
     updateFPS() {
-        const fpsElement = this.hud.getChildByName('fps')
-        const fps = this.app.ticker.FPS
-        if (fpsElement) {
-            fpsElement.text = Math.floor(fps)
-        }
+        // const fpsElement = this.hud.getChildByName('fps')
+        // const fps = this.app.ticker.FPS
+        // if (fpsElement) {
+        //     fpsElement.text = Math.floor(fps)
+        // }
     }
 
     /**
