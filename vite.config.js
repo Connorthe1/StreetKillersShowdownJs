@@ -40,6 +40,17 @@ function serveAssetsPlugin() {
   }
 }
 
+// В dev не подключаем скрипт Telegram WebApp, чтобы не ходить в telegram.org при отладке
+function stripTelegramScriptInDevPlugin() {
+  return {
+    name: 'strip-telegram-script-dev',
+    transformIndexHtml(html, ctx) {
+      if (!ctx.server) return html
+      return html.replace(/\s*<script src="https:\/\/telegram\.org\/js\/telegram-web-app\.js"><\/script>/, '')
+    },
+  }
+}
+
 // Копируем src/assets в dist при сборке
 function copyAssetsPlugin() {
   return {
@@ -75,5 +86,5 @@ export default defineConfig({
   server: {
     port: 8000,
   },
-  plugins: [serveAssetsPlugin(), copyAssetsPlugin()],
+  plugins: [serveAssetsPlugin(), copyAssetsPlugin(), stripTelegramScriptInDevPlugin()],
 })

@@ -25,7 +25,7 @@ export const BASE_STORAGE = {
 export class StorageManager {
     constructor() {
         this.storage = { ...BASE_STORAGE }
-        this.apiBaseUrl = import.meta.env.VITE_API_URL || ''
+        this.apiBaseUrl = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL || '')
         this.userId = null
     }
 
