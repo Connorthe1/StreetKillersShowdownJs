@@ -6,6 +6,14 @@ import { ResourceLoader } from './resources/ResourceLoader.js'
 import { EventBus } from './utils/EventBus.js'
 import { Game } from './Game.js'
 
+const tg = window.Telegram?.WebApp
+if (tg) {
+    tg.ready()
+    tg.expand()
+    if (typeof tg.requestFullscreen === 'function') tg.requestFullscreen()
+    if (typeof tg.disableVerticalSwipes === 'function') tg.disableVerticalSwipes()
+}
+
 const isMobile = /Mobi|Android/i.test(navigator.userAgent)
 const gameWidth = isMobile ? screen.width : document.documentElement.clientWidth
 const gameHeight = isMobile ? screen.height : document.documentElement.clientHeight
